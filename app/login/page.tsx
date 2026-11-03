@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '../../lib/supabase'
+import { createClient } from '@/lib/supabase'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -28,8 +28,9 @@ export default function Login() {
   }
 
   return (
-    <div className="container">
-      <div className="card" style={{ maxWidth: '400px' }}>
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="brand">🍽️ Cardápio Digital</div>
         <h2>Login</h2>
         {error && <div className="flash error">{error}</div>}
         <form onSubmit={handleLogin}>
@@ -37,12 +38,13 @@ export default function Login() {
           <input type="email" required value={email} onChange={e => setEmail(e.target.value)} />
           <label>Senha</label>
           <input type="password" required value={password} onChange={e => setPassword(e.target.value)} />
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', marginTop: '0.5rem' }}>
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
-        <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-          Não tem conta? <a href="/cadastro" className="btn btn-outline" style={{ padding: '0.2rem 0.6rem' }}>Cadastrar</a>
+        <p style={{ marginTop: '1.25rem', fontSize: '0.9rem', color: '#a1a1aa' }}>
+          Não tem conta?{' '}
+          <a href="/cadastro" className="btn btn-outline" style={{ padding: '0.2rem 0.6rem', fontSize: '0.9rem', display: 'inline-block' }}>Cadastrar</a>
         </p>
       </div>
     </div>
