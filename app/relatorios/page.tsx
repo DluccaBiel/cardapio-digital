@@ -1,5 +1,5 @@
-import { createServerClient } from '@/lib/supabaseServer'
-import { gerarRelatorio } from '@/actions/gerar-relatorio'
+import { createServerClient } from '../../lib/supabaseServer'
+import { gerarRelatorio } from '../../actions/gerar-relatorio'
 import { redirect } from 'next/navigation'
 
 export default async function AdminRelatoriosPage() {

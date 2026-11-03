@@ -1,7 +1,7 @@
-import { createServerClient } from '@/lib/supabaseServer'
-import { createClient } from '@/lib/supabaseAdmin'
-import { updateRelatorioItem } from '@/actions/update-relatorio-item'
-import { applyRelatorio } from '@/actions/apply-relatorio'
+import { createServerClient } from '../../../../lib/supabaseServer'
+import { createAdminClient as createClient } from '../../../../lib/supabaseAdmin'
+import { updateRelatorioItem } from '../../../../actions/update-relatorio-item'
+import { applyRelatorio } from '../../../../actions/apply-relatorio'
 import { redirect } from 'next/navigation'
 import { notFound } from 'next/navigation'
 

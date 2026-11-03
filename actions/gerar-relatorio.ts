@@ -1,7 +1,7 @@
 'use server'
 
-import { createServerClient } from '@/lib/supabaseServer'
-import { createClient } from '@/lib/supabaseAdmin'
+import { createServerClient } from '../lib/supabaseServer'
+import { createAdminClient as createClient } from '../lib/supabaseAdmin'
 import { revalidatePath } from 'next/cache'
 
 export async function gerarRelatorio(formData: FormData) {
@@ -13,9 +13,11 @@ export async function gerarRelatorio(formData: FormData) {
 
   const admin = createClient()
 
+  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
   const { data: relatorio, error } = await admin
     .from('relatorios')
-    .insert({ user_id: user.id, titulo, status: 'gerado', token: crypto.randomUUID() })
+    .insert({ user_id: user.id, titulo, status: 'gerado', token })
     .select()
     .single()
 

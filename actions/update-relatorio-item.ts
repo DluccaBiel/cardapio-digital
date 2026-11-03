@@ -1,7 +1,7 @@
 'use server'
 
-import { createServerClient } from '@/lib/supabaseServer'
-import { createClient } from '@/lib/supabaseAdmin'
+import { createServerClient } from '../lib/supabaseServer'
+import { createAdminClient as createClient } from '../lib/supabaseAdmin'
 import { revalidatePath } from 'next/cache'
 
 export async function updateRelatorioItem(formData: FormData) {

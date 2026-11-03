@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabaseAdmin'
+import { createAdminClient as createClient } from '../lib/supabaseAdmin'
 
 export async function clienteResponder(formData: FormData) {
   const token = formData.get('token') as string

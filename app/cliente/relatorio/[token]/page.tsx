@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabaseAdmin'
-import { clienteResponder } from '@/actions/cliente-responder'
+import { createAdminClient as createClient } from '../../../../lib/supabaseAdmin'
+import { clienteResponder } from '../../../../actions/cliente-responder'
 import { notFound } from 'next/navigation'
 
 export default async function ClienteRelatorioPage({ params }: { params: { token: string } }) {
