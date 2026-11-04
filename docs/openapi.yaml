@@ -1,0 +1,252 @@
+openapi: 3.1.0
+info:
+  title: Cardápio Web Hub API
+  version: 1.0.0
+  description: API pública para integração com extensões de navegador e clientes externos.
+servers:
+  - url: https://api.seudominio.com/api/v1
+    description: Produção
+  - url: http://localhost:3000/api/v1
+    description: Desenvolvimento
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /produtos:
+    get:
+      summary: Listar produtos
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: categoria
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+      responses:
+        '200':
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Produto'
+                  meta:
+                    type: object
+                    properties:
+                      page: { type: integer }
+                      limit: { type: integer }
+                      total: { type: integer }
+                      total_pages: { type: integer }
+    post:
+      summary: Criar produto
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProdutoCreate'
+      responses:
+        '201':
+          description: Produto criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Produto'
+
+  /produtos/{id}:
+    get:
+      summary: Obter produto por ID
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Produto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Produto'
+        '404':
+          description: Não encontrado
+    put:
+      summary: Atualizar produto
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProdutoUpdate'
+      responses:
+        '200':
+          description: Produto atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Produto'
+        '409':
+          description: Conflito de edição (preço/versão)
+
+  /produtos/{id}/imagem:
+    put:
+      summary: Substituir imagem do produto
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                imagem:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Imagem atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imagem_url:
+                    type: string
+
+  /relatorios:
+    get:
+      summary: Listar relatórios
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Lista de relatórios
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Relatorio'
+
+  /webhooks:
+    get:
+      summary: Listar webhooks
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Lista de webhooks
+    post:
+      summary: Criar webhook
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+                eventos:
+                  type: array
+                  items: { type: string }
+      responses:
+        '201':
+          description: Webhook criado
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: Chave de API gerada no painel admin
+
+  schemas:
+    Produto:
+      type: object
+      properties:
+        id: { type: string }
+        nome: { type: string }
+        descricao: { type: string }
+        preco: { type: number }
+        categoria: { type: string }
+        imagem_url: { type: string }
+        status: { type: string }
+        otimizado: { type: boolean }
+        criado_em: { type: string, format: date-time }
+        atualizado_em: { type: string, format: date-time }
+
+    ProdutoCreate:
+      type: object
+      required: [nome, preco]
+      properties:
+        nome: { type: string }
+        descricao: { type: string }
+        preco: { type: number }
+        categoria: { type: string }
+        preco_referencia: { type: number }
+        imagem_url: { type: string }
+        status: { type: string, default: 'ativo' }
+
+    ProdutoUpdate:
+      type: object
+      properties:
+        nome: { type: string }
+        descricao: { type: string }
+        preco: { type: number }
+        categoria: { type: string }
+        preco_referencia: { type: number }
+        imagem_url: { type: string }
+        status: { type: string }
+
+    Relatorio:
+      type: object
+      properties:
+        id: { type: string }
+        titulo: { type: string }
+        status: { type: string }
+        criado_em: { type: string, format: date-time }
+        aprovado_em: { type: string, format: date-time }
+        token: { type: string }
+
+    Error:
+      type: object
+      properties:
+        erro: { type: string }
+        mensagem: { type: string }
+        detalhes: { type: object }

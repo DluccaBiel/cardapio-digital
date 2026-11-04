@@ -1,4 +1,4 @@
-# Dependências
+﻿# DependÃªncias
 node_modules/
 .pnp
 .pnp.js
@@ -37,8 +37,6 @@ supabase/.temp/
 coverage/
 *.lcov
 
-# Git
-.git/
 
 # macOS
 .Spotlight-V100
