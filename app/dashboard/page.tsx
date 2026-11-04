@@ -39,7 +39,7 @@ export default async function AdminDashboard() {
           <input
             type="file"
             name="csvFile"
-            accept=".csv"
+            accept=".csv,.xlsx,.xls"
             required
             className="btn btn-outline"
             style={{
@@ -56,7 +56,7 @@ export default async function AdminDashboard() {
           </button>
         </form>
         <p style={{ marginTop: '0.8rem', fontSize: '0.8rem', color: '#666' }}>
-          Exporte seus produtos do portal em CSV e anexe aqui para sincronizar tudo de uma vez.
+          Exporte seus produtos em CSV ou Excel (.xlsx) e anexe aqui para sincronizar tudo de uma vez.
         </p>
       </div>
 
