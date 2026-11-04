@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿# DependÃªncias
 node_modules/
 .pnp
@@ -12,10 +13,13 @@ build/
 
 # Ambiente
 .env
+=======
+>>>>>>> a42205be99dc1f4880f7ec3bc5252a7ab9c34ec6
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+<<<<<<< HEAD
 
 # Logs
 npm-debug.log*
@@ -45,3 +49,13 @@ coverage/
 # Vercel
 .vercel/
 
+=======
+*.log
+node_modules/
+.next/
+out/
+dist/
+build/
+*.pem
+.vercel
+>>>>>>> a42205be99dc1f4880f7ec3bc5252a7ab9c34ec6
