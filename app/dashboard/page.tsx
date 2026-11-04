@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabaseServer'
-import { importarProdutosCSV } from '@/actions/importar-produtos'
+import { importarProdutosCSV } from '../actions/importar-produtos'
 import { redirect } from 'next/navigation'
 
 export default async function AdminDashboard() {
@@ -30,7 +30,6 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* CARD DE IMPORTAÇÃO VISÍVEL LOGO APÓS O LOGIN */}
       <div className="card" style={{ background: '#1a1a1a', border: '1px solid #b91c1c' }}>
         <h2 style={{ color: '#b91c1c', marginBottom: '1rem' }}>📥 Importar Produtos via CSV</h2>
         <p style={{ marginBottom: '1rem', color: '#a1a1aa', fontSize: '0.9rem' }}>
@@ -50,7 +49,7 @@ export default async function AdminDashboard() {
               border: '1px solid #3a3a3a',
               borderRadius: '8px',
               cursor: 'pointer',
-            }
+            }}
           />
           <button type="submit" className="btn btn-primary" style={{ padding: '0.6rem 1.5rem' }}>
             Importar Produtos
