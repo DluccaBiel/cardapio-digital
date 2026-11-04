@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabaseServer'
+import { createServerClient } from '../../lib/supabaseServer'
 import { importarProdutosCSV } from '../actions/importar-produtos'
 import { redirect } from 'next/navigation'
 

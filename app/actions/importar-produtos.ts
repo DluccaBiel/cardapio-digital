@@ -1,7 +1,7 @@
 'use server'
 
-import { createServerClient } from '@/lib/supabaseServer'
-import { createClient } from '@/lib/supabaseAdmin'
+import { createServerClient } from '../../lib/supabaseServer'
+import { createClient } from '../../lib/supabaseAdmin'
 import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
 
