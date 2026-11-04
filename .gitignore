@@ -43,3 +43,7 @@ coverage/
 # macOS
 .Spotlight-V100
 .Trashes
+
+# Vercel
+.vercel/
+
