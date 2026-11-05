@@ -20,6 +20,7 @@
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "@tanstack/react-table": "^9.3.1",
+    "lucide-react": "^1.69.0",
     "next": "14.2.14",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -27,6 +28,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.3.7",

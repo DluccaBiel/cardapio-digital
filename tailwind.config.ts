@@ -3,7 +3,11 @@ import type { Config } from 'tailwindcss'
 // Tokens da marca Orvia — fonte única: packages/brand/brand.config.ts
 // (valores duplicados aqui por limitação de importação; mantenha sincronizado)
 export default {
-  content: ['./app/**/*.{js,ts,jsx,tsx}', './packages/brand/**/*.{ts,tsx}'],
+  content: [
+    './app/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+    './packages/brand/**/*.{ts,tsx}',
+  ],
   darkMode: 'class',
   corePlugins: {
     preflight: false, // app usa CSS próprio em app/globals.css
