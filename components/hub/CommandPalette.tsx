@@ -119,7 +119,7 @@ export function CommandPalette({
               }
             }}
             placeholder="Buscar cliente ou navegar…"
-            className="mb-0 h-[56px] flex-1 border-0 bg-transparent p-0 text-[15px] text-[#E8EDF7] outline-none placeholder:text-[#5F6B80] focus:ring-0"
+            className="mb-0 h-[56px] flex-1 border-0 bg-transparent p-0 text-[15px] text-[#E8EDF7] outline-none placeholder:text-[#7C8AA1] focus:ring-0"
             aria-label="Busca rápida"
           />
           <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-md p-1 text-[#7F8CA3] hover:text-white">
@@ -130,7 +130,7 @@ export function CommandPalette({
         <div className="max-h-[380px] overflow-y-auto p-2">
           {entries.length === 0 && <p className="px-4 py-8 text-center text-sm text-[#8A97AC]">Nenhum resultado.</p>}
           {filteredClients.length > 0 && (
-            <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#5F6B80]">Clientes</p>
+            <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#7C8AA1]">Clientes</p>
           )}
           {filteredClients.map((client, index) => (
             <button
@@ -150,11 +150,11 @@ export function CommandPalette({
                 <span>{client.name}</span>
                 <span className="text-[11px] text-[#7F8CA3]">{client.segment}</span>
               </span>
-              <ArrowRight size={14} className="text-[#5F6B80]" />
+              <ArrowRight size={14} className="text-[#7C8AA1]" />
             </button>
           ))}
 
-          <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#5F6B80]">Navegação</p>
+          <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#7C8AA1]">Navegação</p>
           {shortcuts.map((shortcut, offset) => {
             const index = filteredClients.length + offset
             const Icon = shortcut.icon
@@ -173,13 +173,13 @@ export function CommandPalette({
                   <Icon size={16} className="text-[#8A97AC]" />
                   <span>{shortcut.label}</span>
                 </span>
-                <span className="text-[11px] text-[#5F6B80]">Ir para</span>
+                <span className="text-[11px] text-[#7C8AA1]">Ir para</span>
               </button>
             )
           })}
         </div>
 
-        <div className="flex items-center justify-between border-t border-[#1A2231] px-4 py-2 text-[10px] text-[#5F6B80]">
+        <div className="flex items-center justify-between border-t border-[#1A2231] px-4 py-2 text-[10px] text-[#7C8AA1]">
           <span>↑ ↓ navegar · ↵ abrir</span>
           <span>esc fechar</span>
         </div>

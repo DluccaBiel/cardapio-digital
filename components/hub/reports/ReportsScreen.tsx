@@ -407,9 +407,9 @@ export function ReportsScreen({
                   <h3 className="truncate text-[38px] font-extrabold leading-none tracking-[-0.045em] text-[#F1F5FC]">{displayName}</h3>
                   <p className="mt-2.5 text-[11px] text-[#A9B4C7]">
                     {periodLabel}
-                    {compare && <span className="ml-2 text-[9px] uppercase tracking-wider text-[#5F6B80]">• vs período anterior</span>}
+                    {compare && <span className="ml-2 text-[9px] uppercase tracking-wider text-[#7C8AA1]">• vs período anterior</span>}
                   </p>
-                  <p className="mt-1 text-[9px] uppercase tracking-[0.16em] text-[#5F6B80]">{displaySituation}</p>
+                  <p className="mt-1 text-[9px] uppercase tracking-[0.16em] text-[#7C8AA1]">{displaySituation}</p>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
@@ -475,9 +475,9 @@ export function ReportsScreen({
                   <span className="flex items-center gap-1.5 text-[9px] text-[#A9B4C7]">
                     <Wallet size={11} className="text-[#3D8EFF]" />
                     Saldo da conta: <strong className="text-[10px] text-[#E8EDF7]">{formatBRL(initialDraft.metrics.balance)}</strong>
-                    <span className="text-[#5F6B80]">(~{initialDraft.metrics.balanceDays} dias)</span>
+                    <span className="text-[#7C8AA1]">(~{initialDraft.metrics.balanceDays} dias)</span>
                   </span>
-                  <span className="hidden text-[7px] font-bold uppercase tracking-[0.16em] text-[#5F6B80] sm:inline">Gestão de tráfego profissional</span>
+                  <span className="hidden text-[7px] font-bold uppercase tracking-[0.16em] text-[#7C8AA1] sm:inline">Gestão de tráfego profissional</span>
                 </div>
               </div>
             </div>

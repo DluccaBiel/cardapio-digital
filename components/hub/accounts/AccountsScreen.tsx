@@ -146,7 +146,7 @@ export function AccountsScreen({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar por nome ou act_id…"
             aria-label="Buscar conta por nome ou act_id"
-            className="mb-0 h-[42px] w-full rounded-lg border border-[#26314A] bg-[#080D18] pl-9 pr-3 text-[13px] text-[#E8EDF7] outline-none placeholder:text-[#5F6B80] focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20"
+            className="mb-0 h-[42px] w-full rounded-lg border border-[#26314A] bg-[#080D18] pl-9 pr-3 text-[13px] text-[#E8EDF7] outline-none placeholder:text-[#7C8AA1] focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20"
           />
         </div>
       </div>
@@ -199,7 +199,7 @@ export function AccountsScreen({
                         type="button"
                         onClick={() => copy(account.externalId, 'ID da conta copiado.')}
                         aria-label="Copiar ID da conta"
-                        className="text-[#5F6B80] transition-colors hover:text-[#C9D3E3]"
+                        className="text-[#7C8AA1] transition-colors hover:text-[#C9D3E3]"
                       >
                         <Copy size={11} />
                       </button>
@@ -215,7 +215,7 @@ export function AccountsScreen({
                         <Star size={11} fill={account.starred ? 'currentColor' : 'none'} />
                       </button>
                     </div>
-                    <p className="mt-1 text-[10px] text-[#5F6B80]">{account.timezone}</p>
+                    <p className="mt-1 text-[10px] text-[#7C8AA1]">{account.timezone}</p>
                   </td>
                   <td className="h-[84px] px-4 py-0 align-middle">
                     <span className={cn('inline-flex rounded-full border px-3 py-1 text-[10px] font-bold', STATUS_STYLE[account.status])}>
@@ -241,7 +241,7 @@ export function AccountsScreen({
                       ) : (
                         <span className="text-[13px] font-bold tabular-nums text-[#34D399]">{formatBRL(account.balance)}</span>
                       )}
-                      <span title={`Saldo sincronizado ${syncLabel(account.lastSync)}`} className="text-[#5F6B80]">
+                      <span title={`Saldo sincronizado ${syncLabel(account.lastSync)}`} className="text-[#7C8AA1]">
                         <Info size={12} />
                       </span>
                     </div>
@@ -273,7 +273,7 @@ export function AccountsScreen({
                           type="button"
                           aria-label="Ações do cliente"
                           onClick={() => setMenuFor(menuFor === account.id ? null : account.id)}
-                          className="text-[#5F6B80] hover:text-[#C9D3E3]"
+                          className="text-[#7C8AA1] hover:text-[#C9D3E3]"
                         >
                           <MoreVertical size={13} />
                         </button>
@@ -341,7 +341,7 @@ export function AccountsScreen({
         </div>
       </div>
 
-      <p className="mt-3 px-1 text-[11px] text-[#5F6B80]">
+      <p className="mt-3 px-1 text-[11px] text-[#7C8AA1]">
         {filtered.length} de {accounts.length} contas · dados fictícios de demonstração
       </p>
 

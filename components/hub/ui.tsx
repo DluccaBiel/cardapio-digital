@@ -115,7 +115,7 @@ export function TextInput({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       className={cn(
-        'mb-0 h-[42px] w-full rounded-lg border border-[#26314A] bg-[#080D18] px-3 text-[13px] text-[#E8EDF7] outline-none transition-colors placeholder:text-[#5F6B80] focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20',
+        'mb-0 h-[42px] w-full rounded-lg border border-[#26314A] bg-[#080D18] px-3 text-[13px] text-[#E8EDF7] outline-none transition-colors placeholder:text-[#7C8AA1] focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20',
         className,
       )}
     />

@@ -464,7 +464,7 @@ export function OverviewScreen({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar por cliente ou segmento"
             aria-label="Buscar por cliente ou segmento"
-            className="mb-0 h-[42px] w-full rounded-[10px] border border-[#26314A] bg-[#0D1320] pl-9 pr-3 text-[13px] text-[#E8EDF7] outline-none transition-colors placeholder:text-[#5F6B80] focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20"
+            className="mb-0 h-[42px] w-full rounded-[10px] border border-[#26314A] bg-[#0D1320] pl-9 pr-3 text-[13px] text-[#E8EDF7] outline-none transition-colors placeholder:text-[#7C8AA1] focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20"
           />
         </div>
 
@@ -481,7 +481,7 @@ export function OverviewScreen({
             <>
               <button type="button" aria-label="Fechar filtros" onClick={() => setPopover(null)} className="fixed inset-0 z-30 cursor-default" />
               <div className="absolute left-0 top-[52px] z-40 w-[300px] rounded-xl border border-[#26314A] bg-[#0B1120] p-2 shadow-2xl">
-                <p className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#5F6B80]">Filtros rápidos</p>
+                <p className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7C8AA1]">Filtros rápidos</p>
                 <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[13px] text-[#C9D3E3] hover:bg-white/[0.04]">
                   <span className="flex items-center gap-2"><AlertTriangle size={14} className="text-[#FBBF24]" /> Somente com alerta</span>
                   <Toggle size="sm" label="Somente com alerta" checked={alertFilter === 'com'} onChange={(value) => setAlertFilter(value ? 'com' : '')} />
@@ -535,7 +535,7 @@ export function OverviewScreen({
               <>
                 <button type="button" aria-label="Fechar colunas" onClick={() => setPopover(null)} className="fixed inset-0 z-30 cursor-default" />
                 <div className="absolute right-0 top-[52px] z-40 w-[250px] rounded-xl border border-[#26314A] bg-[#0B1120] p-2 shadow-2xl">
-                  <p className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#5F6B80]">Colunas visíveis</p>
+                  <p className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7C8AA1]">Colunas visíveis</p>
                   {COLUMNS.map((column) => {
                     const checked = !hidden.includes(column.id)
                     return (
@@ -636,7 +636,7 @@ export function OverviewScreen({
                               {column.label}
                             </span>
                             {column.sortKey && (
-                              <span className="shrink-0 text-[#5F6B80]">
+                              <span className="shrink-0 text-[#7C8AA1]">
                                 {!activeSort ? (
                                   <ChevronsUpDown size={12} />
                                 ) : sort?.dir === 'asc' ? (
@@ -874,7 +874,7 @@ export function OverviewScreen({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-[#5F6B80]">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-[#7C8AA1]">
         <span>
           {sorted.length} de {clients.length} clientes · dados fictícios de demonstração
         </span>

@@ -128,7 +128,7 @@ export function Header({
                   </Link>
                 )
               })}
-              <p className="mt-1 border-t border-[#1A2231] px-3 pb-1 pt-2 text-[10px] uppercase tracking-widest text-[#5F6B80]">
+              <p className="mt-1 border-t border-[#1A2231] px-3 pb-1 pt-2 text-[10px] uppercase tracking-widest text-[#7C8AA1]">
                 {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'}
               </p>
             </div>
