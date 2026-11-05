@@ -1,85 +1,114 @@
-# AGENTS.md - Cardápio Web Hub (Fase 1)
+# AGENTS.md — Cardápio Web Hub / Painel do Gestor (Fase 1)
+
+> Este arquivo vale para **toda sessão** de agente neste repositório. Leia antes de agir.
 
 ## 📋 Stack
-- **Frontend:** Next.js 14 (App Router) + TypeScript + Tailwind CSS
-- **Backend:** Next.js Server Actions + Supabase Edge Functions (opcional)
-- **Banco:** Supabase (PostgreSQL 15+) + RLS
-- **Armazenamento de arquivos:** Supabase Storage (bucket público `produto-imagens`)
-- **Autenticação:** Supabase Auth
-- **Hospedagem:** Vercel (gratuito) + Supabase (plano gratuito)
-- **Monorepo:** `apps/hub`, `apps/extensions/*`, `packages/api-types`
 
-## 📁 Estrutura de pastas
-```
-cardapio-digital/
-├── apps/hub/                 # Aplicação web principal (Next.js)
-├── apps/extensions/          # Extensões de navegador (Chrome MV3)
-├── packages/api-types/       # Tipos TypeScript compartilhados (OpenAPI)
-├── supabase/migrations/      # Migrações SQL
-├── storage/                  # (não versionar) bucket local se houver
-└── docs/                     # Documentação de arquitetura
+- **Frontend/painel:** Next.js (App Router) + TypeScript + Tailwind CSS — tema escuro, destaque verde neon, tabelas densas, rotas `/a/{workspace}/...`
+- **Backend:** Route Handlers do Next.js (`app/api/v1/...`) + Supabase (service role só no servidor)
+- **Banco:** Supabase (PostgreSQL 15+) + **RLS em todas as tabelas**
+- **Storage:** Supabase Storage, bucket privado `menu-images`
+- **Auth:** Supabase Auth (painel) + chaves de API com escopos (extensões)
+- **Hospedagem:** Vercel (plano gratuito) + Supabase (plano gratuito)
+- **Monorepo:** `apps/hub`, `apps/extensions/*`, `packages/api-types`, `supabase/migrations`, `docs`
+
+## 📁 Estrutura
+
+```text
+├── apps/hub/               # App Next.js (Fase 1)
+├── apps/extensions/        # Extensões Chrome MV3
+├── packages/api-types/     # Tipos gerados a partir de docs/openapi.yaml
+├── supabase/migrations/    # 0001_init.sql, 0002_rls.sql, ...
+├── docs/                   # Arquitetura (ver sumário abaixo)
+├── AGENTS.md
+└── .env.example            # ÚNICO arquivo de env versionado (placeholders)
 ```
 
 ## 🧩 Comandos
+
 ```bash
-# Instalar dependências
-npm install
+# Desenvolvimento
+npm run dev            # sobe o hub em http://localhost:3000
+npm run build          # build de produção
+npm run lint           # eslint + tsc --noEmit
+npm test               # testes (vitest/jest)
 
-# Rodar em desenvolvimento (Next.js)
-npm run dev
-
-# Build de produção
-npm run build
-
-# Criar migração Supabase
-supabase migration new nome_da_migracao
-
-# Aplicar migrações locais
-supabase db start
-supabase db reset
-
-# Lint
-npm run lint
-
-# Testes
-npm test
+# Banco / migrations (com Supabase CLI instalado)
+supabase migration new <nome>        # gera supabase/migrations/<timestamp>_<nome>.sql
+supabase db reset                    # recria o banco local a partir das migrations
+supabase db dump --local > backups/pre-migration_$(date +%F).sql   # SEMPRE antes de migrar produção
+psql "$SUPABASE_DB_URL" -f supabase/migrations/0001_init.sql        # aplicação manual
 ```
+
+**Backup obrigatório:** antes de rodar qualquer migration em produção, gere `pg_dump`/`supabase db dump` ou snapshot no dashboard do Supabase. Teste as migrations primeiro em `supabase db reset` local.
 
 ## 🔐 Regras de segurança (obrigatório)
-1. **Nunca** commite `.env`. Use apenas `.env.example`.
-2. `SUPABASE_SERVICE_ROLE_KEY` só pode ser usada no **servidor** (Server Actions/Edge Functions). Nunca no frontend.
-3. **RLS ativo em todas as tabelas**. Nunca desative RLS por "conveniência".
-4. Valide entrada em todas as entradas de API (Zod ou similar).
-5. Sanitize saída para evitar XSS.
-6. Chaves de API de extensões são armazenadas apenas com **hash** (bcrypt/argon2). Nunca exiba a chave completa depois da criação.
-7. Backup do banco **antes** de qualquer migração em produção.
 
-## 🗄️ Como criar migração
-```bash
-supabase migration new nome_da_migracao
-# Edite o arquivo gerado em supabase/migrations/
-supabase db reset
-```
+1. **Nunca commite `.env`** (ou `.env.local` etc.). Apenas `.env.example`, com placeholders. `.gitignore` cobre.
+2. **Service role key só no servidor** (Route Handlers / Server Actions / cron). Nunca no frontend, na extensão ou em `NEXT_PUBLIC_*`.
+3. **RLS ativo em todas as tabelas** — nunca desativar "por conveniência". Políticas em `supabase/migrations/0002_rls.sql`.
+4. **Chaves de API só com hash** no banco (`api_keys.key_hash`); valor em claro exibido uma única vez na criação/rotação.
+5. **If-Match obrigatório** em toda escrita da API pública (controle de edição concorrente). Sem ele → `428`.
+6. **Validação de entrada** com Zod em toda rota; saída sanitizada; React escapa por padrão — `dangerouslySetInnerHTML` proibido sem sanitização explícita.
+7. **Queries parametrizadas** (cliente Supabase). Zero SQL concatenado com entrada do usuário.
+8. **Upload de imagens:** validar magic bytes, ≤ 5 MB, ≤ 4096px, converter para WebP, remover EXIF. Sem SVG.
+9. **Webhooks de saída:** apenas HTTPS, proteção SSRF (bloquear faixas privadas), assinatura HMAC-SHA256.
+10. **Segredos nunca em logs.** `audit_log` registra ações (ator, ação, entidade) — nunca valores sensíveis.
+11. **LGPD:** campos pessoais marcados `[PII/LGPD]` no schema. Retenção: `audit_log.ip` 90 dias, demais audit 12 meses, `menu_image_history` 90 dias. Exclusão de workspace (`deleted_at` + job ≤ 30 dias) remove dados do Storage e tabelas em cascata. Ver `docs/fotos-e-historico.md` e `docs/decisoes-em-aberto.md`.
 
-## 🧩 Como criar uma extensão de navegador
-1. Crie a pasta em `apps/extensions/minha-extensao`.
-2. Adicione `manifest.json` com `host_permissions` para `https://seu-projeto.supabase.co/*` e sua própria API.
-3. Use `chrome.storage.local` para guardar a chave de API localmente (criptografada se possível).
-4. Toda requisição à API do hub deve incluir header `X-API-KEY`.
-5. Respeite CORS: o servidor deve permitir `Origin: chrome-extension://<seu-id>`.
+## 🗄️ Como criar uma migration
 
-## 📚 Documentação
-- `docs/api.md` – Especificação da API REST
-- `docs/openapi.yaml` – Contrato OpenAPI 3.1
-- `docs/webhooks.md` – Eventos e assinatura HMAC
-- `docs/extensoes.md` – Integração com extensões
-- `docs/fotos-e-historico.md` – Política de imagens e histórico
-- `docs/roadmap-fase-1.md` – Plano de implementação
-- `docs/decisoes-em-aberto.md` – Riscos e decisões pendentes
+1. `supabase migration new <descricao_snake_case>`
+2. Escreva o SQL: idempotente quando possível (`if not exists`, `on conflict do nothing`), sempre com `workspace_id` + índice, e RLS se for tabela nova.
+3. Atualize `0002_rls.sql` **no mesmo PR/commit** (ou crie `0003_..._rls.sql`).
+4. Teste: `supabase db reset` local → roda todas as migrations do zero.
+5. Backup de produção → aplique (`supabase db push` ou `psql -f`) → confira `select tablename, rowsecurity from pg_tables where schemaname='public'`.
+
+## 🧩 Como criar uma extensão
+
+1. Crie `apps/extensions/<slug>/` com `manifest.json` MV3.
+2. `host_permissions`: **somente** o domínio do hub (`https://seu-app.vercel.app/*`). Nunca hosts de terceiros.
+3. `permissions`: mínimo necessário (`storage`); evite `<all_urls>` e `tabs` sem justificativa.
+4. Chave de API em `chrome.storage.local`, entrada via options com campo senha; CORS do hub aceita `chrome-extension://<id>` (ver `docs/extensoes.md`).
+5. Registre no catálogo: `INSERT INTO public.extensions (slug, name, description, homepage_url) VALUES (...)`.
+6. Crie a chave no painel com **escopos mínimos**; teste `GET /api/v1/extensions/installs` e o `audit_log`.
+7. README próprio da extensão com fluxo de conferência → aplicação → pausa → reversão.
+8. Detalhes completos: `docs/extensoes.md`.
+
+## 📚 Como documentar
+
+- Toda decisão arquitetural vai para `docs/` — API em `api.md`/`openapi.yaml` (mantê-los **sincronizados**; o yaml é a fonte para `packages/api-types`).
+- Decisões e riscos em aberto: `docs/decisoes-em-aberto.md` (máx. 8 itens, cada um com recomendação). Itens resolvidos migram para o documento temático com "Decidido em AAAA-MM-DD".
+- Mudanças de contrato da API = nova versão (`/api/v2`) ou campo aditivo; nunca remover campo sem deprecation.
+- Diagramas em ASCII dentro do markdown — sem ferramentas externas.
 
 ## 🚨 Ambiente de execução (OpenCode / Antigravity)
-- Este arquivo aplica-se a qualquer sessão que trabalhe neste repositório.
-- Antes de operações destrutivas, sempre faça: `git add -A && git commit -m "checkpoint: antes de <ação>"`.
-- Nunca rode `rm -rf` fora da pasta do projeto.
-- Nunca use `git push --force`.
-- Nunca instale pacotes globalmente sem avisar.
+
+Você está rodando **no computador do usuário**, com acesso ao filesystem e ao shell da pasta do projeto. Portanto:
+
+- Não peça para o usuário criar/mover/apagar arquivos manualmente — execute você.
+- Só relate impedimento se for erro real de permissão, colando a mensagem exata e dizendo qual permissão liberar.
+- Trabalhe **somente** dentro da pasta raiz do projeto.
+- Se um comando falhar: leia o erro, corrija, tente de novo.
+
+### Regras de segurança para operar no PC
+
+1. **Apagar:** liste primeiro o que será apagado (`git status`/`ls`), depois apague. Nunca `rm -rf` fora da pasta do projeto, nem com caminho montado por variável sem verificar.
+2. **Checkpoint antes de mudanças grandes:** `git init` (se faltar) e `git add -A && git commit -m "checkpoint: antes de <ação>"`.
+3. **Nunca** `git push --force`, **nunca** altere configurações globais do sistema, **não instale nada globalmente sem avisar**.
+4. **Nunca leia, exiba ou grave** senhas/tokens/chaves reais. Apenas placeholders em `.env.example`. `.env*` no `.gitignore` — confira antes do primeiro commit.
+5. **Ao terminar**, mostre resumo curto: arquivos criados/alterados/apagados + comandos executados.
+
+## 🗺️ Roadmap
+
+`docs/roadmap-fase-1.md` — ordem de implementação da Fase 1 com critério de pronto. Fases futuras (cardápio público/pedidos, Meta Ads, relatórios, WhatsApp) ficam fora do escopo atual.
+
+## 📖 Sumário da documentação
+
+- `docs/api.md` — API REST `/api/v1` (endpoints, escopos, If-Match, paginação)
+- `docs/openapi.yaml` — Contrato OpenAPI 3.1 (esqueleto → fonte de `packages/api-types`)
+- `docs/extensoes.md` — Extensões: registro, chaves, escopos, rotação, CORS, manifest.json
+- `docs/webhooks.md` — Eventos, HMAC-SHA256, backoff, SSRF
+- `docs/fotos-e-historico.md` — Pipeline de imagens, `menu_image_history`, restore, retenção
+- `docs/roadmap-fase-1.md` — Roadmap com critérios de pronto
+- `docs/decisoes-em-aberto.md` — Riscos e decisões pendentes (máx. 8)

@@ -1,39 +1,139 @@
 openapi: 3.1.0
+# ============================================================================
+# Contrato OpenAPI 3.1 — Cardápio Web Hub (Fase 1)
+# ESQUELETO: caminhos e schemas principais. Fonte única da verdade para gerar
+# packages/api-types (openapi-typescript / orval). Não é exaustivo linha a linha —
+# ao implementar cada rota, completar request/response conforme docs/api.md.
+# Backup do banco antes de qualquer migração em produção.
+# ============================================================================
 info:
-  title: Cardápio Web Hub API
-  version: 1.0.0
-  description: API pública para integração com extensões de navegador e clientes externos.
+  title: Cardápio Web Hub — API
+  version: 1.0.0-fase1
+  description: |
+    REST/JSON multi-tenant. Autenticação: cookie de sessão (painel) ou
+    `X-API-Key` (extensões). Escritas exigem `If-Match` com o ETag da entidade.
+    Erros seguem `ErrorEnvelope`. Dinheiro em reais com 2 casas. Datas ISO-8601 UTC.
+  contact:
+    name: Assessoria — Plataforma
 servers:
-  - url: https://api.seudominio.com/api/v1
+  - url: https://seu-app.vercel.app/api/v1
     description: Produção
   - url: http://localhost:3000/api/v1
     description: Desenvolvimento
-
+tags:
+  - name: clients
+  - name: menu
+  - name: images
+  - name: webhooks
+  - name: extensions
 security:
   - ApiKeyAuth: []
+  - CookieAuth: []
 
 paths:
-  /produtos:
+  /clients:
     get:
-      summary: Listar produtos
-      security:
-        - ApiKeyAuth: []
+      tags: [clients]
+      summary: Lista clientes (paginada)
       parameters:
-        - in: query
-          name: page
-          schema: { type: integer, default: 1 }
-        - in: query
-          name: limit
-          schema: { type: integer, default: 20 }
-        - in: query
-          name: categoria
-          schema: { type: string }
-        - in: query
-          name: status
-          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/ClientStatus' } }
+        - { name: delivery_status, in: query, schema: { $ref: '#/components/schemas/DeliveryStatus' } }
+        - { name: tag, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
+        - { name: include_archived, in: query, schema: { type: boolean, default: false } }
       responses:
         '200':
-          description: Lista de produtos
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientList'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenScope' }
+    post:
+      tags: [clients]
+      summary: Cria cliente
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientInput'
+      responses:
+        '201':
+          description: Criado
+          headers:
+            ETag:
+              schema: { type: string }
+              description: updated_at para If-Match futuro
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /clients/{clientId}:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    get:
+      tags: [clients]
+      summary: Detalhe do cliente
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [clients]
+      summary: Atualiza cliente (If-Match obrigatório)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientInput'
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+    delete:
+      tags: [clients]
+      summary: Arquiva cliente (soft-delete)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Arquivado }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /clients/{clientId}/tags:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    get:
+      tags: [clients]
+      summary: Tags do cliente
+      responses:
+        '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -41,116 +141,421 @@ paths:
                 properties:
                   data:
                     type: array
-                    items:
-                      $ref: '#/components/schemas/Produto'
-                  meta:
-                    type: object
-                    properties:
-                      page: { type: integer }
-                      limit: { type: integer }
-                      total: { type: integer }
-                      total_pages: { type: integer }
-    post:
-      summary: Criar produto
-      security:
-        - ApiKeyAuth: []
+                    items: { $ref: '#/components/schemas/Tag' }
+    put:
+      tags: [clients]
+      summary: Substitui conjunto de tags
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProdutoCreate'
+              type: object
+              required: [tag_ids]
+              properties:
+                tag_ids:
+                  type: array
+                  items: { type: string, format: uuid }
+      responses:
+        '200': { description: OK }
+
+  /tags:
+    get:
+      tags: [clients]
+      summary: Lista tags do workspace
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Tag' }
+    post:
+      tags: [clients]
+      summary: Cria tag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 60 }
+                color: { type: string, pattern: '^#[0-9a-fA-F]{6}$', default: '#22c55e' }
+      responses:
+        '201': { description: Criada }
+
+  /menu/categories:
+    get:
+      tags: [menu]
+      summary: Lista categorias de um cliente
+      parameters:
+        - { name: client_id, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MenuCategory' }
+    post:
+      tags: [menu]
+      summary: Cria categoria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuCategoryInput'
       responses:
         '201':
-          description: Produto criado
+          description: Criada
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Produto'
+                $ref: '#/components/schemas/MenuCategory'
 
-  /produtos/{id}:
-    get:
-      summary: Obter produto por ID
-      security:
-        - ApiKeyAuth: []
+  /menu/categories/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    patch:
+      tags: [menu]
+      summary: Atualiza categoria (If-Match)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuCategoryInput'
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [menu]
+      summary: Remove categoria (409 se houver itens)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Removida }
+        '409': { description: 'Conflito (has_items ou edição concorrente)' }
+
+  /menu/items:
+    get:
+      tags: [menu]
+      summary: Lista itens (paginada)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - { name: client_id, in: query, schema: { type: string, format: uuid } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/MenuStatus' } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 } }
       responses:
         '200':
-          description: Produto encontrado
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Produto'
-        '404':
-          description: Não encontrado
-    put:
-      summary: Atualizar produto
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+                $ref: '#/components/schemas/MenuItemList'
+    post:
+      tags: [menu]
+      summary: Cria item
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProdutoUpdate'
+              $ref: '#/components/schemas/MenuItemInput'
       responses:
-        '200':
-          description: Produto atualizado
+        '201':
+          description: Criado
+          headers:
+            ETag:
+              schema: { type: string }
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Produto'
-        '409':
-          description: Conflito de edição (preço/versão)
+                $ref: '#/components/schemas/MenuItem'
+        '422': { $ref: '#/components/responses/ValidationFailed' }
 
-  /produtos/{id}/imagem:
-    put:
-      summary: Substituir imagem do produto
-      security:
-        - ApiKeyAuth: []
+  /menu/items/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    get:
+      tags: [menu]
+      summary: Detalhe do item (inclui imagem corrente e grupos)
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [menu]
+      summary: Atualiza item (If-Match)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemInput'
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+    delete:
+      tags: [menu]
+      summary: Remove item
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Removido }
+
+  /menu/items/{id}/addon-groups:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    get:
+      tags: [menu]
+      summary: Grupos vinculados ao item
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MenuAddonGroup' }
+    put:
+      tags: [menu]
+      summary: Substitui vínculos item↔grupo
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [group_ids]
+              properties:
+                group_ids:
+                  type: array
+                  items:
+                    type: object
+                    required: [id]
+                    properties:
+                      id: { type: string, format: uuid }
+                      sort_order: { type: integer, default: 0 }
+      responses:
+        '200': { description: OK }
+
+  /menu/addon-groups:
+    get:
+      tags: [menu]
+      summary: Lista grupos de complementos
+      parameters:
+        - { name: client_id, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MenuAddonGroup' }
+    post:
+      tags: [menu]
+      summary: Cria grupo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuAddonGroupInput'
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuAddonGroup'
+
+  /menu/addon-groups/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    patch:
+      tags: [menu]
+      summary: Atualiza grupo (If-Match)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuAddonGroupInput'
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [menu]
+      summary: Remove grupo (subitens em cascata)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Removido }
+
+  /menu/addon-groups/{id}/subitems:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    get:
+      tags: [menu]
+      summary: Lista opções do grupo
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MenuSubitem' }
+    post:
+      tags: [menu]
+      summary: Cria opção
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuSubitemInput'
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuSubitem'
+
+  /menu/subitems/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    patch:
+      tags: [menu]
+      summary: Atualiza opção (If-Match)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuSubitemInput'
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [menu]
+      summary: Remove opção
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Removida }
+
+  /menu/items/{id}/image:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    post:
+      tags: [images]
+      summary: Substitui foto do produto
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - { name: reason, in: query, schema: { type: string, default: manual } }
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
+              required: [file]
               properties:
-                imagem:
+                file:
                   type: string
                   format: binary
+                  description: webp|jpeg|png, ≤ 5 MB
       responses:
         '200':
-          description: Imagem atualizada
+          description: Substituída (versão anterior preservada no histórico)
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  imagem_url:
-                    type: string
-
-  /relatorios:
+                $ref: '#/components/schemas/MenuImage'
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { description: Arquivo maior que 5 MB }
+        '415': { description: MIME não suportado }
     get:
-      summary: Listar relatórios
-      security:
-        - ApiKeyAuth: []
+      tags: [images]
+      summary: Metadados + signed URL (TTL 15 min)
       responses:
         '200':
-          description: Lista de relatórios
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuImage'
+    delete:
+      tags: [images]
+      summary: Remove foto corrente (vai para histórico)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Removida }
+
+  /menu/items/{id}/image/history:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    get:
+      tags: [images]
+      summary: Histórico de versões da foto
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -158,95 +563,596 @@ paths:
                 properties:
                   data:
                     type: array
-                    items:
-                      $ref: '#/components/schemas/Relatorio'
+                    items: { $ref: '#/components/schemas/MenuImageHistoryEntry' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
 
-  /webhooks:
-    get:
-      summary: Listar webhooks
-      security:
-        - ApiKeyAuth: []
-      responses:
-        '200':
-          description: Lista de webhooks
+  /menu/items/{id}/image/restore:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
     post:
-      summary: Criar webhook
-      security:
-        - ApiKeyAuth: []
+      tags: [images]
+      summary: Restaura versão anterior (gera NOVA versão)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               type: object
               properties:
-                url: { type: string }
-                eventos:
-                  type: array
-                  items: { type: string }
+                version:
+                  type: integer
+                  minimum: 1
+                  description: Se omitido, restaura a versão imediatamente anterior
+      responses:
+        '200':
+          description: Restaurada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuImage'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /menu/subitems/{id}/image:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    post:
+      tags: [images]
+      summary: Substitui foto da opção (mesmo contrato de /menu/items/{id}/image)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - { name: reason, in: query, schema: { type: string, default: manual } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: Substituída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuImage'
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [images]
+      summary: Remove foto da opção
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Removida }
+
+  /webhooks:
+    get:
+      tags: [webhooks]
+      summary: Lista webhooks do workspace
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Webhook' }
+    post:
+      tags: [webhooks]
+      summary: Cria webhook (secret exibido UMA vez)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookInput'
       responses:
         '201':
-          description: Webhook criado
+          description: Criado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Webhook'
+                  - type: object
+                    properties:
+                      secret:
+                        type: string
+                        description: Segredo em claro — exibir apenas nesta resposta
+
+  /webhooks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    patch:
+      tags: [webhooks]
+      summary: Atualiza webhook (If-Match)
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookInput'
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [webhooks]
+      summary: Remove webhook e entregas pendentes
+      responses:
+        '204': { description: Removido }
+
+  /api-keys:
+    get:
+      tags: [extensions]
+      summary: Lista chaves (prefixo/escopos; NUNCA o hash)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ApiKey' }
+    post:
+      tags: [extensions]
+      summary: Cria chave (valor em claro exibido UMA vez)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyInput'
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiKey'
+                  - type: object
+                    properties:
+                      key:
+                        type: string
+                        description: Chave em claro (ck_live_...) — só nesta resposta
+
+  /api-keys/{id}/rotate:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    post:
+      tags: [extensions]
+      summary: Rotaciona chave (revoga a antiga na mesma operação)
+      responses:
+        '200':
+          description: Nova chave (exibida uma vez)
+
+  /api-keys/{id}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/MenuId'
+    post:
+      tags: [extensions]
+      summary: Revoga chave
+      responses:
+        '204': { description: Revogada }
+
+  /extensions:
+    get:
+      tags: [extensions]
+      summary: Catálogo global de extensões conhecidas
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Extension' }
+
+  /extensions/installs:
+    get:
+      tags: [extensions]
+      summary: Instalações do workspace (versão, last_seen_at)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ExtensionInstall' }
 
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
-      name: X-API-KEY
-      description: Chave de API gerada no painel admin
+      name: X-API-Key
+      description: Chave de extensão (hash no banco; valor em claro só na criação)
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: sb-access-token
+      description: Sessão Supabase do painel
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: ETag da entidade (updated_at). Divergência ⇒ 409.
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, format: uuid }
+    ClientId:
+      name: clientId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MenuId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Credencial ausente/inválida/expirada
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ForbiddenScope:
+      description: Chave sem o escopo exigido
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Recurso inexistente no workspace
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: Edição concorrente (If-Match divergente) ou regra de negócio
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    PreconditionRequired:
+      description: If-Match ausente em escrita
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ValidationFailed:
+      description: Falha de validação (detalhes por campo)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
   schemas:
-    Produto:
+    ErrorEnvelope:
       type: object
+      required: [error]
       properties:
-        id: { type: string }
-        nome: { type: string }
-        descricao: { type: string }
-        preco: { type: number }
-        categoria: { type: string }
-        imagem_url: { type: string }
-        status: { type: string }
-        otimizado: { type: boolean }
-        criado_em: { type: string, format: date-time }
-        atualizado_em: { type: string, format: date-time }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [invalid_input, unauthorized, key_expired, forbidden_scope, not_found,
+                     conflict, validation_failed, precondition_required, rate_limited,
+                     unsupported_media_type, payload_too_large, upgrade_required, internal]
+            message: { type: string }
+            details: { type: object, additionalProperties: true }
 
-    ProdutoCreate:
+    PageMeta:
       type: object
-      required: [nome, preco]
       properties:
-        nome: { type: string }
-        descricao: { type: string }
-        preco: { type: number }
-        categoria: { type: string }
-        preco_referencia: { type: number }
-        imagem_url: { type: string }
-        status: { type: string, default: 'ativo' }
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
 
-    ProdutoUpdate:
-      type: object
-      properties:
-        nome: { type: string }
-        descricao: { type: string }
-        preco: { type: number }
-        categoria: { type: string }
-        preco_referencia: { type: number }
-        imagem_url: { type: string }
-        status: { type: string }
+    ClientStatus:
+      type: string
+      enum: [ativo, pausado, encerrado]
+    DeliveryStatus:
+      type: string
+      enum: [no_prazo, atrasado, entregue, sem_entrega]
+    MenuStatus:
+      type: string
+      enum: [active, inactive, out_of_stock]
+    MemberRole:
+      type: string
+      enum: [owner, coordenador, editor, visualizador]
 
-    Relatorio:
+    Tag:
       type: object
       properties:
-        id: { type: string }
-        titulo: { type: string }
-        status: { type: string }
-        criado_em: { type: string, format: date-time }
-        aprovado_em: { type: string, format: date-time }
-        token: { type: string }
+        id: { type: string, format: uuid }
+        name: { type: string }
+        color: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
 
-    Error:
+    ClientInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        legal_name: { type: string, maxLength: 160 }
+        document:
+          type: string
+          maxLength: 20
+          description: '[PII/LGPD] CNPJ/CPF'
+        contact_name: { type: string, maxLength: 160, description: '[PII/LGPD]' }
+        email: { type: string, format: email, description: '[PII/LGPD]' }
+        phone: { type: string, maxLength: 30, description: '[PII/LGPD]' }
+        whatsapp: { type: string, maxLength: 30, description: '[PII/LGPD]' }
+        instagram: { type: string, maxLength: 80 }
+        status: { $ref: '#/components/schemas/ClientStatus' }
+        delivery_status: { $ref: '#/components/schemas/DeliveryStatus' }
+        monthly_fee: { type: number, minimum: 0, multipleOf: 0.01 }
+        notes: { type: string }
+
+    Client:
+      allOf:
+        - $ref: '#/components/schemas/ClientInput'
+        - type: object
+          required: [id, workspace_id, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            workspace_id: { type: string, format: uuid }
+            tags:
+              type: array
+              items: { $ref: '#/components/schemas/Tag' }
+            archived_at: { type: [string, 'null'], format: date-time }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    ClientList:
       type: object
       properties:
-        erro: { type: string }
-        mensagem: { type: string }
-        detalhes: { type: object }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Client' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+
+    ClientResponse:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/Client' }
+
+    MenuCategoryInput:
+      type: object
+      required: [client_id, name]
+      properties:
+        client_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: [string, 'null'] }
+        sort_order: { type: integer, default: 0 }
+        status: { $ref: '#/components/schemas/MenuStatus' }
+
+    MenuCategory:
+      allOf:
+        - $ref: '#/components/schemas/MenuCategoryInput'
+        - type: object
+          required: [id, workspace_id, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            workspace_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    MenuItemInput:
+      type: object
+      required: [client_id, category_id, name, price]
+      properties:
+        client_id: { type: string, format: uuid }
+        category_id: { type: string, format: uuid }
+        sku: { type: [string, 'null'], maxLength: 60 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'] }
+        price: { type: number, minimum: 0, multipleOf: 0.01 }
+        status: { $ref: '#/components/schemas/MenuStatus' }
+        sort_order: { type: integer, default: 0 }
+
+    MenuItem:
+      allOf:
+        - $ref: '#/components/schemas/MenuItemInput'
+        - type: object
+          required: [id, workspace_id, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            workspace_id: { type: string, format: uuid }
+            image:
+              oneOf:
+                - { $ref: '#/components/schemas/MenuImage' }
+                - { type: 'null' }
+            addon_groups:
+              type: array
+              items: { $ref: '#/components/schemas/MenuAddonGroup' }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    MenuItemList:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/MenuItem' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+
+    MenuAddonGroupInput:
+      type: object
+      required: [client_id, name]
+      properties:
+        client_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        min_qty: { type: integer, minimum: 0, default: 0 }
+        max_qty: { type: integer, minimum: 1, default: 1 }
+        sort_order: { type: integer, default: 0 }
+        status: { $ref: '#/components/schemas/MenuStatus' }
+
+    MenuAddonGroup:
+      allOf:
+        - $ref: '#/components/schemas/MenuAddonGroupInput'
+        - type: object
+          required: [id, workspace_id, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            workspace_id: { type: string, format: uuid }
+            subitems:
+              type: array
+              items: { $ref: '#/components/schemas/MenuSubitem' }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    MenuSubitemInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        price_delta: { type: number, multipleOf: 0.01, default: 0 }
+        sort_order: { type: integer, default: 0 }
+        status: { $ref: '#/components/schemas/MenuStatus' }
+
+    MenuSubitem:
+      allOf:
+        - $ref: '#/components/schemas/MenuSubitemInput'
+        - type: object
+          required: [id, group_id, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            group_id: { type: string, format: uuid }
+            workspace_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    MenuImage:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        owner_type: { type: string, enum: [menu_item, menu_subitem] }
+        owner_id: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        storage_path: { type: string }
+        mime_type: { type: string, example: image/webp }
+        bytes: { type: integer }
+        width: { type: [integer, 'null'] }
+        height: { type: [integer, 'null'] }
+        checksum_sha256: { type: string }
+        signed_url: { type: [string, 'null'], description: 'Presente apenas em GET; TTL 15 min' }
+        is_current: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    MenuImageHistoryEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        owner_type: { type: string, enum: [menu_item, menu_subitem] }
+        owner_id: { type: string, format: uuid }
+        version: { type: integer }
+        storage_path: { type: string }
+        checksum_sha256: { type: string }
+        replaced_by_type: { type: string, enum: [user, api_key, system] }
+        replaced_at: { type: string, format: date-time }
+        reason: { type: [string, 'null'] }
+
+    WebhookInput:
+      type: object
+      required: [name, url, events]
+      properties:
+        name: { type: string, maxLength: 120 }
+        url: { type: string, format: uri, pattern: '^https://' }
+        events:
+          type: array
+          minItems: 1
+          items: { type: string }
+          example: ['menu.item.updated', 'menu.image.replaced']
+        is_active: { type: boolean, default: true }
+        secret:
+          type: string
+          description: Opcional — se ausente, o servidor gera; sempre exibido uma vez
+
+    Webhook:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        url: { type: string, format: uri }
+        events: { type: array, items: { type: string } }
+        is_active: { type: boolean }
+        failure_count: { type: integer }
+        last_success_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ApiKeyInput:
+      type: object
+      required: [name, scopes]
+      properties:
+        name: { type: string, maxLength: 120 }
+        extension_id: { type: [string, 'null'], format: uuid }
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [clientes:ler, clientes:escrever, catalogo:ler, catalogo:escrever,
+                   webhooks:gerenciar, extensoes:ler]
+        rate_limit_per_minute: { type: integer, minimum: 1, maximum: 10000, default: 60 }
+        expires_at: { type: [string, 'null'], format: date-time }
+
+    ApiKey:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        key_prefix: { type: string, example: ck_live_9f3a2b1c }
+        scopes: { type: array, items: { type: string } }
+        rate_limit_per_minute: { type: integer }
+        last_used_at: { type: [string, 'null'], format: date-time }
+        expires_at: { type: [string, 'null'], format: date-time }
+        revoked_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    Extension:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        homepage_url: { type: [string, 'null'], format: uri }
+
+    ExtensionInstall:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        extension_id: { type: string, format: uuid }
+        version: { type: [string, 'null'] }
+        status: { type: string, enum: [active, suspended, uninstalled] }
+        last_seen_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
