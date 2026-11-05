@@ -39,12 +39,12 @@ const og = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
       <stop offset="1" stop-color="#111A2E"/>
     </linearGradient>
     <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2F6BFF"/>
-      <stop offset="1" stop-color="#173C9E"/>
+      <stop offset="0" stop-color="#3D8EFF"/>
+      <stop offset="1" stop-color="#1F4FD6"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#2F6BFF" stop-opacity="0.35"/>
-      <stop offset="1" stop-color="#2F6BFF" stop-opacity="0"/>
+      <stop offset="0" stop-color="#3D8EFF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#3D8EFF" stop-opacity="0"/>
     </radialGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>

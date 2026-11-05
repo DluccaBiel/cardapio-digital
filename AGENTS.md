@@ -4,7 +4,7 @@
 
 ## 📋 Stack
 
-- **Frontend/painel:** Next.js (App Router) + TypeScript + CSS (app/globals.css; tokens em packages/brand) — tema escuro, destaque azul Orvia (#2F6BFF), tabelas densas, rotas `/a/{workspace}/...`
+- **Frontend/painel:** Next.js (App Router) + TypeScript + CSS (app/globals.css; tokens em packages/brand) — tema escuro, destaque azul Orvia (#3D8EFF), tabelas densas, rotas `/a/{workspace}/...`
 - **Backend:** Route Handlers do Next.js (`app/api/v1/...`) + Supabase (service role só no servidor)
 - **Banco:** Supabase (PostgreSQL 15+) + **RLS em todas as tabelas**
 - **Storage:** Supabase Storage, bucket privado `menu-images`

@@ -16,11 +16,11 @@ export const brand = {
   version: '0.2.0',
 
   colors: {
-    // Primária (azul Orvia)
-    primary700: '#173C9E',
-    primary600: '#1F4FD6',
-    primary500: '#2F6BFF',
-    primary400: '#5C8CFF',
+    // Primária (azul Orvia — luminoso, alta tecnologia)
+    primary700: '#1F4FD6',
+    primary600: '#2F6BFF',
+    primary500: '#3D8EFF',
+    primary400: '#6EA8FF',
     accentCyan: '#22D3EE',
     // Fundos (tema escuro)
     bg950: '#070B14',

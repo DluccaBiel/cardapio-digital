@@ -2,7 +2,7 @@
 
 **Gestão que conecta** — Hub de gestão para assessorias: clientes, cardápio, relatórios e extensões de navegador.
 
-Tema escuro com destaque azul `#2F6BFF`, tabelas densas, rotas `/a/{workspace}/...`.
+Tema escuro com destaque azul `#3D8EFF`, tabelas densas, rotas `/a/{workspace}/...`.
 
 > Status: Fase 1 (arquitetura) concluída. A aplicação Next.js atual vive na raiz do repositório; a migração para `apps/hub/` está no roadmap.
 

@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-﻿# DependÃªncias
+# Dependências
 node_modules/
 .pnp
 .pnp.js
@@ -10,18 +9,17 @@ out/
 dist/
 build/
 *.tsbuildinfo
+*.pem
 
 # Ambiente
 .env
-=======
->>>>>>> a42205be99dc1f4880f7ec3bc5252a7ab9c34ec6
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-<<<<<<< HEAD
 
 # Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -41,7 +39,6 @@ supabase/.temp/
 coverage/
 *.lcov
 
-
 # macOS
 .Spotlight-V100
 .Trashes
@@ -49,13 +46,5 @@ coverage/
 # Vercel
 .vercel/
 
-=======
-*.log
-node_modules/
-.next/
-out/
-dist/
-build/
-*.pem
-.vercel
->>>>>>> a42205be99dc1f4880f7ec3bc5252a7ab9c34ec6
+# Backups locais de segredos (nunca commitar)
+.env.local.bak-*

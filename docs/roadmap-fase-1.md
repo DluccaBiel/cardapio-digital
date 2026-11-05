@@ -16,7 +16,7 @@ Ordem de implementação incremental. Cada passo tem **critério de pronto**. N�
 - **Pronto quando:** criar workspace → convidar coordenador/editor/visualizador → cada papel enxerga exatamente o que a RLS permite (matriz testada); usuário de fora recebe 404/403.
 
 ## Passo 3 — Shell do painel (tema escuro + azul Orvia)
-- Layout `/a/{workspace}/(dashboard)`: sidebar, topbar, tabelas densas, tokens de cor (bg `#0B1220`, primária `#2F6BFF` — ver `packages/brand/brand.config.ts`), fonte Inter/IBM Plex Mono para números.
+- Layout `/a/{workspace}/(dashboard)`: sidebar, topbar, tabelas densas, tokens de cor (bg `#0B1220`, primária `#3D8EFF` — ver `packages/brand/brand.config.ts`), fonte Inter/IBM Plex Mono para números.
 - **Pronto quando:** navegação completa com dados seed; dark theme sem flash; Lighthouse a11y ≥ 90 nas telas núcleo.
 
 ## Passo 4 — Módulo Clientes (Visão geral)

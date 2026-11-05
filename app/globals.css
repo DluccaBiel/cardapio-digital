@@ -1,9 +1,9 @@
 /* Orvia — Design tokens (fonte: packages/brand/brand.config.ts) */
 :root {
-  --orvia-primary-400: #5C8CFF;
-  --orvia-primary-500: #2F6BFF;
-  --orvia-primary-600: #1F4FD6;
-  --orvia-primary-700: #173C9E;
+  --orvia-primary-400: #6EA8FF;
+  --orvia-primary-500: #3D8EFF;
+  --orvia-primary-600: #2F6BFF;
+  --orvia-primary-700: #1F4FD6;
   --orvia-accent-cyan: #22D3EE;
   --orvia-bg-950: #070B14;
   --orvia-bg-900: #0B1220;
@@ -37,7 +37,7 @@ body {
 .card { background: var(--orvia-surface); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); margin-bottom: 1.5rem; border: 1px solid var(--orvia-border); }
 .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; text-decoration: none; display: inline-block; font-size: 0.95rem; transition: all 0.2s; }
 .btn-primary { background: var(--orvia-primary-500); color: #FFFFFF; }
-.btn-primary:hover { background: var(--orvia-primary-600); box-shadow: 0 4px 14px rgba(47, 107, 255, 0.4); }
+.btn-primary:hover { background: var(--orvia-primary-600); box-shadow: 0 4px 14px rgba(61, 142, 255, 0.4); }
 .btn-success { background: var(--orvia-success); color: #070B14; }
 .btn-success:hover { background: #10B981; }
 .btn-danger { background: var(--orvia-danger); color: #070B14; }
@@ -47,7 +47,7 @@ body {
 .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.85rem; }
 label { display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; color: var(--orvia-text); }
 input, textarea, select { width: 100%; padding: 0.6rem; border: 1px solid var(--orvia-border); border-radius: 6px; font-size: 0.95rem; margin-bottom: 0.8rem; background: var(--orvia-bg-950); color: var(--orvia-text); }
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--orvia-primary-500); box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.25); }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--orvia-primary-500); box-shadow: 0 0 0 3px rgba(61, 142, 255, 0.25); }
 table { width: 100%; border-collapse: collapse; background: var(--orvia-surface); border-radius: 8px; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--orvia-border); }
 th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--orvia-border); }
 th { background: var(--orvia-bg-950); font-weight: 600; color: var(--orvia-text); }
@@ -71,7 +71,7 @@ a:hover { text-decoration: underline; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(1100px 700px at 50% -10%, rgba(47, 107, 255, 0.16), transparent 60%),
+  background: radial-gradient(1100px 700px at 50% -10%, rgba(61, 142, 255, 0.16), transparent 60%),
               var(--orvia-bg-950);
   padding: 2rem;
 }
