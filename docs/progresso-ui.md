@@ -50,6 +50,7 @@ O que foi feito (somente visual, dados fictícios, sem backend novo):
 - **Agenda, Cardápio e Extensões**: placeholders “Em construção nesta fase”.
 - Rotas reais `/a/[ws]/...` continuam protegidas pelo middleware; espelho público `/demo/...` atrás de `NEXT_PUBLIC_DEMO_UI=1` (só Preview).
 - Camada de dados fictícios em `lib/mock/` (`getClients`, `getAdAccounts`, `getReportDraft`) para troca futura por Supabase.
+- Onboarding: o campo “Identificador (URL)” aceita **qualquer link ou texto**; `lib/slug.ts` normaliza (ex.: `https://www.alpha.com.br/gestao` → `alpha-com-br-gestao`) no cliente (prévia do endereço) e no servidor, mantendo a constraint `^[a-z0-9][a-z0-9-]{1,62}$` e a rota `/a/{slug}`.
 - Capturas de comparação em `docs/referencia/comparacao/` (01–11), incluindo 1915×1030, 1366×768, 390px e menu mobile. Script: `scripts/capture-visual.mjs`.
 - Três rodadas de comparação com as imagens de referência; correções de densidade, colunas, sticky, responsivo e tipografia do card.
 - `npm run typecheck` ✅ · `npm run build` ✅.

@@ -5,14 +5,12 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createAdminClient } from '../../lib/supabaseAdmin'
 import { createServerClient } from '../../lib/supabaseServer'
+import { isValidWorkspaceSlug, toWorkspaceSlug } from '../../lib/slug'
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Nome muito curto').max(80, 'Nome muito longo'),
-  slug: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, 'Use letras minúsculas, números e hífens (ex.: orvia-assessoria)'),
+  // Aceita qualquer texto/link; a normalização para slug vem abaixo.
+  slug: z.string().trim().min(1, 'Informe o identificador ou cole um link').max(300, 'Link muito longo'),
 })
 
 export type CreateWorkspaceState = { error: string | null }
@@ -21,6 +19,11 @@ export async function createWorkspace(prev: CreateWorkspaceState, formData: Form
   const parsed = schema.safeParse({ name: formData.get('name'), slug: formData.get('slug') })
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' }
+  }
+
+  const slug = toWorkspaceSlug(parsed.data.slug)
+  if (!isValidWorkspaceSlug(slug)) {
+    return { error: 'Não foi possível gerar um endereço com esse link. Use letras/números ou cole outra URL.' }
   }
 
   const supabase = createServerClient()
@@ -33,7 +36,7 @@ export async function createWorkspace(prev: CreateWorkspaceState, formData: Form
 
   const { data: ws, error: wsError } = await admin
     .from('workspaces')
-    .insert({ name: parsed.data.name, slug: parsed.data.slug, plan: 'free' })
+    .insert({ name: parsed.data.name, slug, plan: 'free' })
     .select('id, slug')
     .single()
 
