@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
@@ -14,20 +14,30 @@ export async function middleware(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: CookieOptions) {
+        set(name: string, value: string, options: { path?: string; [key: string]: unknown }) {
           response.cookies.set({ name, value, ...options })
         },
-        remove(name: string, options: CookieOptions) {
+        remove(name: string, options: { path?: string; [key: string]: unknown }) {
           response.cookies.set({ name, value: '', ...options })
         },
       },
     }
   )
 
-  await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const path = request.nextUrl.pathname
+  const isProtected = path.startsWith('/a/') || path === '/onboarding'
+  if (isProtected && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.searchParams.set('next', path)
+    return NextResponse.redirect(url)
+  }
+
   return response
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*', '/cliente/:path*'],
+  matcher: ['/a/:path*', '/onboarding', '/dashboard/:path*', '/admin/:path*', '/cliente/:path*'],
 }
