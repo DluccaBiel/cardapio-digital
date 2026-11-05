@@ -39,6 +39,8 @@ Falta: Auth Site URL/redirects no painel (usuário) · conferir o preview após 
 ## Fase visual — concluída ✅ (05/11/2026)
 
 Branch: `feat/ui-visual` (criada do checkpoint `548e9a9` de `feat/ui-hub`; o WIP do Marco 2 fica preservado no histórico da outra branch).
+Preview para aprovação: https://orvia-git-feat-ui-visual-gabrieldluccaoliveira-4662s-projects.vercel.app (deployment `dpl_...` — alias da branch; proteção de login Vercel).
+Env necessária no escopo **Preview**: `NEXT_PUBLIC_DEMO_UI=1` (adicionada em 05/11/2026). Production permanece sem a flag: `/demo` responde 404.
 
 O que foi feito (somente visual, dados fictícios, sem backend novo):
 - Shell compartilhado em `components/hub/` (`HubShell`, `Header` 80px, `Sidebar` 280px recolhível + drawer, `CommandPalette` Ctrl K, `ui.tsx`).
