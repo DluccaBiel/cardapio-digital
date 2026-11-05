@@ -216,6 +216,7 @@ create table public.menu_subitems (
 );
 comment on table public.menu_subitems is 'Opção dentro de um grupo de complementos (ex.: "Ao ponto", "Bacon extra +R$ 3,00").';
 create index idx_menu_subitems_group on public.menu_subitems (group_id, sort_order);
+create index idx_menu_subitems_workspace on public.menu_subitems (workspace_id);
 
 -- Ligação N:N item <-> grupo (quais grupos aparecem em quais produtos)
 create table public.menu_item_addon_groups (
@@ -407,6 +408,17 @@ create trigger trg_menu_addon_groups_updated_at before update on public.menu_add
 create trigger trg_menu_subitems_updated_at     before update on public.menu_subitems     for each row execute function public.set_updated_at();
 create trigger trg_extensions_updated_at        before update on public.extensions        for each row execute function public.set_updated_at();
 create trigger trg_webhooks_updated_at          before update on public.webhooks          for each row execute function public.set_updated_at();
+
+-- ============================================================================
+-- ÍNDICES EM FKs (detecção via checks.sql)
+-- ============================================================================
+create index idx_members_invited_by on public.members (invited_by);
+create index idx_api_keys_created_by on public.api_keys (created_by);
+create index idx_extension_installs_installed_by on public.extension_installs (installed_by);
+create index idx_webhooks_created_by on public.webhooks (created_by);
+create index idx_webhook_deliveries_workspace on public.webhook_deliveries (workspace_id);
+create index idx_menu_images_created_by on public.menu_images (created_by);
+create index idx_menu_image_history_menu_image_id on public.menu_image_history (menu_image_id);
 
 -- ============================================================================
 -- STORAGE (bucket para fotos do cardápio)

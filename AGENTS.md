@@ -34,11 +34,16 @@ npm run build          # build de produção
 npm run lint           # eslint + tsc --noEmit
 npm test               # testes (vitest/jest)
 
-# Banco / migrations (com Supabase CLI instalado)
-supabase migration new <nome>        # gera supabase/migrations/<timestamp>_<nome>.sql
-supabase db reset                    # recria o banco local a partir das migrations
-supabase db dump --local > backups/pre-migration_$(date +%F).sql   # SEMPRE antes de migrar produção
-psql "$SUPABASE_DB_URL" -f supabase/migrations/0001_init.sql        # aplicação manual
+# Banco / migrations (Supabase CLI como devDependency: npm i -D supabase; Docker Desktop necessário)
+npx supabase start           # sobe o stack local (Postgres + API + Studio em http://127.0.0.1:54323)
+npx supabase db reset        # recria o banco local (0001 + 0002 + seed.sql, com dados FICTÍCIOS)
+npx supabase stop            # derruba o stack local
+npx supabase db dump --local > backups/pre-migration_$(date +%F).sql   # SEMPRE antes de migrar produção
+
+# Testes de banco (local apenas):
+docker exec -i supabase_db_$(basename $PWD) psql -U postgres < supabase/tests/rls_isolation.sql   # 70 testes de RLS (esperado: 70 pass / 0 fail)
+docker exec -i supabase_db_$(basename $PWD) psql -U postgres < supabase/tests/checks.sql          # higiene do schema (0 problemas)
+# Nome do container: docker ps --format '{{.Names}}' | grep supabase_db_
 ```
 
 **Backup obrigatório:** antes de rodar qualquer migration em produção, gere `pg_dump`/`supabase db dump` ou snapshot no dashboard do Supabase. Teste as migrations primeiro em `supabase db reset` local.
@@ -59,7 +64,7 @@ psql "$SUPABASE_DB_URL" -f supabase/migrations/0001_init.sql        # aplicaçã
 
 ## 🗄️ Como criar uma migration
 
-1. `supabase migration new <descricao_snake_case>`
+1. `npx supabase migration new <descricao_snake_case>`
 2. Escreva o SQL: idempotente quando possível (`if not exists`, `on conflict do nothing`), sempre com `workspace_id` + índice, e RLS se for tabela nova.
 3. Atualize `0002_rls.sql` **no mesmo PR/commit** (ou crie `0003_..._rls.sql`).
 4. Teste: `supabase db reset` local → roda todas as migrations do zero.
@@ -114,3 +119,4 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 - `docs/roadmap-fase-1.md` — Roadmap com critérios de pronto
 - `docs/decisoes-em-aberto.md` — Riscos e decisões pendentes (máx. 8)
 - `docs/rebrand-inventario.md` — Inventário e decisões do rebrand para Orvia
+- `docs/db-validacao.md` — Validação local do schema/RLS: o que passou, falhas e correções
