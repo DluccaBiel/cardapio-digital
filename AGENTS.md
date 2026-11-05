@@ -1,10 +1,10 @@
-# AGENTS.md — Cardápio Web Hub / Painel do Gestor (Fase 1)
+# AGENTS.md — Orvia (Fase 1)
 
 > Este arquivo vale para **toda sessão** de agente neste repositório. Leia antes de agir.
 
 ## 📋 Stack
 
-- **Frontend/painel:** Next.js (App Router) + TypeScript + Tailwind CSS — tema escuro, destaque verde neon, tabelas densas, rotas `/a/{workspace}/...`
+- **Frontend/painel:** Next.js (App Router) + TypeScript + CSS (app/globals.css; tokens em packages/brand) — tema escuro, destaque azul Orvia (#2F6BFF), tabelas densas, rotas `/a/{workspace}/...`
 - **Backend:** Route Handlers do Next.js (`app/api/v1/...`) + Supabase (service role só no servidor)
 - **Banco:** Supabase (PostgreSQL 15+) + **RLS em todas as tabelas**
 - **Storage:** Supabase Storage, bucket privado `menu-images`
@@ -18,6 +18,7 @@
 ├── apps/hub/               # App Next.js (Fase 1)
 ├── apps/extensions/        # Extensões Chrome MV3
 ├── packages/api-types/     # Tipos gerados a partir de docs/openapi.yaml
+├── packages/brand/         # Fonte única da marca Orvia (nome, cores, logos) — ver packages/brand/README.md
 ├── supabase/migrations/    # 0001_init.sql, 0002_rls.sql, ...
 ├── docs/                   # Arquitetura (ver sumário abaixo)
 ├── AGENTS.md
@@ -112,3 +113,4 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 - `docs/fotos-e-historico.md` — Pipeline de imagens, `menu_image_history`, restore, retenção
 - `docs/roadmap-fase-1.md` — Roadmap com critérios de pronto
 - `docs/decisoes-em-aberto.md` — Riscos e decisões pendentes (máx. 8)
+- `docs/rebrand-inventario.md` — Inventário e decisões do rebrand para Orvia

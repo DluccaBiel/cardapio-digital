@@ -49,7 +49,7 @@ Cabeçalhos de cada entrega:
 X-Hub-Event: menu.image.replaced
 X-Hub-Delivery: 3fa8c2d1-...           (id único da entrega — use p/ idempotência)
 X-Hub-Signature-256: sha256=<hmac hex>
-User-Agent: cardapio-hub-webhooks/1.0
+User-Agent: orvia-webhooks/1.0
 Content-Type: application/json
 ```
 

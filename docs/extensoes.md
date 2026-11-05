@@ -79,7 +79,7 @@ Depois (API do hub):
 ```json
 {
   "manifest_version": 3,
-  "name": "Cardápio Hub — Troca de Fotos",
+  "name": "Orvia — Troca de Fotos",
   "version": "2.0.0",
   "permissions": ["storage"],
   "host_permissions": [

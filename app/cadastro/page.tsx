@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { brand } from '@orvia/brand'
 import { createClient } from '../../lib/supabase'
 
 export default function Cadastro() {
@@ -37,7 +38,10 @@ export default function Cadastro() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand">🍽️ Cardápio Digital</div>
+        <div className="brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={brand.logos.logoWhite} alt={brand.name} width={220} height={59} />
+        </div>
         <h2>Cadastro de Cliente</h2>
         {error && <div className="flash error">{error}</div>}
         <form onSubmit={handleCadastro}>
@@ -51,10 +55,11 @@ export default function Cadastro() {
             {loading ? 'Criando...' : 'Criar conta'}
           </button>
         </form>
-        <p style={{ marginTop: '1.25rem', fontSize: '0.9rem', color: '#a1a1aa' }}>
+        <p style={{ marginTop: '1.25rem', fontSize: '0.9rem', color: '#8FA0C4' }}>
           Já tem conta?{' '}
           <a href="/login" className="btn btn-outline" style={{ padding: '0.2rem 0.6rem', fontSize: '0.9rem', display: 'inline-block' }}>Entrar</a>
         </p>
+        <p className="version">{brand.name} v{brand.version}</p>
       </div>
     </div>
   )

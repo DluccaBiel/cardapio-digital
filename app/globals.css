@@ -1,61 +1,91 @@
+/* Orvia — Design tokens (fonte: packages/brand/brand.config.ts) */
+:root {
+  --orvia-primary-400: #5C8CFF;
+  --orvia-primary-500: #2F6BFF;
+  --orvia-primary-600: #1F4FD6;
+  --orvia-primary-700: #173C9E;
+  --orvia-accent-cyan: #22D3EE;
+  --orvia-bg-950: #070B14;
+  --orvia-bg-900: #0B1220;
+  --orvia-surface: #111A2E;
+  --orvia-border: #1C2A47;
+  --orvia-text: #E6ECFA;
+  --orvia-muted: #8FA0C4;
+  --orvia-success: #34D399; /* verde só para status ok/ativo */
+  --orvia-warning: #FBBF24;
+  --orvia-danger: #F87171;
+
+  /* Aliases de superfície usados pelos componentes existentes */
+  --bg: var(--orvia-bg-900);
+  --surface: var(--orvia-surface);
+  --border: var(--orvia-border);
+  --text: var(--orvia-text);
+  --muted: var(--orvia-muted);
+  --accent: var(--orvia-primary-500);
+  --accent-hover: var(--orvia-primary-600);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: #0f0f0f;
-  color: #e5e5e5;
+  background: var(--orvia-bg-900);
+  color: var(--orvia-text);
   min-height: 100vh;
 }
 .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
-.card { background: #1a1a1a; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); margin-bottom: 1.5rem; border: 1px solid #2a2a2a; }
+.card { background: var(--orvia-surface); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); margin-bottom: 1.5rem; border: 1px solid var(--orvia-border); }
 .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; text-decoration: none; display: inline-block; font-size: 0.95rem; transition: all 0.2s; }
-.btn-primary { background: #b91c1c; color: #fff; }
-.btn-primary:hover { background: #991b1b; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(185, 28, 28, 0.4); }
-.btn-success { background: #059669; color: #fff; }
-.btn-success:hover { background: #047857; }
-.btn-danger { background: #dc2626; color: #fff; }
-.btn-danger:hover { background: #b91c1c; }
-.btn-outline { background: transparent; color: #b91c1c; border: 1px solid #b91c1c; }
-.btn-outline:hover { background: #b91c1c; color: #fff; }
+.btn-primary { background: var(--orvia-primary-500); color: #FFFFFF; }
+.btn-primary:hover { background: var(--orvia-primary-600); box-shadow: 0 4px 14px rgba(47, 107, 255, 0.4); }
+.btn-success { background: var(--orvia-success); color: #070B14; }
+.btn-success:hover { background: #10B981; }
+.btn-danger { background: var(--orvia-danger); color: #070B14; }
+.btn-danger:hover { background: #EF4444; }
+.btn-outline { background: transparent; color: var(--orvia-primary-400); border: 1px solid var(--orvia-primary-500); }
+.btn-outline:hover { background: var(--orvia-primary-500); border-color: var(--orvia-primary-500); color: #FFFFFF; }
 .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.85rem; }
-label { display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; color: #e5e5e5; }
-input, textarea, select { width: 100%; padding: 0.6rem; border: 1px solid #3a3a3a; border-radius: 6px; font-size: 0.95rem; margin-bottom: 0.8rem; background: #0f0f0f; color: #e5e5e5; }
-input:focus, textarea:focus, select:focus { outline: none; border-color: #b91c1c; }
-table { width: 100%; border-collapse: collapse; background: #1a1a1a; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; border: 1px solid #2a2a2a; }
-th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #2a2a2a; }
-th { background: #2a2a2a; font-weight: 600; color: #e5e5e5; }
-tr:hover { background: #252525; }
+label { display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; color: var(--orvia-text); }
+input, textarea, select { width: 100%; padding: 0.6rem; border: 1px solid var(--orvia-border); border-radius: 6px; font-size: 0.95rem; margin-bottom: 0.8rem; background: var(--orvia-bg-950); color: var(--orvia-text); }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--orvia-primary-500); box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.25); }
+table { width: 100%; border-collapse: collapse; background: var(--orvia-surface); border-radius: 8px; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--orvia-border); }
+th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--orvia-border); }
+th { background: var(--orvia-bg-950); font-weight: 600; color: var(--orvia-text); }
+tr:hover { background: #16203A; }
 .flash { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
-.flash.success { background: #064e3b; color: #d1fae5; border: 1px solid #059669; }
-.flash.error { background: #7f1d1d; color: #fee2e2; border: 1px solid #dc2626; }
-.flash.info { background: #1e3a8a; color: #dbeafe; border: 1px solid #2563eb; }
-.flash.warning { background: #78350f; color: #fef3c7; border: 1px solid #d97706; }
-.link-box { background: #1a1a1a; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; word-break: break-all; margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: center; border: 1px solid #2a2a2a; }
-.approved { color: #059669; font-weight: 600; }
-.pending { color: #d97706; font-weight: 600; }
-.rejeitado { color: #dc2626; font-weight: 600; }
-.sugestao { background: #2d1b1b; border-left: 4px solid #b91c1c; padding: 0.75rem; border-radius: 0 6px 6px 0; margin-bottom: 0.75rem; font-size: 0.9rem; color: #e5e5e5; }
-a { color: #b91c1c; text-decoration: none; }
+.flash.success { background: #052E22; color: #A7F3D0; border: 1px solid var(--orvia-success); }
+.flash.error { background: #3B0A0A; color: #FECACA; border: 1px solid var(--orvia-danger); }
+.flash.info { background: #0B1E3A; color: #DBEAFE; border: 1px solid var(--orvia-primary-400); }
+.flash.warning { background: #3A2A05; color: #FDE68A; border: 1px solid var(--orvia-warning); }
+.link-box { background: var(--orvia-surface); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; word-break: break-all; margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: center; border: 1px solid var(--orvia-border); }
+.approved { color: var(--orvia-success); font-weight: 600; }
+.pending { color: var(--orvia-warning); font-weight: 600; }
+.rejeitado { color: var(--orvia-danger); font-weight: 600; }
+.sugestao { background: #0E1830; border-left: 4px solid var(--orvia-primary-500); padding: 0.75rem; border-radius: 0 6px 6px 0; margin-bottom: 0.75rem; font-size: 0.9rem; color: var(--orvia-text); }
+a { color: var(--orvia-primary-400); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* Login centralizado */
+/* Login / Cadastro */
 .auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0f0f0f;
+  background: radial-gradient(1100px 700px at 50% -10%, rgba(47, 107, 255, 0.16), transparent 60%),
+              var(--orvia-bg-950);
   padding: 2rem;
 }
 .auth-card {
-  background: #1a1a1a;
+  background: var(--orvia-surface);
   padding: 2.5rem 2rem;
   border-radius: 16px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--orvia-border);
   width: 100%;
   max-width: 400px;
   text-align: center;
 }
-.auth-card h2 { color: #e5e5e5; margin-bottom: 1.5rem; font-size: 1.75rem; }
-.auth-card .brand { color: #b91c1c; font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; }
+.auth-card h2 { color: var(--orvia-text); margin-bottom: 1.5rem; font-size: 1.75rem; }
+.auth-card .brand { color: var(--orvia-text); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
+.auth-card .brand img { display: block; }
+.auth-card .version { color: var(--orvia-muted); font-size: 0.75rem; margin-top: 1.25rem; }

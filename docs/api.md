@@ -1,4 +1,4 @@
-# API pública `/api/v1` — Cardápio Web Hub
+# API pública `/api/v1` — Orvia
 
 > Contrato REST/JSON para o painel e para extensões Chrome. **Base URL:** `{NEXT_PUBLIC_APP_URL}/api/v1`
 > Fonte única da verdade para tipos: `docs/openapi.yaml` (gerar `packages/api-types` a partir dele).

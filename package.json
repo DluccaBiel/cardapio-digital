@@ -1,13 +1,19 @@
 {
-  "name": "cardapio-next",
-  "version": "0.1.0",
+  "name": "@orvia/hub",
+  "version": "0.2.0",
   "private": true,
+  "description": "Orvia — Hub de gestão para assessorias: clientes, cardápio, relatórios e extensões.",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@orvia/brand": "*",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "next": "14.2.14",

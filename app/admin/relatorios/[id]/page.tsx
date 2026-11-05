@@ -54,7 +54,7 @@ export default async function RelatorioDetailPage({ params }: { params: { id: st
       <p>Criado em: {new Date(relatorio.criado_em).toLocaleString('pt-BR')}</p>
 
       {relatorio.status === 'aprovado' && (
-        <form action={applyRelatorio} method="POST" style={{ marginBottom: '1.5rem' }}>
+        <form action={applyRelatorio as unknown as (formData: FormData) => void} method="POST" style={{ marginBottom: '1.5rem' }}>
           <input type="hidden" name="relatorioId" value={relatorio.id} />
           <button type="submit" className="btn btn-success">
             ✅ Aplicar Alterações Aprovadas nos Produtos
@@ -88,7 +88,7 @@ export default async function RelatorioDetailPage({ params }: { params: { id: st
                 <td style={{ color: cor, fontWeight: '600' }}>{texto}</td>
 
                 <td>
-                  <form action={updateRelatorioItem} method="POST" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <form action={updateRelatorioItem as unknown as (formData: FormData) => void} method="POST" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <input type="hidden" name="itemId" value={item.id} />
                     <input type="hidden" name="relatorioId" value={relatorio.id} />
                     <input type="hidden" name="acao" value={item.acao} />
@@ -109,7 +109,7 @@ export default async function RelatorioDetailPage({ params }: { params: { id: st
 
                 <td>{item.acao}</td>
                 <td>
-                  <form action={updateRelatorioItem} method="POST" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <form action={updateRelatorioItem as unknown as (formData: FormData) => void} method="POST" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <input type="hidden" name="itemId" value={item.id} />
                     <input type="hidden" name="relatorioId" value={relatorio.id} />
                     <input type="hidden" name="acao" value={item.acao} />

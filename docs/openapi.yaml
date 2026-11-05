@@ -1,13 +1,13 @@
 openapi: 3.1.0
 # ============================================================================
-# Contrato OpenAPI 3.1 — Cardápio Web Hub (Fase 1)
+# Contrato OpenAPI 3.1 — Orvia (Fase 1)
 # ESQUELETO: caminhos e schemas principais. Fonte única da verdade para gerar
 # packages/api-types (openapi-typescript / orval). Não é exaustivo linha a linha —
 # ao implementar cada rota, completar request/response conforme docs/api.md.
 # Backup do banco antes de qualquer migração em produção.
 # ============================================================================
 info:
-  title: Cardápio Web Hub — API
+  title: Orvia — API
   version: 1.0.0-fase1
   description: |
     REST/JSON multi-tenant. Autenticação: cookie de sessão (painel) ou

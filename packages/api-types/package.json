@@ -1,0 +1,6 @@
+{
+  "name": "@orvia/api-types",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Tipos TypeScript compartilhados da API Orvia — gerados a partir de docs/openapi.yaml."
+}

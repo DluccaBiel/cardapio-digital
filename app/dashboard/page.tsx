@@ -30,12 +30,12 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      <div className="card" style={{ background: '#1a1a1a', border: '1px solid #b91c1c' }}>
-        <h2 style={{ color: '#b91c1c', marginBottom: '1rem' }}>📥 Importar Produtos via CSV</h2>
+      <div className="card" style={{ background: 'var(--orvia-surface)', border: '1px solid var(--orvia-primary-500)' }}>
+        <h2 style={{ color: 'var(--orvia-primary-400)', marginBottom: '1rem' }}>Importar Produtos via CSV</h2>
         <p style={{ marginBottom: '1rem', color: '#a1a1aa', fontSize: '0.9rem' }}>
           Anexe sua planilha CSV com colunas: <strong>nome, descricao, preco, categoria, preco_referencia, imagem_url, status</strong>
         </p>
-        <form action={importarProdutosCSV} method="POST" encType="multipart/form-data" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <form action={importarProdutosCSV as unknown as (formData: FormData) => void} method="POST" encType="multipart/form-data" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <input
             type="file"
             name="csvFile"
