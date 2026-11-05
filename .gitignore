@@ -50,3 +50,7 @@ coverage/
 .env.local.bak-*
 .env*
 .vercel
+
+# Referências visuais (contêm nomes reais de clientes — manter só local)
+imagens/
+
