@@ -124,8 +124,8 @@ Fluxo padrão (nunca pular o preview):
 1. **Branch de release** (`release/orvia-vX.Y`) aponta para a branch mais avançada (`feat/*`).
 2. **Preview**: `git push -u origin release/orvia-vX.Y` → a Vercel cria um deployment de preview (protegido por login Vercel, por design).
    - Verifique: `/login` renderiza a marca (título "Orvia — ..."), build `Ready`.
-   - Descobrir URL/status: `npx vercel ls nextjs-cardapio` · detalhes: `npx vercel inspect <url> --wait`.
-3. **Produção** (somente com preview aprovado): `git switch master && git merge --no-ff release/orvia-vX.Y -m "merge: release → master" && git push origin master` → a Vercel gera o deployment de produção (aliás `https://nextjs-cardapio.vercel.app`).
+   - Descobrir URL/status: `npx vercel ls orvia` · detalhes: `npx vercel inspect <url> --wait`.
+3. **Produção** (somente com preview aprovado): `git switch master && git merge --no-ff release/orvia-vX.Y -m "merge: release → master" && git push origin master` → a Vercel gera o deployment de produção (aliás `https://orvia.vercel.app`).
 4. **Verificação pós-deploy**: `GET /login` → 200 com título "Orvia"; logo/favicon em `/brand/*` e `/icon.svg`; `/dashboard` → 307/redirect para `/login` sem sessão.
 
 ### Rollback
@@ -146,7 +146,7 @@ Regras:
 - `NEXT_PUBLIC_*` é embutida no build — se mudar, **refaça o build** (push de novo ou redeploy).
 - Valores do tipo `Secret` não são revelados pela CLI/painel (mascarados); para espelhar de Production para Preview, re-cadastre-os no painel (Settings → Environment Variables) com escopo Preview — nunca cole valores no chat/commit.
 - `.env.local` da máquina fica só com placeholders; valores reais vivem na Vercel.
-- Projeto Vercel: **`nextjs-cardapio`** (apelido `https://nextjs-cardapio.vercel.app`) — nome do projeto e do domínio, **não renomear** sem decisão.
+- Projeto Vercel: **`orvia`** (apelido `https://orvia.vercel.app` após renomeio em 04/11/2026; antigo `nextjs-cardapio.vercel.app` pode ficar órfão) — renomeado em 04/11/2026 por decisão do usuário.
 
 ## 📖 Sumário da documentação
 
