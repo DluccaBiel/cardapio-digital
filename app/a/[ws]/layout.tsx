@@ -1,7 +1,9 @@
 import { notFound, redirect } from 'next/navigation'
 import { getUserWorkspaces, getWorkspaceBySlug } from '../../../lib/db/workspaces'
 import { createServerClient } from '../../../lib/supabaseServer'
-import { Shell } from './_components/Shell'
+import { appEnvLabel } from '../../../lib/demo'
+import { getClients } from '../../../lib/mock'
+import { HubShell } from '../../../components/hub/HubShell'
 
 export default async function WorkspaceLayout({
   children,
@@ -20,17 +22,19 @@ export default async function WorkspaceLayout({
   if (!current) notFound()
 
   const workspaces = await getUserWorkspaces()
-
   const initial = (userData.user.email ?? '?').charAt(0).toUpperCase()
 
   return (
-    <Shell
-      ws={{ name: current.name, slug: current.slug }}
+    <HubShell
+      workspace={{ name: current.name, slug: current.slug }}
       role={current.role}
-      workspaces={workspaces.map((w) => ({ name: w.name, slug: w.slug, role: w.role }))}
+      workspaces={workspaces.map((workspace) => ({ name: workspace.name, slug: workspace.slug, role: workspace.role }))}
       userInitial={initial}
+      basePath={`/a/${current.slug}`}
+      envLabel={appEnvLabel()}
+      clients={getClients()}
     >
       {children}
-    </Shell>
+    </HubShell>
   )
 }

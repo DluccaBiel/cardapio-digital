@@ -1,15 +1,22 @@
-import { EmptyModule } from '../_components/EmptyModule'
+import { notFound } from 'next/navigation'
+import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
+import { PlaceholderScreen } from '../../../../components/hub/PlaceholderScreen'
 
 export const dynamic = 'force-dynamic'
-
 export const metadata = { title: 'Orvia — Cardápio' }
 
-export default function Page() {
+export default async function CardapioPage({ params }: { params: { ws: string } }) {
+  const workspace = await getWorkspaceBySlug(params.ws)
+  if (!workspace) notFound()
+
   return (
-    <EmptyModule
+    <PlaceholderScreen
       title="Cardápio"
-      description="Catálogo de categorias, produtos e complementos, com gestão de fotos e histórico."
-      badge="Marco 4"
+      badge="Em construção nesta fase"
+      description="Catálogo de categorias, produtos e complementos, com gestão de fotos e histórico"
+      icon="utensils"
+      workspaceName={workspace.name}
+      bullets={['Categorias e produtos por cliente', 'Upload de fotos em massa', 'Histórico e restauração de imagens']}
     />
   )
 }
