@@ -1,0 +1,16 @@
+{
+  "name": "@orvia/brand",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Fonte única da identidade da marca Orvia: nome, slug, paleta azul e caminhos dos logos.",
+  "type": "module",
+  "exports": {
+    ".": "./brand.config.ts"
+  },
+  "scripts": {
+    "build:logos": "node scripts/build-logos.mjs"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.5"
+  }
+}

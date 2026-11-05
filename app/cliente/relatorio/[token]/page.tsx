@@ -34,7 +34,7 @@ export default async function ClienteRelatorioPage({ params }: { params: { token
         <div style={{ background: '#f3f4f6', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
           <h2>Deseja aprovar ou rejeitar este relatório?</h2>
           <p>Ao aprovar, as alterações sugeridas serão aplicadas ao cardápio.</p>
-          <form action={clienteResponder} method="POST" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <form action={clienteResponder as unknown as (formData: FormData) => void} method="POST" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <input type="hidden" name="token" value={relatorio.token} />
             <button type="submit" name="acao" value="aprovar" className="btn btn-success">✅ Aprovar Relatório</button>
             <button type="submit" name="acao" value="rejeitar" className="btn btn-danger">❌ Rejeitar Relatório</button>

@@ -19,7 +19,7 @@ export default async function AdminRelatoriosPage() {
 
       <div className="card" style={{ maxWidth: '500px', marginBottom: '1.5rem' }}>
         <h2>Gerar Novo Relatório</h2>
-        <form action={gerarRelatorio} method="POST">
+        <form action={gerarRelatorio as unknown as (formData: FormData) => void} method="POST">
           <label>Título</label>
           <input type="text" name="titulo" defaultValue="Otimização de Cardápio" />
           <button type="submit" className="btn btn-primary">Gerar Relatório Automático</button>
