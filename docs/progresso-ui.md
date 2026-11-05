@@ -10,8 +10,9 @@
 - Projeto anterior teve a fase 1 aplicada (0001–0003). Este projeto novo tem 0001–0003 aplicados (em 05/11/2026). **Remote estava vazio** (REST 404 em `clients`; dump `pre-push-new-orvia-20261105.sql` em Local Temp, fora do repo).
 - `.env.local` (fora do git) aponta para o projeto novo: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWKS_URL`.
 
-## Marco 0 — Fundação (concluído em 05/11/2026)
-Feito:
+## Marco 0 — Fundação ✅ (05/11/2026)
+Preview: https://orvia-49q2mfl5d-gabrieldluccaoliveira-4662s-projects.vercel.app (dpl_5bpvheVZ58U5BHaq3Rg8SpZv3ChU)
+Commit: `2b8b76b` (+ `d0ad092`). Feito:
 - Tailwind (tokens Orvia, preflight desligado p/ conviver com globals.css) + `@tanstack/react-table`, `@dnd-kit/*`, `zod` (avisado à parte, conforme pedido) + `@types/react-dom` (18).
 - Shell autenticado: layout `/a/[ws]` com sidebar recolhível (desktop) + drawer (mobile), header com wordmark + workspace switcher + "Atualizado agora" + Sincronizar + busca "Buscar cliente… Ctrl K" + selo de papel + avatar.
 - Paleta Ctrl K (`Ctrl`/`Cmd`+K), ações de navegação + atalhos (Novo cliente, Exportar CSV).
@@ -48,6 +49,8 @@ Falta: Auth Site URL/redirects no painel (usuário) · conferir o preview após 
 - Sem push de produção; merges e deploy só com aprovação do usuário.
 
 ## Retomada
-- Último commit: Marco 0 (fundação) — ver `git log` desta branch.
-- Preview (último): ver saída do push; verificar em `npx vercel ls orvia`.
-- **Continue do Marco 1** (Auth no painel + marcos restantes em ordem).
+- Último commit: Marco 0 (fundação). Preview: https://orvia-49q2mfl5d-gabrieldluccaoliveira-4662s-projects.vercel.app
+- **Continue do Marco 1** → Marco 2 (Visão geral + Clientes).
+
+## Notas LGPD
+- As imagens de referência (`imagens/`, fora do git) contêm nomes reais de clientes (D'Vivi, World Burguer…). Verificar se https://github.com/DluccaBiel/cardapio-digital é **público**; se for, o histórico da branch expõe esses nomes — considerar migração para repo privado ou squash no merge.
