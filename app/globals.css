@@ -143,3 +143,121 @@ a:hover { text-decoration: underline; }
 @tailwind components;
 @tailwind utilities;
 
+
+/* Orvia hub � barras de rolagem discretas (fase visual) */
+.hub-scrollbar { scrollbar-width: thin; scrollbar-color: #2A3549 #0D1320; }
+.hub-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+.hub-scrollbar::-webkit-scrollbar-track { background: #0D1320; }
+.hub-scrollbar::-webkit-scrollbar-thumb { background: #2A3549; border-radius: 8px; border: 2px solid #0D1320; }
+.hub-scrollbar::-webkit-scrollbar-thumb:hover { background: #3B4A66; }
+
+#hub-main { scrollbar-width: thin; scrollbar-color: #2A3549 #070B12; }
+#hub-main::-webkit-scrollbar { width: 10px; }
+#hub-main::-webkit-scrollbar-track { background: #070B12; }
+#hub-main::-webkit-scrollbar-thumb { background: #2A3549; border-radius: 8px; border: 2px solid #070B12; }
+#hub-main::-webkit-scrollbar-thumb:hover { background: #3B4A66; }
+
+/* Evita que o estilo legado de links do app interfira no shell novo */
+.hub-nav-link:hover { text-decoration: none !important; }
+
+/* ============================================================================
+   Escopo do hub (fase visual)
+   O app legado define estilos globais de elemento (table/th/td/input/select/a).
+   Aqui zeramos esses estilos apenas dentro de .hub-root usando :where(), que
+   tem especificidade 0 — assim as utility classes do Tailwind continuam
+   vencendo e o legado permanece intacto fora do hub.
+   ============================================================================ */
+:where(.hub-root) { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+
+:where(.hub-root) table {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 0;
+  overflow: visible;
+  margin: 0;
+}
+:where(.hub-root) th,
+:where(.hub-root) td {
+  padding: 0;
+  text-align: left;
+  border: 0;
+  font-weight: inherit;
+  color: inherit;
+}
+:where(.hub-root) tr:hover { background: transparent; }
+
+:where(.hub-root) input,
+:where(.hub-root) textarea,
+:where(.hub-root) select {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+}
+:where(.hub-root) input:focus,
+:where(.hub-root) textarea:focus,
+:where(.hub-root) select:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+:where(.hub-root) label {
+  display: inline;
+  margin: 0;
+  font-weight: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+:where(.hub-root) button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+  text-transform: none;
+  cursor: pointer;
+}
+
+:where(.hub-root) a {
+  color: inherit;
+  text-decoration: none;
+}
+:where(.hub-root) a:hover { text-decoration: none; }
+
+:where(.hub-root) h1,
+:where(.hub-root) h2,
+:where(.hub-root) h3,
+:where(.hub-root) p {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+:where(.hub-root) img,
+:where(.hub-root) svg { display: inline-block; vertical-align: middle; }
+
+/* O Tailwind desliga o preflight: garantir quebra de linha padrão dos textos */
+:where(.hub-root) p,
+:where(.hub-root) span,
+:where(.hub-root) h1,
+:where(.hub-root) h2,
+:where(.hub-root) h3 { white-space: normal; }
+
+/* Foco visível consistente em todo o hub (AA) */
+.hub-root :focus-visible {
+  outline: 2px solid #3D8EFF;
+  outline-offset: 2px;
+}
