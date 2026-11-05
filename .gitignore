@@ -49,3 +49,4 @@ coverage/
 # Backups locais de segredos (nunca commitar)
 .env.local.bak-*
 .env*
+.vercel

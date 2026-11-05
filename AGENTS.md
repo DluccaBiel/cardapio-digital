@@ -133,7 +133,7 @@ Fluxo padrão (nunca pular o preview):
 - Deployment de produção anterior (registrado em 04/11/2026): `dpl_9Fj52z3X72xZfQ5pFsBLUi5WFm4c` (alias `https://nextjs-cardapio-jxjyn9mto-gabrieldluccaoliveira-4662s-projects.vercel.app`).
 - Para reverter: `npx vercel rollback <url-do-deployment-anterior>` (ou promova o deployment anterior no painel da Vercel → Deployments → Promote). Depois reverta o `master` (`git revert`/`git switch master` e re-push) para manter o histórico de acordo.
 - **NUNCA** `git push --force`, apagar deployments ou renomear o projeto/domínio sem decisão explícita.
-- **Banco remoto**: migrations vêm via `supabase db push` APENAS em projeto de desenvolvimento; em produção, backup antes (`npx supabase db dump`) + janela de manutenção.
+- **Banco remoto**: 0001–0003 (schema Orvia + RLS + FK composta) aplicadas em produção (projeto AnjimBanco/zzdiefephohlyicgexkv) em 05/11/2026, após backup (`db dump --remote`, dump em disco local, fora do repo). **Migrations futuras**: apenas via `supabase db push` com backup prévio + janela; desenvolvimento primeiro (`supabase db reset`).
 
 ### Variáveis de ambiente na Vercel (nomes, nunca valores)
 
