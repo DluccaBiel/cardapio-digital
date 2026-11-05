@@ -30,16 +30,14 @@ export default function Login() {
 
   return (
     <div className="auth-page">
-      <div className="auth-bg-words" aria-hidden="true">
-        <span className="w1">Gestão</span>
-        <span className="w2">Inteligência</span>
-        <span className="w3">Estratégia</span>
-        <span className="w4">Revolução</span>
-      </div>
+      <div className="auth-glow g1" aria-hidden="true" />
+      <div className="auth-glow g2" aria-hidden="true" />
+      <div className="auth-glow g3" aria-hidden="true" />
       <div className="auth-card">
         <div className="brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={brand.logos.logoWhite} alt={brand.name} width={230} height={61} />
+          <img src={brand.logos.mark} alt="" width={88} height={88} />
+          <span className="brand-word">{brand.name}</span>
         </div>
         <div className="gold-rule" />
         <div className="tagline">{brand.tagline}</div>
