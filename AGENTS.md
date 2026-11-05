@@ -36,14 +36,21 @@ npm test               # testes (vitest/jest)
 
 # Banco / migrations (Supabase CLI como devDependency: npm i -D supabase; Docker Desktop necessário)
 npx supabase start           # sobe o stack local (Postgres + API + Studio em http://127.0.0.1:54323)
-npx supabase db reset        # recria o banco local (0001 + 0002 + seed.sql, com dados FICTÍCIOS)
+npx supabase db reset        # recria o banco local (0001 + 0002 + 0003 + seed.sql, com dados FICTÍCIOS)
 npx supabase stop            # derruba o stack local
 npx supabase db dump --local > backups/pre-migration_$(date +%F).sql   # SEMPRE antes de migrar produção
 
-# Testes de banco (local apenas):
-docker exec -i supabase_db_$(basename $PWD) psql -U postgres < supabase/tests/rls_isolation.sql   # 70 testes de RLS (esperado: 70 pass / 0 fail)
-docker exec -i supabase_db_$(basename $PWD) psql -U postgres < supabase/tests/checks.sql          # higiene do schema (0 problemas)
-# Nome do container: docker ps --format '{{.Names}}' | grep supabase_db_
+# Testes de banco (LOCAL apenas — nunca produção):
+docker ps --format '{{.Names}}'                                     # descubra o container: supabase_db_<PASTA>
+docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_isolation.sql   # 70 testes RLS (esperado 70/0)
+docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_cross_link.sql  # 20 testes cross-link (20/0)
+docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/checks.sql          # higiene (0 problemas)
+# Smoke test HTTP (chaves descartáveis locais via env — NUNCA gravar em arquivos):
+$s = npx supabase status -o env
+$env:LOCAL_API_URL = (($s | Select-String '^API_URL=').Line -split '=',2)[1].Trim('"')
+$env:LOCAL_ANON_KEY = (($s | Select-String '^ANON_KEY=').Line -split '=',2)[1].Trim('"')
+$env:LOCAL_SERVICE_ROLE_KEY = (($s | Select-String '^SERVICE_ROLE_KEY=').Line -split '=',2)[1].Trim('"')
+node supabase/tests/smoke.mjs    # 8 checks HTTP+RLS (esperado 8/8)
 ```
 
 **Backup obrigatório:** antes de rodar qualquer migration em produção, gere `pg_dump`/`supabase db dump` ou snapshot no dashboard do Supabase. Teste as migrations primeiro em `supabase db reset` local.
@@ -64,10 +71,11 @@ docker exec -i supabase_db_$(basename $PWD) psql -U postgres < supabase/tests/ch
 
 ## 🗄️ Como criar uma migration
 
+0. **Migrations são imutáveis após o primeiro `db push` em qualquer ambiente.** Correção é SEMPRE em nova migration (`0004_...sql`), nunca editando a antiga. (Antes de qualquer push, podem ser ajustadas — e foi o que fizemos com 0001/0002 na validação local.)
 1. `npx supabase migration new <descricao_snake_case>`
 2. Escreva o SQL: idempotente quando possível (`if not exists`, `on conflict do nothing`), sempre com `workspace_id` + índice, e RLS se for tabela nova.
-3. Atualize `0002_rls.sql` **no mesmo PR/commit** (ou crie `0003_..._rls.sql`).
-4. Teste: `supabase db reset` local → roda todas as migrations do zero.
+3. Atualize `0002_rls.sql` (ou crie `0003_tenant_consistency.sql`/`000N_....sql` nos casos de alteração de FK/trigger) **no mesmo commit**.
+4. Teste: `supabase db reset` local → roda todas as migrations do zero; depois `rls_isolation.sql`, `rls_cross_link.sql`, `checks.sql` e, se mexeu em policies/API, `smoke.mjs`.
 5. Backup de produção → aplique (`supabase db push` ou `psql -f`) → confira `select tablename, rowsecurity from pg_tables where schemaname='public'`.
 
 ## 🧩 Como criar uma extensão

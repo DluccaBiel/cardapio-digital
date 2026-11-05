@@ -3,19 +3,14 @@
 -- ATENÇÃO: execute SOMENTE em um projeto Supabase de DESENVOLVIMENTO.
 --          NUNCA em produção. Crie um projeto separado de dev (ex.: free tier).
 --
--- O que este script faz, em ordem:
---   0001_init.sql  -> schema completo (19 tabelas, enums, triggers, bucket menu-images)
---   0002_rls.sql   -> RLS em todas as tabelas + 64 políticas + helpers
---   seed.sql       -> dados fictícios (workspace 'Orvia Demo' + usuários demo)
---   checks         -> checagens de higiene (RLS, policies, FKs com índice)
---   tests          -> 70 testes de isolamento multi-tenant (rls_isolation.sql)
+-- Ordem: 0001 (schema) → 0002 (RLS) → 0003 (consistência de tenant / FK composta)
+--        → seed (dados fictícios) → checks (higiene) → testes (70 RLS + 20 cross-link)
 --
 -- Observações para colar no SQL Editor:
---   * As checagens e testes são SQL puro (sem meta-comandos do psql).
---   * O teste insere fixtures em auth.users/storage.objects; ao final, as fixtures
---     de dados são removidas, mas o objeto de storage de teste NÃO é apagado por SQL
---     (o Supabase proíbe delete direto) — fica no bucket e some no próximo reset.
---   * Para um ambiente limpo, rode `supabase db reset` localmente em vez deste script.
+--   * SQL puro, sem meta-comandos do psql.
+--   * Testes inserem fixtures em auth.users/storage.objects; o objeto de storage
+--     de teste NÃO é apagado (SQL direto é proibido — use a Storage API ou ignore).
+--   * Para ambiente limpo, use `supabase db reset` LOCAL em vez deste script.
 -- ============================================================================
 
 -- ============================================================================
@@ -836,6 +831,202 @@ create policy storage_menu_images_select on storage.objects
 -- Sem policy de INSERT/UPDATE/DELETE para authenticated: escrita só via service_role.
 
 -- ============================================================================
+-- 0003_tenant_consistency.sql — FK COMPOSTA / TENANT
+-- ============================================================================
+
+-- ============================================================================
+-- 0003_tenant_consistency.sql — Consistência de tenant (FK composta)
+-- Pré-requisito: 0001_init.sql + 0002_rls.sql (não editados)
+--
+-- Motivação: FKs são verificadas SEM aplicar RLS. Um usuário do workspace A
+-- podia criar uma linha com workspace_id = A apontando para uma linha do
+-- workspace B (UUID conhecido), e a policy não impedia, pois só olha o
+-- workspace_id da própria linha. Correção: FKs compostas (workspace_id, col)
+-- referenciando UNIQUE (workspace_id, id) do pai, preservando ON DELETE.
+-- owner_id polimórfico (menu_images/menu_image_history) não cabe em FK —
+-- validado por trigger com a MESMA regra (workspace_id do filho == do pai).
+-- ============================================================================
+
+-- ============================================================================
+-- 1) UNIQUE (workspace_id, id) nos pais com workspace_id
+--    (id já é PK; o UNIQUE composto existe só para ancorar as FKs compostas)
+-- ============================================================================
+
+alter table public.clients            add constraint uq_clients_ws_id            unique (workspace_id, id);
+alter table public.tags               add constraint uq_tags_ws_id               unique (workspace_id, id);
+alter table public.menu_categories    add constraint uq_menu_categories_ws_id    unique (workspace_id, id);
+alter table public.menu_items         add constraint uq_menu_items_ws_id         unique (workspace_id, id);
+alter table public.menu_addon_groups  add constraint uq_menu_addon_groups_ws_id  unique (workspace_id, id);
+alter table public.menu_images        add constraint uq_menu_images_ws_id        unique (workspace_id, id);
+alter table public.api_keys           add constraint uq_api_keys_ws_id           unique (workspace_id, id);
+alter table public.webhooks           add constraint uq_webhooks_ws_id           unique (workspace_id, id);
+
+-- ============================================================================
+-- 2) FKs compostas (derruba a FK simples, recria preservando ON DELETE)
+-- ============================================================================
+
+-- client_tags -> clients / tags (junction; CASCADE)
+alter table public.client_tags drop constraint client_tags_client_id_fkey;
+alter table public.client_tags
+    add constraint client_tags_ws_client_fkey
+    foreign key (workspace_id, client_id) references public.clients (workspace_id, id) on delete cascade;
+
+alter table public.client_tags drop constraint client_tags_tag_id_fkey;
+alter table public.client_tags
+    add constraint client_tags_ws_tag_fkey
+    foreign key (workspace_id, tag_id) references public.tags (workspace_id, id) on delete cascade;
+
+-- ad_accounts -> clients (client_id era NO ACTION -> CASCADE; agora: manter exatamente o comportamento atual!)
+-- Comportamento real na base: ON DELETE SET NULL. Preservado com lista de colunas (PG 15+).
+alter table public.ad_accounts drop constraint ad_accounts_client_id_fkey;
+alter table public.ad_accounts
+    add constraint ad_accounts_ws_client_fkey
+    foreign key (workspace_id, client_id) references public.clients (workspace_id, id) on delete set null (client_id);
+
+-- menu_categories -> clients (CASCADE)
+alter table public.menu_categories drop constraint menu_categories_client_id_fkey;
+alter table public.menu_categories
+    add constraint menu_categories_ws_client_fkey
+    foreign key (workspace_id, client_id) references public.clients (workspace_id, id) on delete cascade;
+
+-- menu_items -> clients / menu_categories (CASCADE)
+alter table public.menu_items drop constraint menu_items_client_id_fkey;
+alter table public.menu_items
+    add constraint menu_items_ws_client_fkey
+    foreign key (workspace_id, client_id) references public.clients (workspace_id, id) on delete cascade;
+
+alter table public.menu_items drop constraint menu_items_category_id_fkey;
+alter table public.menu_items
+    add constraint menu_items_ws_category_fkey
+    foreign key (workspace_id, category_id) references public.menu_categories (workspace_id, id) on delete cascade;
+
+-- menu_addon_groups -> clients (CASCADE)
+alter table public.menu_addon_groups drop constraint menu_addon_groups_client_id_fkey;
+alter table public.menu_addon_groups
+    add constraint menu_addon_groups_ws_client_fkey
+    foreign key (workspace_id, client_id) references public.clients (workspace_id, id) on delete cascade;
+
+-- menu_subitems -> menu_addon_groups (CASCADE)
+alter table public.menu_subitems drop constraint menu_subitems_group_id_fkey;
+alter table public.menu_subitems
+    add constraint menu_subitems_ws_group_fkey
+    foreign key (workspace_id, group_id) references public.menu_addon_groups (workspace_id, id) on delete cascade;
+
+-- menu_item_addon_groups -> menu_items / menu_addon_groups (CASCADE)
+alter table public.menu_item_addon_groups drop constraint menu_item_addon_groups_item_id_fkey;
+alter table public.menu_item_addon_groups
+    add constraint menu_item_addon_groups_ws_item_fkey
+    foreign key (workspace_id, item_id) references public.menu_items (workspace_id, id) on delete cascade;
+
+alter table public.menu_item_addon_groups drop constraint menu_item_addon_groups_group_id_fkey;
+alter table public.menu_item_addon_groups
+    add constraint menu_item_addon_groups_ws_group_fkey
+    foreign key (workspace_id, group_id) references public.menu_addon_groups (workspace_id, id) on delete cascade;
+
+-- menu_image_history -> menu_images (SET NULL no par referenciado apenas)
+alter table public.menu_image_history drop constraint menu_image_history_menu_image_id_fkey;
+alter table public.menu_image_history
+    add constraint menu_image_history_ws_image_fkey
+    foreign key (workspace_id, menu_image_id) references public.menu_images (workspace_id, id) on delete set null (menu_image_id);
+
+-- extension_installs -> api_keys (api_key_id era SET NULL; api_key_id pode ser NULL)
+alter table public.extension_installs drop constraint extension_installs_api_key_id_fkey;
+alter table public.extension_installs
+    add constraint extension_installs_ws_key_fkey
+    foreign key (workspace_id, api_key_id) references public.api_keys (workspace_id, id) on delete set null (api_key_id);
+
+-- webhook_deliveries -> webhooks (CASCADE)
+alter table public.webhook_deliveries drop constraint webhook_deliveries_webhook_id_fkey;
+alter table public.webhook_deliveries
+    add constraint webhook_deliveries_ws_webhook_fkey
+    foreign key (workspace_id, webhook_id) references public.webhooks (workspace_id, id) on delete cascade;
+
+-- ============================================================================
+-- 3) Triggers de consistência para owner_id polimórfico
+--    menu_images.owner_id / menu_image_history.owner_id apontam para
+--    menu_items OU menu_subitems conforme owner_type — FK impossível;
+--    validamos que o pai existe E pertence ao MESMO workspace_id.
+-- ============================================================================
+
+create or replace function public.validate_menu_image_owner()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+    if new.owner_type = 'menu_item' then
+        if not exists (select 1 from public.menu_items i
+                       where i.id = new.owner_id and i.workspace_id = new.workspace_id) then
+            raise exception 'menu_images: menu_item % não existe no workspace % (consistência de tenant)', new.owner_id, new.workspace_id
+                using errcode = '23503';
+        end if;
+    elsif new.owner_type = 'menu_subitem' then
+        if not exists (select 1 from public.menu_subitems s
+                       where s.id = new.owner_id and s.workspace_id = new.workspace_id) then
+            raise exception 'menu_images: menu_subitem % não existe no workspace % (consistência de tenant)', new.owner_id, new.workspace_id
+                using errcode = '23503';
+        end if;
+    else
+        raise exception 'menu_images: owner_type inválido: %', new.owner_type using errcode = '23502';
+    end if;
+    return new;
+end $$;
+
+drop trigger if exists trg_menu_images_owner on public.menu_images;
+create trigger trg_menu_images_owner
+    before insert or update of owner_type, owner_id, workspace_id
+    on public.menu_images
+    for each row execute function public.validate_menu_image_owner();
+
+create or replace function public.validate_menu_image_history_owner()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+    if new.owner_type = 'menu_item' then
+        if not exists (select 1 from public.menu_items i
+                       where i.id = new.owner_id and i.workspace_id = new.workspace_id) then
+            raise exception 'menu_image_history: menu_item % não existe no workspace % (consistência de tenant)', new.owner_id, new.workspace_id
+                using errcode = '23503';
+        end if;
+    elsif new.owner_type = 'menu_subitem' then
+        if not exists (select 1 from public.menu_subitems s
+                       where s.id = new.owner_id and s.workspace_id = new.workspace_id) then
+            raise exception 'menu_image_history: menu_subitem % não existe no workspace % (consistência de tenant)', new.owner_id, new.workspace_id
+                using errcode = '23503';
+        end if;
+    else
+        raise exception 'menu_image_history: owner_type inválido: %', new.owner_type using errcode = '23502';
+    end if;
+    return new;
+end $$;
+
+drop trigger if exists trg_menu_image_history_owner on public.menu_image_history;
+create trigger trg_menu_image_history_owner
+    before insert or update of owner_type, owner_id, workspace_id
+    on public.menu_image_history
+    for each row execute function public.validate_menu_image_history_owner();
+
+-- ============================================================================
+-- 4) Índices para as novas FKs compostas (o Postgres não cria automaticamente)
+-- ============================================================================
+
+create index idx_client_tags_ws_client on public.client_tags (workspace_id, client_id);
+create index idx_client_tags_ws_tag    on public.client_tags (workspace_id, tag_id);
+create index idx_ad_accounts_ws_client on public.ad_accounts (workspace_id, client_id);
+create index idx_menu_categories_ws_client on public.menu_categories (workspace_id, client_id);
+create index idx_menu_items_ws_client on public.menu_items (workspace_id, client_id);
+create index idx_menu_items_ws_category on public.menu_items (workspace_id, category_id);
+create index idx_menu_addon_groups_ws_client on public.menu_addon_groups (workspace_id, client_id);
+create index idx_menu_subitems_ws_group on public.menu_subitems (workspace_id, group_id);
+create index idx_menu_item_addon_groups_ws_item on public.menu_item_addon_groups (workspace_id, item_id);
+create index idx_menu_item_addon_groups_ws_group on public.menu_item_addon_groups (workspace_id, group_id);
+create index idx_menu_image_history_ws_image on public.menu_image_history (workspace_id, menu_image_id);
+create index idx_extension_installs_ws_key on public.extension_installs (workspace_id, api_key_id);
+create index idx_webhook_deliveries_ws_webhook on public.webhook_deliveries (workspace_id, webhook_id);
+
+-- ============================================================================
 -- seed.sql — DADOS FICTÍCIOS
 -- ============================================================================
 
@@ -967,7 +1158,7 @@ select
   (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prosecdef) as funcs_security_definer;
 
 -- ============================================================================
--- rls_isolation.sql — 70 TESTES DE ISOLAMENTO (70/70 PASSOU)
+-- rls_isolation.sql — 70 TESTES DE ISOLAMENTO (70/70)
 -- ============================================================================
 
 -- ============================================================================
@@ -1457,3 +1648,317 @@ delete from public.members where user_id = '55555555-5555-4555-8555-555555555555
 delete from public.test_rls_fixtures;
 drop table public.test_rls_fixtures;
 drop table public.test_rls_results;
+
+-- ============================================================================
+-- rls_cross_link.sql — 20 TESTES DE CONSISTÊNCIA DE TENANT (20/20)
+-- ============================================================================
+
+-- ============================================================================
+-- rls_cross_link.sql — Consistência de tenant: ligação A apontando para B deve FALHAR
+-- Requer: 0001 + 0002 + 0003 + seed.sql. Rodar como SUPERUSUÁRIO (prova a camada FK/trigger;
+-- a camada RLS já é coberta por rls_isolation.sql — 70 asserts).
+-- docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_cross_link.sql
+-- ============================================================================
+
+begin;
+create table public.test_cross_link_results (
+    id serial primary key,
+    area text not null,
+    test text not null,
+    pass boolean not null,
+    detail text
+);
+grant insert on public.test_cross_link_results to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Fixtures: workspace B com um registro de cada tipo (ids fixos)
+-- ---------------------------------------------------------------------------
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
+values ('55555555-5555-4555-8555-555555555555', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'ownerb@orvia-demo.example', '$2a$10$abcdefghijklmnopqrstuuVZ2FkW5O0pAOyKiP2k2T3o3m0c1b1a6fW', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Owner B"}')
+on conflict (id) do nothing;
+
+insert into public.workspaces (id, name, slug, plan)
+values ('bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'Workspace B (Cross-Link Test)', 'rls-test-b', 'free')
+on conflict (id) do nothing;
+
+insert into public.members (workspace_id, user_id, role)
+values ('bbbbbbbb-0000-4000-8000-bbbbbbbb0001', '55555555-5555-4555-8555-555555555555', 'owner')
+on conflict (workspace_id, user_id) do nothing;
+
+insert into public.clients (id, workspace_id, name) values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0002', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'Cliente B (XL)')
+on conflict (id) do nothing;
+
+insert into public.tags (id, workspace_id, name) values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb00a1', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'tag-b (XL)'),
+  ('cccccccc-0000-4000-8000-cccccccc00a1', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'tag-a (XL)')
+on conflict (id) do nothing;
+
+insert into public.menu_categories (id, workspace_id, client_id, name) values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0003', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0002', 'Categoria B (XL)')
+on conflict (id) do nothing;
+
+insert into public.menu_items (id, workspace_id, client_id, category_id, name, price) values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0004', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0002', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0003', 'Item B (XL)', 10.00)
+on conflict (id) do nothing;
+
+insert into public.menu_addon_groups (id, workspace_id, client_id, name) values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0005', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0002', 'Grupo B (XL)')
+on conflict (id) do nothing;
+
+insert into public.menu_subitems (id, workspace_id, group_id, name) values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0006', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0005', 'Subitem B (XL)')
+on conflict (id) do nothing;
+
+insert into public.api_keys (id, workspace_id, name, key_hash, key_prefix, scopes) values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0007', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'key B (XL)', 'hashb', 'ck_live_xl_b', '{catalogo:ler}'),
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0008', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'key A (XL)', 'hasha', 'ck_live_xl_a', '{catalogo:ler}')
+on conflict (id) do nothing;
+
+insert into public.webhooks (id, workspace_id, name, url, secret, events) values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0009', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'Hook B (XL)', 'https://example.com/b', 'whsec_b', '{menu.item.created}'),
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0010', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Hook A (XL)', 'https://example.com/a', 'whsec_a', '{menu.item.created}')
+on conflict (id) do nothing;
+
+-- Imagens (uma em cada workspace) para testar a trigger e a FK composta da história
+insert into public.menu_images (id, workspace_id, owner_type, owner_id, storage_path, mime_type, bytes, version, is_current, checksum_sha256)
+values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0011', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0001', 'menu_item', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0004', 'xl/b/1.webp', 'image/webp', 10, 1, true, 'hashb'),
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0012', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'menu_item', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', 'xl/a/1.webp', 'image/webp', 10, 1, true, 'hasha')
+on conflict (id) do nothing;
+
+insert into public.extensions (id, slug, name) values
+  ('bbbbbbbb-0000-4000-8000-bbbbbbbb0013', 'xl-test-extension', 'XL Test Extension')
+on conflict (id) do nothing;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- CASOS — todos executados como SUPERUSUÁRIO (camada de FK/trigger)
+-- Cada caso: (1) ligação cruzada A→B deve FALHAR; (2) ligação legítima A→A deve funcionar; (3) limpeza.
+-- ---------------------------------------------------------------------------
+
+-- 1) client_tags: (A, cliente B) falha; (A, tag B) falha; (A, cliente A, tag A-XL) funciona
+do $$
+begin
+  begin
+    insert into public.client_tags (workspace_id, client_id, tag_id) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0002', 'cccccccc-0000-4000-8000-cccccccc00a1');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('client_tags', 'cliente cruzado A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('client_tags', 'cliente cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+do $$
+begin
+  begin
+    insert into public.client_tags (workspace_id, client_id, tag_id) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', 'bbbbbbbb-0000-4000-8000-bbbbbbbb00a1');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('client_tags', 'tag cruzada A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('client_tags', 'tag cruzada A→B falha', true, sqlerrm);
+  end;
+end $$;
+do $$
+begin
+  insert into public.client_tags (workspace_id, client_id, tag_id) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', 'cccccccc-0000-4000-8000-cccccccc00a1');
+  insert into public.test_cross_link_results(area, test, pass, detail) values ('client_tags', 'ligação legítima A→A funciona', true, null);
+  delete from public.client_tags where tag_id = 'cccccccc-0000-4000-8000-cccccccc00a1';
+exception when others then
+  insert into public.test_cross_link_results(area, test, pass, detail) values ('client_tags', 'ligação legítima A→A funciona', false, sqlerrm);
+end $$;
+
+-- 2) ad_accounts: cliente cruzado falha
+do $$
+begin
+  begin
+    insert into public.ad_accounts (workspace_id, client_id, platform, external_account_id, name)
+    values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0002', 'meta', 'act_xl', 'XL');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('ad_accounts', 'cliente cruzado A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('ad_accounts', 'cliente cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+
+-- 3) menu_categories: cliente cruzado falha
+do $$
+begin
+  begin
+    insert into public.menu_categories (workspace_id, client_id, name) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0002', 'XL Cat');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_categories', 'cliente cruzado A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_categories', 'cliente cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+
+-- 4) menu_items: cliente cruzado falha / categoria cruzada falha
+do $$
+begin
+  begin
+    insert into public.menu_items (workspace_id, client_id, category_id, name, price)
+    values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0002', 'dddddddd-dddd-4ddd-8ddd-ddddddddddd1', 'XL', 1.00);
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_items', 'cliente cruzado A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_items', 'cliente cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+do $$
+begin
+  begin
+    insert into public.menu_items (workspace_id, client_id, category_id, name, price)
+    values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0003', 'XL', 1.00);
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_items', 'categoria cruzada A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_items', 'categoria cruzada A→B falha', true, sqlerrm);
+  end;
+end $$;
+
+-- 5) menu_addon_groups: cliente cruzado falha
+do $$
+begin
+  begin
+    insert into public.menu_addon_groups (workspace_id, client_id, name) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0002', 'XL Group');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_addon_groups', 'cliente cruzado A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_addon_groups', 'cliente cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+
+-- 6) menu_subitems: grupo cruzado falha; legítimo funciona
+do $$
+begin
+  begin
+    insert into public.menu_subitems (workspace_id, group_id, name) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0005', 'XL');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_subitems', 'grupo cruzado A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_subitems', 'grupo cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+do $$
+begin
+  insert into public.menu_subitems (workspace_id, group_id, name) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'ffffffff-ffff-4fff-bfff-fffffffffff1', 'XL Sub (temp)');
+  insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_subitems', 'ligação legítima A→A funciona', true, null);
+  delete from public.menu_subitems where name = 'XL Sub (temp)';
+exception when others then
+  insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_subitems', 'ligação legítima A→A funciona', false, sqlerrm);
+end $$;
+
+-- 7) menu_item_addon_groups: item cruzado falha; grupo cruzado falha
+do $$
+begin
+  begin
+    insert into public.menu_item_addon_groups (workspace_id, item_id, group_id) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0004', 'ffffffff-ffff-4fff-bfff-fffffffffff1');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_item_addon_groups', 'item cruzado A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_item_addon_groups', 'item cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+do $$
+begin
+  begin
+    insert into public.menu_item_addon_groups (workspace_id, item_id, group_id) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0005')
+    on conflict do nothing;
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_item_addon_groups', 'grupo cruzado A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_item_addon_groups', 'grupo cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+
+-- 8) menu_image_history: imagem cruzada falha (FK composta); legítima funciona
+do $$
+begin
+  begin
+    insert into public.menu_image_history (workspace_id, owner_type, owner_id, storage_path, bytes, version, checksum_sha256, menu_image_id)
+    values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'menu_item', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', 'xl/x.webp', 1, 9, 'abc', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0011');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_image_history', 'menu_image cruzada A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_image_history', 'menu_image cruzada A→B falha', true, sqlerrm);
+  end;
+end $$;
+
+-- 9) extension_installs: api_key cruzada falha; legítima funciona
+do $$
+begin
+  begin
+    insert into public.extension_installs (workspace_id, extension_id, api_key_id) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0013', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0007');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('extension_installs', 'api_key cruzada A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('extension_installs', 'api_key cruzada A→B falha', true, sqlerrm);
+  end;
+end $$;
+do $$
+begin
+  insert into public.extension_installs (workspace_id, extension_id, api_key_id) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0013', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0008');
+  insert into public.test_cross_link_results(area, test, pass, detail) values ('extension_installs', 'ligação legítima A→A funciona', true, null);
+  delete from public.extension_installs where api_key_id = 'bbbbbbbb-0000-4000-8000-bbbbbbbb0008';
+exception when others then
+  insert into public.test_cross_link_results(area, test, pass, detail) values ('extension_installs', 'ligação legítima A→A funciona', false, sqlerrm);
+end $$;
+
+-- 10) webhook_deliveries: webhook cruzado falha
+do $$
+begin
+  begin
+    insert into public.webhook_deliveries (workspace_id, webhook_id, event, payload) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0009', 'menu.item.created', '{}');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('webhook_deliveries', 'webhook cruzado A→B falha', false, 'NÃO falhou');
+  exception when foreign_key_violation then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('webhook_deliveries', 'webhook cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+
+-- 11) menu_images (trigger): dono cruzado falha / legítimo funciona
+do $$
+begin
+  begin
+    insert into public.menu_images (workspace_id, owner_type, owner_id, storage_path, mime_type, bytes, version, checksum_sha256)
+    values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'menu_item', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0004', 'xl/cross.webp', 'image/webp', 1, 1, 'abc');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_images (trigger)', 'menu_item cruzado A→B falha', false, 'NÃO falhou');
+  exception when others then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_images (trigger)', 'menu_item cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+do $$
+begin
+  begin
+    insert into public.menu_images (workspace_id, owner_type, owner_id, storage_path, mime_type, bytes, version, checksum_sha256)
+    values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'menu_subitem', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0006', 'xl/cross2.webp', 'image/webp', 1, 1, 'abc');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_images (trigger)', 'menu_subitem cruzado A→B falha', false, 'NÃO falhou');
+  exception when others then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_images (trigger)', 'menu_subitem cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+do $$
+begin
+  insert into public.menu_images (workspace_id, owner_type, owner_id, storage_path, mime_type, bytes, version, checksum_sha256)
+  values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'menu_item', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3', 'xl/own.webp', 'image/webp', 1, 1, 'abc');
+  insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_images (trigger)', 'dono legítimo A→A funciona', true, null);
+  delete from public.menu_images where storage_path = 'xl/own.webp';
+exception when others then
+  insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_images (trigger)', 'dono legítimo A→A funciona', false, sqlerrm);
+end $$;
+
+-- 12) menu_image_history (trigger): owner cruzado falha / legítimo funciona
+do $$
+begin
+  begin
+    insert into public.menu_image_history (workspace_id, owner_type, owner_id, storage_path, bytes, version, checksum_sha256)
+    values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'menu_subitem', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0006', 'xl/histcross.webp', 1, 1, 'abc');
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_image_history (trigger)', 'owner cruzado A→B falha', false, 'NÃO falhou');
+  exception when others then
+    insert into public.test_cross_link_results(area, test, pass, detail) values ('menu_image_history (trigger)', 'owner cruzado A→B falha', true, sqlerrm);
+  end;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- RELATÓRIO
+-- ---------------------------------------------------------------------------
+select id, area, test, pass, detail from public.test_cross_link_results order by id;
+select count(*) filter (where pass) as passed, count(*) filter (where not pass) as failed from public.test_cross_link_results;
+
+-- Limpeza das fixtures XL (os registros A/B permanecem; o reset seguinte os remove)
+delete from public.webhook_deliveries where webhook_id in ('bbbbbbbb-0000-4000-8000-bbbbbbbb0009', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0010');
+delete from public.extension_installs where api_key_id in ('bbbbbbbb-0000-4000-8000-bbbbbbbb0007', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0008');
+delete from public.menu_image_history where storage_path like 'xl/%';
+delete from public.menu_images where storage_path like 'xl/%';
+delete from public.api_keys where id in ('bbbbbbbb-0000-4000-8000-bbbbbbbb0007', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0008');
+delete from public.webhooks where id in ('bbbbbbbb-0000-4000-8000-bbbbbbbb0009', 'bbbbbbbb-0000-4000-8000-bbbbbbbb0010');
+delete from public.extensions where slug = 'xl-test-extension';
+drop table public.test_cross_link_results;
