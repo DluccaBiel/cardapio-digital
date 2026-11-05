@@ -4,7 +4,8 @@
 > Atualizado por sessão de trabalho. Cada marco termina com: typecheck + build + testes de banco + commit + push da branch `feat/ui-hub` + URL do preview.
 
 ## Retomada rápida
-- Branch: `feat/ui-hub` (criada de `master` em 05/11/2026). NÃO mergear em master e NÃO deployar produção — o usuário aprova.
+- Branch ativa da fase visual: `feat/ui-visual` (não mergeada, não deployada em produção). A branch de backend anterior é `feat/ui-hub` (checkpoint `548e9a9`).
+- **Fase visual concluída** — ver seção própria abaixo; `NEXT_PUBLIC_DEMO_UI=1` no escopo Preview abre `/demo/*`.
 - Ambiente de execução: OpenCode nesta pasta; `npm run dev|build|typecheck`, `npx supabase` (CLI local, link ao projeto novo).
 - **Banco novo e exclusivo do Orvia:** projeto `admpython` ref `xazfnddnwggrbomjwzlg` (us-east-2, ACTIVE_HEALTHY). Nunca usar `zzdiefephohlyicgexkv` (AnjimBanco) nem outros.
 - Projeto anterior teve a fase 1 aplicada (0001–0003). Este projeto novo tem 0001–0003 aplicados (em 05/11/2026). **Remote estava vazio** (REST 404 em `clients`; dump `pre-push-new-orvia-20261105.sql` em Local Temp, fora do repo).
@@ -35,6 +36,31 @@ Pendências / notas:
 00: link, dump pré-push, push 0001–0003 (✅), REST vazio ✅, envs preview ✅, tipos gerados ✅.
 Falta: Auth Site URL/redirects no painel (usuário) · conferir o preview após push do Marco 0 · e, por marco subsequente, migrations novas + testes.
 
+## Fase visual — concluída ✅ (05/11/2026)
+
+Branch: `feat/ui-visual` (criada do checkpoint `548e9a9` de `feat/ui-hub`; o WIP do Marco 2 fica preservado no histórico da outra branch).
+
+O que foi feito (somente visual, dados fictícios, sem backend novo):
+- Shell compartilhado em `components/hub/` (`HubShell`, `Header` 80px, `Sidebar` 280px recolhível + drawer, `CommandPalette` Ctrl K, `ui.tsx`).
+- **Visão geral**: KPIs, navegação de mês, atalhos de período, chips de situação, filtros, colunas visíveis/reordenáveis, ordenação, exportação CSV (local), edição inline de situação/entrega/editor, modais de novo cliente/tag/Pix/links, tabela com cabeçalho e primeira coluna fixos + rolagem horizontal sincronizada.
+- **Contas de Anúncio**: abas com contagem, busca, tabela, toggles de acompanhamento, modais de vínculo/detalhe/ações, botão “Buscar contas da BM” desabilitado (fase futura).
+- **Gerador de Relatórios**: abas Gerador/Histórico, cliente + período + blocos + mensagem WhatsApp, ações copiar/WhatsApp/salvar/enviado e card 4:5 de prévia.
+- **Agenda, Cardápio e Extensões**: placeholders “Em construção nesta fase”.
+- Rotas reais `/a/[ws]/...` continuam protegidas pelo middleware; espelho público `/demo/...` atrás de `NEXT_PUBLIC_DEMO_UI=1` (só Preview).
+- Camada de dados fictícios em `lib/mock/` (`getClients`, `getAdAccounts`, `getReportDraft`) para troca futura por Supabase.
+- Capturas de comparação em `docs/referencia/comparacao/` (01–11), incluindo 1915×1030, 1366×768, 390px e menu mobile. Script: `scripts/capture-visual.mjs`.
+- Três rodadas de comparação com as imagens de referência; correções de densidade, colunas, sticky, responsivo e tipografia do card.
+- `npm run typecheck` ✅ · `npm run build` ✅.
+
+Divergências conscientes (visual-only):
+- Verdes da referência viraram azul Orvia; verde só em status ok/ativo/online.
+- Métricas do relatório são fictícias e propositalmente diferentes das imagens (R$ 2.480,15; 21.936; 26 compras; ROAS 5,77x etc.).
+- Coluna fixa pode exibir fragmento de coluna vizinha em rolagem horizontal livre (comportamento nativo do sticky; referência “pula” colunas inteiras).
+- Card do relatório sem as caixas internas com borda da referência; tipografia e proporção 4:5 mantidas.
+- Agenda/Cardápio/Extensões ainda não têm tela real nesta fase.
+
+Retomada da fase visual: **“Fase visual concluída”** — próxima etapa é ligar dados reais (Supabase) na ordem: Visão geral → Contas → Relatórios, mantendo o shell e o gate `/demo` para regressão visual.
+
 ## Plano de marcos
 - Marco 2 — Visão geral + Clientes (migration 0005 e testes; KPIs; filtros; CSV; seed).
 - Marco 3 — Contas de anúncio + Relatórios (dados manuais; migration 0004 e testes).
@@ -49,8 +75,9 @@ Falta: Auth Site URL/redirects no painel (usuário) · conferir o preview após 
 - Sem push de produção; merges e deploy só com aprovação do usuário.
 
 ## Retomada
-- Último commit: Marco 0 (fundação). Preview: https://orvia-49q2mfl5d-gabrieldluccaoliveira-4662s-projects.vercel.app
-- **Continue do Marco 1** → Marco 2 (Visão geral + Clientes).
+- Último commit de backend: Marco 0 (fundação) em `feat/ui-hub`.
+- **Fase visual concluída** em `feat/ui-visual` (05/11/2026): shell + Visão geral + Contas + Relatórios + placeholders + `/demo`.
+- Próximo passo sugerido: ligar Supabase por tela (Visão geral → Contas → Relatórios), preservando o shell e as capturas de regressão.
 
 ## Notas LGPD
 - As imagens de referência (`imagens/`, fora do git) contêm nomes reais de clientes (D'Vivi, World Burguer…). Verificar se https://github.com/DluccaBiel/cardapio-digital é **público**; se for, o histórico da branch expõe esses nomes — considerar migração para repo privado ou squash no merge.

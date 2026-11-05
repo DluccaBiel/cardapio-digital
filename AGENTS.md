@@ -113,6 +113,15 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 4. **Nunca leia, exiba ou grave** senhas/tokens/chaves reais. Apenas placeholders em `.env.example`. `.env*` no `.gitignore` — confira antes do primeiro commit.
 5. **Ao terminar**, mostre resumo curto: arquivos criados/alterados/apagados + comandos executados.
 
+## 🎨 Fase visual (UI)
+
+- Branch: `feat/ui-visual` (criada de `feat/ui-hub`; não mergeada). Telas em `components/hub/` e rotas `/a/[ws]/...`.
+- Dados 100% fictícios em `lib/mock/` — nenhum cliente/valor real.
+- Espelho público de demonstração: `/demo/...` **somente** com `NEXT_PUBLIC_DEMO_UI=1` (escopo Preview na Vercel; nunca Production). Sem a flag, o layout de `/demo` responde 404.
+- Capturas de comparação: `docs/referencia/comparacao/` (01–11), script `scripts/capture-visual.mjs` (Playwright, viewport 1915×1030 + 1366×768 + 390px).
+- Referências reais ficam em `imagens/` (gitignored, LGPD) — nunca commitar.
+- “Fase visual concluída” em `docs/progresso-ui.md`; próximos passos = ligar Supabase por tela (Visão geral → Contas → Relatórios).
+
 ## 🗺️ Roadmap
 
 `docs/roadmap-fase-1.md` — ordem de implementação da Fase 1 com critério de pronto. Fases futuras (cardápio público/pedidos, Meta Ads, relatórios, WhatsApp) ficam fora do escopo atual.
