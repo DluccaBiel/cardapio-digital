@@ -117,6 +117,37 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 
 `docs/roadmap-fase-1.md` — ordem de implementação da Fase 1 com critério de pronto. Fases futuras (cardápio público/pedidos, Meta Ads, relatórios, WhatsApp) ficam fora do escopo atual.
 
+## 🚀 Deploy (Vercel)
+
+Fluxo padrão (nunca pular o preview):
+
+1. **Branch de release** (`release/orvia-vX.Y`) aponta para a branch mais avançada (`feat/*`).
+2. **Preview**: `git push -u origin release/orvia-vX.Y` → a Vercel cria um deployment de preview (protegido por login Vercel, por design).
+   - Verifique: `/login` renderiza a marca (título "Orvia — ..."), build `Ready`.
+   - Descobrir URL/status: `npx vercel ls nextjs-cardapio` · detalhes: `npx vercel inspect <url> --wait`.
+3. **Produção** (somente com preview aprovado): `git switch master && git merge --no-ff release/orvia-vX.Y -m "merge: release → master" && git push origin master` → a Vercel gera o deployment de produção (aliás `https://nextjs-cardapio.vercel.app`).
+4. **Verificação pós-deploy**: `GET /login` → 200 com título "Orvia"; logo/favicon em `/brand/*` e `/icon.svg`; `/dashboard` → 307/redirect para `/login` sem sessão.
+
+### Rollback
+
+- Deployment de produção anterior (registrado em 04/11/2026): `dpl_9Fj52z3X72xZfQ5pFsBLUi5WFm4c` (alias `https://nextjs-cardapio-jxjyn9mto-gabrieldluccaoliveira-4662s-projects.vercel.app`).
+- Para reverter: `npx vercel rollback <url-do-deployment-anterior>` (ou promova o deployment anterior no painel da Vercel → Deployments → Promote). Depois reverta o `master` (`git revert`/`git switch master` e re-push) para manter o histórico de acordo.
+- **NUNCA** `git push --force`, apagar deployments ou renomear o projeto/domínio sem decisão explícita.
+- **Banco remoto**: migrations vêm via `supabase db push` APENAS em projeto de desenvolvimento; em produção, backup antes (`npx supabase db dump`) + janela de manutenção.
+
+### Variáveis de ambiente na Vercel (nomes, nunca valores)
+
+Usadas pelo app (Preview e Production têm cópia, configuradas em 04/11/2026):
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (públicas, client-side)
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (secret, **somente servidor**: server actions/admin)
+- `SUPABASE_JWKS_URL` (secret, hoje Production e Preview; reservada para auth futura)
+
+Regras:
+- `NEXT_PUBLIC_*` é embutida no build — se mudar, **refaça o build** (push de novo ou redeploy).
+- Valores do tipo `Secret` não são revelados pela CLI/painel (mascarados); para espelhar de Production para Preview, re-cadastre-os no painel (Settings → Environment Variables) com escopo Preview — nunca cole valores no chat/commit.
+- `.env.local` da máquina fica só com placeholders; valores reais vivem na Vercel.
+- Projeto Vercel: **`nextjs-cardapio`** (apelido `https://nextjs-cardapio.vercel.app`) — nome do projeto e do domínio, **não renomear** sem decisão.
+
 ## 📖 Sumário da documentação
 
 - `docs/api.md` — API REST `/api/v1` (endpoints, escopos, If-Match, paginação)
