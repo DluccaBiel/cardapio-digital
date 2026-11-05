@@ -30,11 +30,19 @@ export default function Login() {
 
   return (
     <div className="auth-page">
+      <div className="auth-bg-words" aria-hidden="true">
+        <span className="w1">Gestão</span>
+        <span className="w2">Inteligência</span>
+        <span className="w3">Estratégia</span>
+        <span className="w4">Revolução</span>
+      </div>
       <div className="auth-card">
         <div className="brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={brand.logos.logoWhite} alt={brand.name} width={220} height={59} />
+          <img src={brand.logos.logoWhite} alt={brand.name} width={230} height={61} />
         </div>
+        <div className="gold-rule" />
+        <div className="tagline">{brand.tagline}</div>
         <h2>Login</h2>
         {error && <div className="flash error">{error}</div>}
         <form onSubmit={handleLogin}>
@@ -51,6 +59,7 @@ export default function Login() {
           <a href="/cadastro" className="btn btn-outline" style={{ padding: '0.2rem 0.6rem', fontSize: '0.9rem', display: 'inline-block' }}>Cadastrar</a>
         </p>
         <p className="version">{brand.name} v{brand.version}</p>
+        <p className="micro">Gestão · Dados · IA</p>
       </div>
     </div>
   )

@@ -14,6 +14,7 @@
   --orvia-success: #34D399; /* verde só para status ok/ativo */
   --orvia-warning: #FBBF24;
   --orvia-danger: #F87171;
+  --orvia-gold: #D4AF37; /* detalhe chique pontual */
 
   /* Aliases de superfície usados pelos componentes existentes */
   --bg: var(--orvia-bg-900);
@@ -65,27 +66,65 @@ tr:hover { background: #16203A; }
 a { color: var(--orvia-primary-400); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* Login / Cadastro */
+/* Login / Cadastro — chique tecnológico */
 .auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(1100px 700px at 50% -10%, rgba(61, 142, 255, 0.16), transparent 60%),
-              var(--orvia-bg-950);
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(1000px 640px at 12% -8%, rgba(61, 142, 255, 0.20), transparent 55%),
+    radial-gradient(760px 520px at 112% 108%, rgba(34, 211, 238, 0.10), transparent 55%),
+    radial-gradient(520px 420px at 50% 125%, rgba(212, 175, 55, 0.07), transparent 60%),
+    var(--orvia-bg-950);
   padding: 2rem;
 }
+/* Palavras fantasma em serifada itálica — presença, não ruído */
+.auth-bg-words {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.auth-bg-words span {
+  position: absolute;
+  white-space: nowrap;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(4.5rem, 15vw, 13rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: transparent;
+  -webkit-text-stroke: 1.2px rgba(230, 236, 250, 0.055);
+}
+.auth-bg-words .w1 { top: 5%;  left: -2%; }
+.auth-bg-words .w2 { top: 34%; right: -3%; }
+.auth-bg-words .w3 { bottom: 27%; left: -3%; }
+.auth-bg-words .w4 { bottom: 4%;  right: -2%; }
+
 .auth-card {
-  background: var(--orvia-surface);
-  padding: 2.5rem 2rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  border: 1px solid var(--orvia-border);
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(158deg, rgba(23, 32, 56, 0.78), rgba(13, 19, 35, 0.72));
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  padding: 2.3rem 2rem 1.35rem;
+  border-radius: 18px;
+  border: 1px solid rgba(110, 168, 255, 0.20);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   width: 100%;
-  max-width: 400px;
+  max-width: 412px;
   text-align: center;
 }
-.auth-card h2 { color: var(--orvia-text); margin-bottom: 1.5rem; font-size: 1.75rem; }
-.auth-card .brand { color: var(--orvia-text); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
+.auth-card h2 { color: var(--orvia-text); margin-bottom: 1.35rem; font-size: 1.55rem; font-weight: 600; letter-spacing: -0.01em; }
+.auth-card .brand { color: var(--orvia-text); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.35rem; display: flex; align-items: center; justify-content: center; }
 .auth-card .brand img { display: block; }
-.auth-card .version { color: var(--orvia-muted); font-size: 0.75rem; margin-top: 1.25rem; }
+.gold-rule { height: 1px; width: 132px; margin: 0.55rem auto 0.45rem; background: linear-gradient(90deg, transparent, #D4AF37, transparent); }
+.tagline { color: #D4AF37; letter-spacing: 0.38em; font-size: 0.6rem; font-weight: 700; text-transform: uppercase; margin-bottom: 1.15rem; }
+.auth-card .version { color: var(--orvia-muted); font-size: 0.72rem; margin-top: 1.1rem; letter-spacing: 0.1em; }
+.auth-card .micro { color: var(--orvia-muted); font-size: 0.56rem; letter-spacing: 0.3em; text-transform: uppercase; margin-top: 0.32rem; opacity: 0.75; }

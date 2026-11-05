@@ -34,6 +34,8 @@ export const brand = {
     success: '#34D399',
     warning: '#FBBF24',
     danger: '#F87171',
+    // Ouro pontual (detalhe chique: frisos, tagline, acentos finos)
+    accentGold: '#D4AF37',
   },
 
   logos: {
