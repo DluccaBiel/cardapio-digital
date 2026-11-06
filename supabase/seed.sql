@@ -73,3 +73,20 @@ values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', 'ffffffff-ffff-4fff-bfff-fffffffffff1', 10),
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2', 'ffffffff-ffff-4fff-bfff-fffffffffff1', 10)
 on conflict do nothing;
+
+-- Combo fictício (0004): X-Burger + Refrigerante, criado no Orvia e ainda pendente para o iFood
+insert into public.menu_categories (id, workspace_id, client_id, name, sort_order, status)
+values
+  ('dddddddd-dddd-4ddd-8ddd-ddddddddddd3', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', 'Combos', 5, 'active')
+on conflict (id) do nothing;
+
+insert into public.menu_items (id, workspace_id, client_id, category_id, sku, name, description, price, status, sort_order, kind)
+values
+  ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', 'dddddddd-dddd-4ddd-8ddd-ddddddddddd3', 'CMB-001', 'Combo Clássico (Demo)', 'X-Burger Clássico + Refrigerante Lata', 35.90, 'inactive', 10, 'combo')
+on conflict (id) do nothing;
+
+insert into public.menu_combo_components (workspace_id, combo_id, component_id, quantity, sort_order)
+values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', 1, 10),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3', 1, 20)
+on conflict do nothing;

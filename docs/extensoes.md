@@ -140,3 +140,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 3. Verificar `last_seen_at` após o handshake.
 4. Confirmar que `audit_log` mostra ações com `actor_type='api_key'`.
 5. Documentar no `docs/` da extensão (README próprio em `apps/extensions/<nome>/`).
+
+
+## 12. Implementação atual (2026-11-06)
+
+- Tela **Extensões** (`/a/{ws}/extensoes`): gerar a chave (exibida uma única vez, com escopos e validade) e revogar. Só dono/coordenador (RLS).
+- Hash: `sha256(chave)` em `api_keys.key_hash`; prefixo `ck_live_xxxx` em `key_prefix` (ver decisoes-em-aberto #3).
+- Primeira extensão: `apps/extensions/orvia-ifood` (slug `orvia-ifood`, registrada na migration 0004). Fluxo e segurança no README dela.
+- CORS: a extensão chama pelo service worker (host_permissions), então não precisa de CORS. Preflight só para origens em `ALLOWED_EXTENSION_ORIGINS`.

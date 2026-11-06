@@ -1,22 +1,46 @@
 import { notFound } from 'next/navigation'
 import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
-import { PlaceholderScreen } from '../../../../components/hub/PlaceholderScreen'
+import { createServerClient } from '../../../../lib/supabaseServer'
+import { listMenuClients, loadCatalog } from '../../../../lib/menu/load'
+import { MenuScreen, type ExtensionStatus } from '../../../../components/hub/menu/MenuScreen'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Orvia — Cardápio' }
 
-export default async function CardapioPage({ params }: { params: { ws: string } }) {
+export default async function CardapioPage({
+  params,
+  searchParams,
+}: {
+  params: { ws: string }
+  searchParams: { cliente?: string }
+}) {
   const workspace = await getWorkspaceBySlug(params.ws)
   if (!workspace) notFound()
 
+  const db = createServerClient() as any
+  const clients = await listMenuClients(db, workspace.id)
+  const selected = clients.find((c) => c.id === searchParams.cliente) ?? clients[0] ?? null
+  const catalog = selected ? await loadCatalog(db, workspace.id, selected.id) : null
+
+  // Status da extensão iFood (RLS: só owner/coordenador enxergam instalações; demais veem null)
+  let extension: ExtensionStatus = null
+  const { data: install } = await db
+    .from('extension_installs')
+    .select('status, version, last_seen_at, extensions!inner ( slug )')
+    .eq('workspace_id', workspace.id)
+    .eq('extensions.slug', 'orvia-ifood')
+    .maybeSingle()
+  if (install) extension = { status: install.status, version: install.version, last_seen_at: install.last_seen_at }
+
   return (
-    <PlaceholderScreen
-      title="Cardápio"
-      badge="Em construção nesta fase"
-      description="Catálogo de categorias, produtos e complementos, com gestão de fotos e histórico"
-      icon="utensils"
+    <MenuScreen
+      ws={workspace.slug}
       workspaceName={workspace.name}
-      bullets={['Categorias e produtos por cliente', 'Upload de fotos em massa', 'Histórico e restauração de imagens']}
+      canEdit={['owner', 'coordenador', 'editor'].includes(workspace.role)}
+      canManageKeys={['owner', 'coordenador'].includes(workspace.role)}
+      clients={clients}
+      catalog={catalog}
+      extension={extension}
     />
   )
 }

@@ -1,0 +1,40 @@
+{
+  "merchant": { "id": "MERCHANT-DEMO-1", "name": "Hamburgueria Astro (Demo)" },
+  "catalogs": [{ "id": "CAT-MAIN", "name": "Cardápio principal" }],
+  "categories": [
+    {
+      "id": "IF-CAT-1",
+      "name": "Lanches",
+      "items": [
+        {
+          "id": "IF-ITEM-1",
+          "name": "X-Burger Clássico (Demo)",
+          "description": "Hambúrguer 150g, queijo e molho da casa",
+          "price": 32.9,
+          "status": "AVAILABLE",
+          "complementGroups": [
+            {
+              "id": "IF-G-1",
+              "name": "Adicionais",
+              "min": 0,
+              "max": 3,
+              "options": [
+                { "id": "IF-O-1", "name": "Bacon extra", "price": 4 },
+                { "id": "IF-O-2", "name": "Queijo extra", "price": 3 }
+              ]
+            }
+          ]
+        },
+        { "id": "IF-ITEM-2", "name": "Astro Bacon (Demo)", "description": "Burger duplo com bacon", "price": 41.5, "status": "AVAILABLE" }
+      ]
+    },
+    {
+      "id": "IF-CAT-2",
+      "name": "Bebidas",
+      "items": [
+        { "id": "IF-ITEM-3", "name": "Refrigerante Lata (Demo)", "description": "Lata 350ml", "price": 6, "status": "AVAILABLE" },
+        { "id": "IF-ITEM-4", "name": "Suco Natural (Demo)", "description": "500ml", "price": 9.5, "status": "UNAVAILABLE" }
+      ]
+    }
+  ]
+}

@@ -213,6 +213,26 @@ Regra de ouro para implementadores: **nenhuma escrita sem If-Match**; `updated_a
 
 `client.created|updated|archived`, `menu.category.created|updated|deleted`, `menu.item.created|updated|deleted`, `menu.subitem.created|updated|deleted`, `menu.addon_group.created|updated|deleted`, `menu.image.replaced|removed|restored`, `api_key.rotated|revoked`, `webhook.test`.
 
+## 7.1 Cardápio ↔ iFood — implementado (2026-11-06)
+
+Endpoints já ativos (Route Handlers em `app/api/v1/`). Os demais da §4 continuam planejados. São todos aditivos.
+
+| Método | Rota | Escopo | Descrição |
+|---|---|---|---|
+| GET | `/me` | (qualquer chave válida) | Workspace + escopos da chave ("Testar conexão") |
+| POST | `/extensions/handshake` | (chave vinculada a extensão) | `{ version }` → upsert em `extension_installs` (`last_seen_at`) |
+| GET | `/clients` | `clientes:ler` | Lista enxuta `{ id, name, ifood_merchant_id }` (sem PII) |
+| GET | `/menu?client_id=` | `catalogo:ler` | Catálogo completo (categorias, itens/combos, complementos). `ETag` = versão do catálogo |
+| POST | `/menu/import` | `catalogo:escrever` | Snapshot do iFood → Orvia. **If-Match = ETag de `/menu`** (428 sem, 409 divergente). 409 `merchant_mismatch` se a loja não for a vinculada |
+| GET | `/menu/pending?client_id=` | `catalogo:ler` | Fila "aplicar no iFood": itens/combos com `updated_at > ifood_synced_at` (ou nunca sincronizados), com `etag` por item |
+| GET/PATCH | `/menu/items/{id}` | `catalogo:ler` / `catalogo:escrever` | PATCH de `name, description, price, status, sku, category_id, sort_order` com If-Match = `ETag` do GET |
+| POST | `/menu/items/{id}/ifood-sync` | `catalogo:escrever` | Confirma que foi aplicado no iFood (`{ ifood_id? }`). If-Match = `etag` da pendência |
+| POST | `/menu/combos` | `catalogo:escrever` | Cria combo `{ client_id, name, description, price, components:[{component_id, quantity}] }`. **Sempre nasce pausado** |
+
+Regras da importação: nunca apaga; não sobrescreve item com edição local pendente (volta como `kept_local`); IDs sintéticos (`cat_N`, `synth_`, `dom_`) não viram `ifood_id`; item sem preço legível é ignorado (`skipped`).
+ETag de linha = `updated_at` bruto do Postgres (com microssegundos). "Sincronizado" é gravado pela RPC `mark_menu_items_ifood_synced`, com o `now()` do banco.
+Rate limit: janela de 1 min por chave, **em memória por instância** (ver decisoes-em-aberto #4). Testes: `supabase/tests/api_menu.mjs` (34 checks).
+
 ## 8. Fora de escopo da Fase 1 (Fases futuras)
 
 Cardápio público/pedidos, Meta Ads sync, relatórios semanais, envio de WhatsApp, rate-limit distribuído via Redis, SDKs. Ver `docs/roadmap-fase-1.md` e `docs/decisoes-em-aberto.md`.

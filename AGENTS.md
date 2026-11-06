@@ -36,7 +36,7 @@ npm test               # testes (vitest/jest)
 
 # Banco / migrations (Supabase CLI como devDependency: npm i -D supabase; Docker Desktop necessário)
 npx supabase start           # sobe o stack local (Postgres + API + Studio em http://127.0.0.1:54323)
-npx supabase db reset        # recria o banco local (0001 + 0002 + 0003 + seed.sql, com dados FICTÍCIOS)
+npx supabase db reset        # recria o banco local (0001…0004 + seed.sql, com dados FICTÍCIOS)
 npx supabase stop            # derruba o stack local
 npx supabase db dump --local > backups/pre-migration_$(date +%F).sql   # SEMPRE antes de migrar produção
 
@@ -45,6 +45,9 @@ docker ps --format '{{.Names}}'                                     # descubra o
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_isolation.sql   # 70 testes RLS (esperado 70/0)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_cross_link.sql  # 20 testes cross-link (20/0)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/checks.sql          # higiene (0 problemas)
+docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/combos_ifood.sql    # 16 testes combos/iFood (16/0)
+# API + painel + extensão (hub local em :3100 apontando para o Supabase local, envs só no processo):
+#   node supabase/tests/api_menu.mjs (34/34) → node scripts/e2e-cardapio.mjs (9/9) → (apps/extensions/orvia-ifood) node scripts/e2e.mjs (15/15)
 # Smoke test HTTP (chaves descartáveis locais via env — NUNCA gravar em arquivos):
 $s = npx supabase status -o env
 $env:LOCAL_API_URL = (($s | Select-String '^API_URL=').Line -split '=',2)[1].Trim('"')

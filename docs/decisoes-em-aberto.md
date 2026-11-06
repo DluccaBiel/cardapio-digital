@@ -13,6 +13,7 @@ Cada item traz contexto, opções e **recomendação padrão**. Enquanto não fo
 **Recomendação:** **(a) publicar na Web Store** como não listada (unlisted) — id estável, distribuição controlada por você. Para dev, usar (c) com flag `extension_installs.status='active'` e id dev registrado manualmente. **Nunca** `chrome-extension://*` em produção.
 
 ## 3. Hash de chave de API: sha-256 simples vs. argon2id
+**Decidido em 2026-11-06 (Marco 4):** SHA-256 da chave inteira, sem salt (`lib/api/keys.ts`). A chave tem 256 bits aleatórios (`ck_live_` + 43 chars base64url), então salt não protege contra força bruta e impediria o lookup pelo `key_hash` único. Pepper fica como evolução opcional, porque exige rotacionar todas as chaves. Registrado em `docs/extensoes.md`.
 **Contexto:** chaves são segredos de alta entropia (192+ bits) — o modelo de ameaça é vazamento do banco, não brute force.
 **Opções:** (a) sha-256 com salt por chave, (b) argon2id (mais lento, sem ganho real para alta entropia), (c) HMAC com pepper no servidor.
 **Recomendação:** **sha-256 + salt aleatório por chave** (lookup por prefixo indexado + verificação do hash). Adicionar **pepper** via `ENCRYPTION_KEY` como defesa em profundidade (`HMAC-SHA256(pepper, salt || key)`). argon2id seria custo puro.

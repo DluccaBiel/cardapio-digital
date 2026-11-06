@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "Orvia · Otimizador iFood",
+  "version": "0.2.0",
+  "description": "Lê o cardápio no Portal do Parceiro iFood, envia ao Orvia e guia a aplicação de combos e edições feitas no painel.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://portal.ifood.com.br/*",
+    "https://orvia-gestao.vercel.app/*"
+  ],
+  "optional_host_permissions": [
+    "https://*.vercel.app/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://portal.ifood.com.br/*"
+      ],
+      "js": [
+        "dist/page-hook.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://portal.ifood.com.br/*"
+      ],
+      "js": [
+        "dist/content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://orvia-gestao.vercel.app/a/*/extensoes*"
+      ],
+      "js": [
+        "dist/hub-bridge.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "action": {
+    "default_title": "Orvia · iFood — conexão"
+  },
+  "icons": {
+    "16": "assets/brand/icon16.png",
+    "48": "assets/brand/icon48.png",
+    "128": "assets/brand/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
