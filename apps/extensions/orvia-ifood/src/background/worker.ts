@@ -2,13 +2,22 @@
  * Service worker: único lugar que conhece a chave de API e fala com o Orvia.
  * Content script e página de opções conversam com ele por mensagens.
  */
-import { HubClient, isValidApiKey, normalizeHubUrl, originMatchesPatterns, PRODUCTION_HUB, type HubConfig, type HubResult } from '../lib/hub'
+import { HubClient, isValidApiKey, loginToHub, normalizeHubUrl, originMatchesPatterns, PRODUCTION_HUB, type HubConfig, type HubResult } from '../lib/hub'
 import { snapshotToImport } from '../lib/bridge'
-import { HUB_CONFIG_KEY, type Msg, type Reply } from '../lib/messages'
+import { DEVICE_ID_KEY, HUB_CONFIG_KEY, type Msg, type Reply } from '../lib/messages'
 import { listSnapshots, saveSnapshot } from '../storage/store'
 
 const VERSION = chrome.runtime.getManifest().version
 let handshakeDone = false
+let lastHeartbeat = 0
+
+async function deviceId(): Promise<string> {
+  const stored = (await chrome.storage.local.get(DEVICE_ID_KEY))[DEVICE_ID_KEY] as string | undefined
+  if (stored) return stored
+  const id = crypto.randomUUID()
+  await chrome.storage.local.set({ [DEVICE_ID_KEY]: id })
+  return id
+}
 
 async function loadConfig(): Promise<HubConfig | null> {
   const stored = (await chrome.storage.local.get(HUB_CONFIG_KEY))[HUB_CONFIG_KEY] as Partial<HubConfig> | undefined
@@ -79,6 +88,39 @@ async function handle(msg: Msg): Promise<Reply<unknown>> {
         return { ok: true, data: { workspace: me.data.workspace } }
       } catch {
         return { ok: false, error: 'Falha ao conectar.' }
+      }
+    }
+    case 'hub:login': {
+      // Senha só trafega nesta chamada (HTTPS) — nunca é guardada.
+      const res = await loginToHub(msg.hubUrl, {
+        email: msg.email,
+        password: msg.password,
+        workspace_slug: msg.workspaceSlug,
+        device_id: await deviceId(),
+        device_label: navigator.userAgent.includes('Edg/') ? 'Edge' : 'Chrome',
+      })
+      if (!res.ok) return { ok: false, error: res.message, code: res.code }
+      if ('needs_workspace' in res.data) return { ok: true, data: res.data }
+      const base = normalizeHubUrl(msg.hubUrl)!
+      await chrome.storage.local.set({ [HUB_CONFIG_KEY]: { hubUrl: base, apiKey: res.data.key, email: res.data.user.email, workspace: res.data.workspace.name } })
+      handshakeDone = false
+      const client = new HubClient({ hubUrl: base, apiKey: res.data.key })
+      const hs = await client.handshake(VERSION)
+      handshakeDone = hs.ok
+      lastHeartbeat = Date.now()
+      return { ok: true, data: { workspace: res.data.workspace, user: res.data.user } }
+    }
+    case 'hub:heartbeat': {
+      // Mantém o "Conectada agora" no painel enquanto o portal iFood está aberto (no máx. 1×/min).
+      const cfg = await loadConfig()
+      if (!cfg) return { ok: true, data: { configured: false } }
+      if (Date.now() - lastHeartbeat < 60_000) return { ok: true, data: { skipped: true } }
+      lastHeartbeat = Date.now()
+      try {
+        const hs = await new HubClient(cfg).handshake(VERSION)
+        return hs.ok ? { ok: true, data: { ok: true } } : reply(hs)
+      } catch {
+        return { ok: false, error: 'Configuração inválida.' }
       }
     }
     case 'hub:status': {

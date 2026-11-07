@@ -19,7 +19,12 @@ type ApiKey = {
   revoked_at: string | null
   created_at: string
 }
-type Install = { extension_id: string; version: string | null; status: string; last_seen_at: string | null }
+type Install = { extension_id: string; version: string | null; status: string; last_seen_at: string | null; api_keys?: { name: string } | { name: string }[] | null }
+
+function installKeyName(i: Install): string | null {
+  const k = Array.isArray(i.api_keys) ? i.api_keys[0] : i.api_keys
+  return k?.name ?? null
+}
 
 const SCOPE_INFO: { value: string; label: string; hint: string }[] = [
   { value: 'clientes:ler', label: 'Clientes · ler', hint: 'listar clientes para escolher o destino' },
@@ -96,8 +101,9 @@ export function ExtensionsScreen({
                   <p className="mt-0.5 text-[12px] leading-relaxed text-[#8A97AC]">{e.description}</p>
                   <p className="mt-2 text-[12px] text-[#B4BFD0]">
                     <span className={cn('mr-1.5 inline-block h-2 w-2 rounded-full', online ? 'bg-[#34D399]' : inst ? 'bg-[#FBBF24]' : 'bg-[#4B5870]')} />
-                    {inst ? `${online ? 'Conectada' : 'Instalada'} · v${inst.version ?? '?'} · último contato ${when(inst.last_seen_at)}` : 'Ainda não conectada'}
+                    {inst ? `${online ? 'Conectada agora' : 'Instalada (sem contato recente)'} · v${inst.version ?? '?'} · último contato ${when(inst.last_seen_at)}` : 'Ainda não conectada'}
                   </p>
+                  {inst && installKeyName(inst) && <p className="mt-0.5 text-[11px] text-[#7C8AA1]">Acesso: {installKeyName(inst)}</p>}
                 </div>
               </div>
             </article>

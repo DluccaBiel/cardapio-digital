@@ -66,27 +66,60 @@ const [row] = await rest('api_keys', {
   }),
 })
 
-const fixture = readFileSync('tests/fixtures/menu-payload.json', 'utf8')
+const fixtureJson = JSON.parse(readFileSync('tests/fixtures/menu-payload.json', 'utf8'))
+const fixture = JSON.stringify(fixtureJson)
+// "Servidor do iFood" SIMULADO: detalhe dos itens em centavos, PUT do objeto inteiro, exige token.
+const portalDb = {}
+for (const cat of fixtureJson.categories) for (const it of cat.items) {
+  portalDb[it.id] = { id: it.id, name: it.name, description: it.description, price: { value: Math.round(it.price * 100) }, status: it.status, extra: { sku: `SKU-${it.id}` } }
+}
+const TOKEN = 'Bearer sim-token'
+async function portalRoute(route) {
+  const req = route.request()
+  const url = new URL(req.url())
+  if (url.pathname === '/api/v1/menu-fixture') return route.fulfill({ status: 200, contentType: 'application/json', body: fixture })
+  const m = url.pathname.match(/^\/merchant-api\/catalog\/items\/([^/]+)$/)
+  if (m) {
+    if (req.headers()['authorization'] !== TOKEN) return route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"no auth"}' })
+    const id = decodeURIComponent(m[1])
+    if (!portalDb[id]) return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
+    if (req.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: portalDb[id] }) })
+    if (req.method() === 'PUT') {
+      portalDb[id] = JSON.parse(req.postData())
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' })
+    }
+  }
+  return route.fulfill({ status: 200, contentType: 'text/html', body: portalHtml })
+}
 const portalHtml = `<!doctype html><html><head><title>Portal (simulado)</title></head><body>
 <h1>Portal do Parceiro (SIMULADO para teste)</h1>
-<script>fetch('/api/v1/menu-fixture').then(r => r.json()).then(() => document.body.dataset.loaded = '1')</script>
+<script>
+const H = { Authorization: 'Bearer sim-token' }
+fetch('/api/v1/menu-fixture', { headers: H }).then(r => r.json()).then(() => document.body.dataset.loaded = '1')
+// Edição "manual" como o portal faria: abre o item (GET) e salva o objeto inteiro (PUT)
+window.simEdit = async (id, change) => {
+  const r = await fetch('/merchant-api/catalog/items/' + id, { headers: H })
+  const item = (await r.json()).data
+  change(item)
+  const w = await fetch('/merchant-api/catalog/items/' + id, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify(item) })
+  return w.status
+}
+</script>
 </body></html>`
 
 step('abrindo Chromium com a extensão')
 let createdUser = null
 let autoKeyId = null
+let loginKeyIds = []
 const context = await chromium.launchPersistentContext('', {
   channel: 'chromium',
   headless: true,
   args: [`--disable-extensions-except=${dir}`, `--load-extension=${dir}`],
   viewport: { width: 1440, height: 900 },
 })
+context.setDefaultTimeout(40000)
 try {
-  await context.route('https://portal.ifood.com.br/**', (route) => {
-    const url = route.request().url()
-    if (url.includes('/api/v1/menu-fixture')) return route.fulfill({ status: 200, contentType: 'application/json', body: fixture })
-    return route.fulfill({ status: 200, contentType: 'text/html', body: portalHtml })
-  })
+  await context.route('https://portal.ifood.com.br/**', portalRoute)
 
   step('aguardando service worker')
   let [sw] = context.serviceWorkers()
@@ -101,6 +134,25 @@ try {
   const user = await (await fetch(`${SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email, password, email_confirm: true }) })).json()
   createdUser = user.id
   await rest('members', { method: 'POST', body: JSON.stringify({ workspace_id: WS, user_id: user.id, role: 'owner' }) })
+  step('login com usuário nas opções da extensão')
+  step('opções: abrindo')
+  const opt = await context.newPage()
+  await opt.goto(`chrome-extension://${extId}/options.html`)
+  await opt.locator('summary').click()
+  await opt.fill('#hubUrl', HUB)
+  await opt.fill('#email', email)
+  await opt.fill('#password', password)
+  step('opções: enviando login')
+  await opt.click('#loginBtn')
+  await opt.locator('#who').filter({ hasText: email }).waitFor({ timeout: 60000 })
+  check('login com e-mail/senha conectou a extensão', (await opt.textContent('#who')).includes('Orvia Demo'))
+  const viaLogin = await sw.evaluate(async () => (await chrome.storage.local.get('orvia.hub'))['orvia.hub'])
+  check('senha não fica salva na extensão', !JSON.stringify(viaLogin).includes(password) && /^ck_live_/.test(viaLogin?.apiKey ?? ''))
+  const loginKeys = await rest(`api_keys?workspace_id=eq.${WS}&name=like.${encodeURIComponent('Extensão · ' + email + '*')}&select=id,scopes,revoked_at`)
+  check('servidor criou acesso da extensão para o usuário', loginKeys.length === 1 && !loginKeys[0].revoked_at, JSON.stringify(loginKeys))
+  loginKeyIds = loginKeys.map((k) => k.id)
+  await opt.screenshot({ path: join(dir, 'ext-00-login.png') })
+
   const hubPage = await context.newPage()
   await hubPage.goto(`${HUB}/login`)
   await hubPage.fill('input[type=email]', email)
@@ -109,7 +161,7 @@ try {
   await hubPage.waitForURL(/\/a\//, { timeout: 30000 })
   await hubPage.goto(`${HUB}/conectar-extensao`, { timeout: 120000 }) // 1ª compilação em modo dev é lenta
   await hubPage.waitForURL(/extensoes\?conectar=1/, { timeout: 30000 })
-  await hubPage.getByText(/Extensão detectada \(v0\.2\.0\)/).waitFor({ timeout: 15000 })
+  await hubPage.getByText(/Extensão detectada \(v0\.3\.0\)/).waitFor({ timeout: 15000 })
   check('painel detecta a extensão instalada', true)
   await hubPage.getByRole('button', { name: 'Conectar extensão' }).click()
   await hubPage.getByText(/Extensão conectada ao workspace “Orvia Demo”/).waitFor({ timeout: 20000 })
@@ -118,15 +170,20 @@ try {
   check('extensão salvou a conexão sozinha (sem colar chave)', saved?.hubUrl === HUB && /^ck_live_/.test(saved?.apiKey ?? ''))
   check('chave não aparece na página do painel', !(await hubPage.content()).includes(saved?.apiKey ?? '###'))
   const install = await rest(`extension_installs?workspace_id=eq.${WS}&select=version,last_seen_at`)
-  check('handshake registrou instalação v0.2.0', install?.[0]?.version === '0.2.0', JSON.stringify(install))
+  check('handshake registrou instalação v0.3.0', install?.[0]?.version === '0.3.0', JSON.stringify(install))
   const autoKeys = await rest(`api_keys?workspace_id=eq.${WS}&name=like.${encodeURIComponent('Conexão automática*')}&select=id,scopes`)
   check('chave automática criada com escopos mínimos', autoKeys.length === 1 && autoKeys[0].scopes.length === 3, JSON.stringify(autoKeys))
   autoKeyId = autoKeys[0]?.id
+  await hubPage.goto(`${HUB}/conectar-extensao`, { timeout: 120000 })
+  const connectedText = await hubPage.getByText(/Conectada agora/).first().waitFor({ timeout: 20000 }).then(() => true, () => false)
+  check('painel do Orvia mostra a extensão "Conectada agora"', connectedText)
+  await hubPage.screenshot({ path: join(dir, 'ext-01b-painel-conectada.png') })
 
   // Página de opções reflete a conexão
   const options = await context.newPage()
   await options.goto(`chrome-extension://${extId}/options.html`)
-  check('opções mostram botão de conexão automática', await options.getByRole('button', { name: /Conectar automaticamente/ }).isVisible())
+  await options.locator('#who').waitFor({ timeout: 10000 })
+  check('opções mostram a conexão ativa', ((await options.textContent('#who')) ?? '').length > 0)
 
   // Portal simulado
   step('portal simulado')
@@ -165,6 +222,39 @@ try {
   const combo = await rest(`menu_items?id=eq.eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4&select=ifood_id,ifood_synced_at,updated_at`)
   check('combo marcado como aplicado (ifood_id + sincronizado)', combo?.[0]?.ifood_id === 'IF-COMBO-E2E' && combo[0].ifood_synced_at === combo[0].updated_at, JSON.stringify(combo))
 
+  // ---- Aplicação automática -------------------------------------------------
+  step('aplicação automática')
+  // No Orvia: novo preço para o Astro Bacon (IF-ITEM-2) → vira pendência de atualização
+  await rest(`menu_items?client_id=eq.${CLIENT}&ifood_id=eq.IF-ITEM-2`, { method: 'PATCH', body: JSON.stringify({ price: 44.9 }) })
+  // Você edita 1 produto no portal (preço + descrição) → a extensão aprende
+  const editStatus = await page.evaluate((fn) => window.simEdit('IF-ITEM-1', new Function('it', fn)), "it.price.value = 3390; it.status = 'UNAVAILABLE'; it.description = 'Hambúrguer 150g, queijo e molho da casa (editado)'")
+  check('edição manual no portal simulado salvou', editStatus === 200)
+  await panel.getByText(/Aprendi como o iFood salva/).waitFor({ timeout: 15000 })
+  check('extensão aprendeu preço e descrição com 1 edição', /Preço/.test(await panel.getByText(/Aprendi como o iFood salva/).textContent()))
+  const learned = await sw.evaluate(async () => (await chrome.storage.local.get('orvia.templates'))['orvia.templates'])
+  check('moldes salvos sem token/cabeçalhos', Array.isArray(learned) && learned.length >= 2 && !JSON.stringify(learned).includes('sim-token'))
+  await panel.getByRole('button', { name: /Atualizar lista|Carregar pendências/ }).click()
+  const applyBtn = panel.getByRole('button', { name: /Aplicar automaticamente \(\d+\)/ })
+  await applyBtn.waitFor({ timeout: 15000 })
+  await page.screenshot({ path: join(dir, 'ext-06-auto-antes.png') })
+  await panel.getByRole('button', { name: /^Simular/ }).click()
+  await panel.getByText(/Simulação:/).waitFor({ timeout: 30000 })
+  check('simulação não altera o iFood', portalDb['IF-ITEM-2'].price.value === 4150)
+  await applyBtn.click()
+  await panel.getByText(/aplicados no iFood\./).waitFor({ timeout: 60000 })
+  await page.screenshot({ path: join(dir, 'ext-07-auto-depois.png') })
+  const astro = portalDb['IF-ITEM-2']
+  check('iFood (simulado) recebeu o preço novo do Orvia', astro.price.value === 4490, JSON.stringify(astro))
+  check('iFood recebeu a descrição do Orvia', astro.description === 'Burger duplo com bacon crocante', astro.description)
+  check('iFood recebeu o status do Orvia (em falta → pausado)', astro.status === 'UNAVAILABLE', astro.status)
+  check('demais campos do item intactos', astro.extra.sku === 'SKU-IF-ITEM-2' && astro.name === 'Astro Bacon (Demo)')
+  const astroOrvia = await rest(`menu_items?client_id=eq.${CLIENT}&ifood_id=eq.IF-ITEM-2&select=ifood_synced_at,updated_at`)
+  check('Orvia marcou como sincronizado', astroOrvia?.[0]?.ifood_synced_at === astroOrvia?.[0]?.updated_at, JSON.stringify(astroOrvia))
+  // Desfazer
+  await panel.getByRole('button', { name: 'Desfazer último lote no iFood' }).click()
+  await panel.getByText(/voltaram ao valor anterior/).waitFor({ timeout: 60000 })
+  check('desfazer devolveu o preço anterior no iFood', portalDb['IF-ITEM-2'].price.value === 4150, JSON.stringify(portalDb['IF-ITEM-2'].price))
+
   // Análise → criar combo no Orvia
   await panel.getByRole('button', { name: 'Análise' }).click()
   await panel.getByRole('button', { name: 'Analisar cardápio' }).click()
@@ -190,6 +280,7 @@ try {
   await context.close()
   await rest(`api_keys?id=eq.${row.id}`, { method: 'DELETE' })
   if (autoKeyId) await rest(`api_keys?id=eq.${autoKeyId}`, { method: 'DELETE' })
+  for (const id of loginKeyIds) await rest(`api_keys?id=eq.${id}`, { method: 'DELETE' })
   if (createdUser) await fetch(`${SB}/auth/v1/admin/users/${createdUser}`, { method: 'DELETE', headers: H })
 }
 const failed = results.filter((r) => !r).length

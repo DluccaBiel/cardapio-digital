@@ -13,6 +13,8 @@ export type Msg =
   | { type: 'hub:createCombo'; body: { client_id: string; name: string; description: string; price: number; components: { component_id: string; quantity: number }[] } }
   | { type: 'hub:test'; hubUrl: string; apiKey: string }
   | { type: 'hub:pair'; hubUrl: string; apiKey: string }
+  | { type: 'hub:login'; hubUrl: string; email: string; password: string; workspaceSlug?: string }
+  | { type: 'hub:heartbeat' }
   | { type: 'options:open' }
 
 export type Reply<T = unknown> = { ok: true; data: T } | { ok: false; error: string; code?: string; details?: Record<string, unknown> }
@@ -28,4 +30,5 @@ export async function send<T>(msg: Msg): Promise<Reply<T>> {
 }
 
 export const HUB_CONFIG_KEY = 'orvia.hub'
+export const DEVICE_ID_KEY = 'orvia.deviceId'
 export const SELECTED_CLIENT_KEY = 'orvia.selectedClient'

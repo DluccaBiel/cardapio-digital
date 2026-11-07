@@ -4,6 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
 import { createServerClient } from '../../../../lib/supabaseServer'
 import * as m from '../../../../lib/menu/mutations'
+import { loadCatalog } from '../../../../lib/menu/load'
+import { GOALS, suggestOptimizations, type Goal, type Suggestions } from '../../../../lib/ai/optimize'
+import { audit } from '../../../../lib/audit'
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string; conflict?: boolean }
 
@@ -74,4 +77,56 @@ export async function deleteSubitemAction(ws: string, id: string, expected?: str
 }
 export async function markSyncedAction(ws: string, id: string, expected: string) {
   return run(ws, (ctx) => m.markSynced(ctx, id, expected))
+}
+
+// ---------------------------------------------------------------------------
+// IA: gerar sugestões (não grava) e aplicar as aprovadas (vira fila do iFood)
+// ---------------------------------------------------------------------------
+
+export async function suggestWithAiAction(
+  ws: string,
+  input: { clientId: string; goal: Goal; notes?: string; maxPriceChangePct: number },
+): Promise<{ ok: true; data: Suggestions } | { ok: false; error: string }> {
+  const ctx = await ctxFor(ws)
+  if (typeof ctx === 'string') return { ok: false, error: ctx }
+  if (!(input.goal in GOALS)) return { ok: false, error: 'Objetivo inválido.' }
+  const catalog = await loadCatalog(ctx.db, ctx.workspaceId, input.clientId)
+  if (!catalog) return { ok: false, error: 'Cliente não encontrado.' }
+  if (catalog.items.length === 0) return { ok: false, error: 'O cardápio está vazio: importe do iFood antes.' }
+  const pct = Math.min(30, Math.max(0, Math.round(input.maxPriceChangePct)))
+  const res = await suggestOptimizations(catalog, { goal: input.goal, notes: input.notes?.trim(), maxPriceChangePct: pct })
+  if (res.ok) {
+    await audit({
+      workspaceId: ctx.workspaceId, actorType: 'user', actorId: ctx.actor.id, action: 'menu.ai.suggest', entityType: 'client', entityId: input.clientId,
+      metadata: { goal: input.goal, updates: res.data.updates.length, combos: res.data.combos.length },
+    })
+  }
+  return res
+}
+
+export async function applyAiSuggestionsAction(
+  ws: string,
+  input: {
+    clientId: string
+    updates: { item_id: string; updated_at: string; after: { name?: string; description?: string; price?: number } }[]
+    combos: { name: string; description: string; price: number; components: { component_id: string; quantity: number }[] }[]
+  },
+): Promise<{ ok: true; applied: number; failed: string[] } | { ok: false; error: string }> {
+  const ctx = await ctxFor(ws)
+  if (typeof ctx === 'string') return { ok: false, error: ctx }
+  const failed: string[] = []
+  let applied = 0
+  for (const u of input.updates.slice(0, 200)) {
+    const res = await m.patchItem(ctx, u.item_id, u.updated_at, u.after)
+    if (res.ok) applied += 1
+    else failed.push(`${u.after.name ?? u.item_id}: ${res.message}`)
+  }
+  for (const c of input.combos.slice(0, 10)) {
+    const res = await m.saveCombo(ctx, { client_id: input.clientId, name: c.name, description: c.description, price: c.price, status: 'inactive', components: c.components })
+    if (res.ok) applied += 1
+    else failed.push(`${c.name}: ${res.message}`)
+  }
+  await audit({ workspaceId: ctx.workspaceId, actorType: 'user', actorId: ctx.actor.id, action: 'menu.ai.apply', entityType: 'client', entityId: input.clientId, metadata: { applied, failed: failed.length } })
+  revalidatePath(`/a/${ws}/cardapio`)
+  return { ok: true, applied, failed }
 }

@@ -22,7 +22,7 @@ export default async function ExtensoesPage({ params, searchParams }: { params: 
           .select('id, name, key_prefix, scopes, extension_id, last_used_at, expires_at, revoked_at, created_at')
           .eq('workspace_id', workspace.id)
           .order('created_at', { ascending: false }),
-        db.from('extension_installs').select('extension_id, version, status, last_seen_at').eq('workspace_id', workspace.id),
+        db.from('extension_installs').select('extension_id, version, status, last_seen_at, api_keys ( name )').eq('workspace_id', workspace.id),
       ])
     : [{ data: [] }, { data: [] }]
 

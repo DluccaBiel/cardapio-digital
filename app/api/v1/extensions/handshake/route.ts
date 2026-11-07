@@ -20,6 +20,7 @@ export async function POST(req: Request) {
 
   const db = auth.ctx.db
   const now = new Date().toISOString()
+  const { data: keyRow } = await db.from('api_keys').select('created_by').eq('id', auth.keyId).maybeSingle()
   const { data, error } = await db
     .from('extension_installs')
     .upsert(
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
         workspace_id: auth.workspaceId,
         extension_id: auth.extensionId,
         api_key_id: auth.keyId,
+        installed_by: keyRow?.created_by ?? null,
         version: parsed.data.version,
         status: 'active',
         last_seen_at: now,

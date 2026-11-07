@@ -76,6 +76,12 @@ Branch: `feat/cardapio` (a partir de `feat/ui-visual`). **Ainda não aplicado no
 - Nota de ambiente: o projeto fica no OneDrive, que às vezes trava arquivos de `.next` (`EBUSY`) durante o `next dev`. Se acontecer, reinicie o dev server.
 - Para usar em produção: (1) backup + `supabase db push` da 0004 no projeto do ambiente, (2) preview → produção, (3) gerar a chave no painel e carregar a extensão.
 
+## Marco 4.1 — Extensão 0.3: login, conectada, automático e IA ✅ (06/11/2026)
+- Login com e-mail e senha do Orvia na extensão (`/api/v1/extension-auth/login`). Heartbeat a cada 2 minutos; o painel mostra "Conectada agora" e quem conectou.
+- Aplicação automática no iFood por aprendizado. A extensão observa 1 edição no portal (`src/lib/learn.ts`) e depois executa com conferência e verificação (`src/lib/executor.ts`), com simulação e desfazer. Tokens ficam só na memória da aba.
+- **Otimizar com IA** no Cardápio (`lib/ai/optimize.ts`, Claude `claude-opus-5-5`, saída estruturada e fallback de recusa). O servidor revalida IDs, o teto de variação de preço e os combos. Precisa de `ANTHROPIC_API_KEY` na Vercel.
+- Testes: API 34/34 · painel 9/9 · extensão vitest 36/36 + E2E Chromium 29/29, contra o portal simulado com API protegida por token.
+
 ## Plano de marcos
 - Marco 2 — Visão geral + Clientes (migration 0005 e testes; KPIs; filtros; CSV; seed).
 - Marco 3 — Contas de anúncio + Relatórios (dados manuais; migration 0004 e testes).

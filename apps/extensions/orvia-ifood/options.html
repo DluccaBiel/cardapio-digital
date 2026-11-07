@@ -6,44 +6,72 @@
     <style>
       :root { color-scheme: dark; }
       body { margin: 0; background: #070B14; color: #E6ECFA; font: 14px/1.5 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; }
-      main { max-width: 560px; margin: 48px auto; padding: 0 20px; }
+      main { max-width: 560px; margin: 40px auto; padding: 0 20px 40px; }
       h1 { font-size: 22px; margin: 0 0 4px; }
-      p.sub { color: #8FA0C4; margin: 0 0 24px; }
-      label { display: block; margin: 16px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #8FA0C4; }
-      input { width: 100%; box-sizing: border-box; height: 42px; border-radius: 8px; border: 1px solid #26314A; background: #080D18; color: #E8EDF7; padding: 0 12px; font: inherit; }
-      input:focus { outline: none; border-color: #3D8EFF; box-shadow: 0 0 0 3px rgba(61,142,255,.2); }
+      h2 { font-size: 15px; margin: 0 0 4px; }
+      p.sub { color: #8FA0C4; margin: 0 0 20px; }
+      .card { border: 1px solid #1E2738; background: #0D1320; border-radius: 14px; padding: 18px; margin-top: 16px; }
+      label { display: block; margin: 14px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #8FA0C4; }
+      input, select { width: 100%; box-sizing: border-box; height: 42px; border-radius: 8px; border: 1px solid #26314A; background: #080D18; color: #E8EDF7; padding: 0 12px; font: inherit; }
+      input:focus, select:focus { outline: none; border-color: #3D8EFF; box-shadow: 0 0 0 3px rgba(61,142,255,.2); }
       .hint { color: #7C8AA1; font-size: 12px; margin-top: 6px; }
-      .actions { display: flex; gap: 8px; margin-top: 24px; }
+      .actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
       button { height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid #26314A; background: #0D1320; color: #D5DDEA; font: 600 14px inherit; cursor: pointer; }
       button.primary { background: #3D8EFF; border-color: #3D8EFF; color: #fff; }
       button:disabled { opacity: .5; cursor: not-allowed; }
-      #status { margin-top: 20px; padding: 12px; border-radius: 10px; display: none; }
-      #status.ok { display: block; background: rgba(52,211,153,.1); color: #6EE7B7; }
-      #status.err { display: block; background: rgba(248,113,113,.12); color: #FCA5A5; }
-      ol { color: #B4BFD0; padding-left: 20px; }
+      .status { margin-top: 14px; padding: 12px; border-radius: 10px; display: none; }
+      .status.ok { display: block; background: rgba(52,211,153,.1); color: #6EE7B7; }
+      .status.err { display: block; background: rgba(248,113,113,.12); color: #FCA5A5; }
+      #connected { display: none; }
+      #connected .who { font-size: 15px; font-weight: 700; }
+      details summary { cursor: pointer; color: #8FA0C4; margin-top: 22px; }
       code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #CFE0FF; }
     </style>
   </head>
   <body>
     <main>
       <h1>Orvia · Otimizador iFood</h1>
-      <p class="sub">Conecte a extensão ao seu painel Orvia.</p>
-      <p><button class="primary" type="button" id="auto">Conectar automaticamente (recomendado)</button></p>
-      <p class="hint">Abre o Orvia (faça login se pedir) → clique em <b>Conectar extensão</b>. Sem copiar chave.</p>
-      <p class="sub" style="margin-top:28px">Ou conecte manualmente com uma chave gerada em <b>Extensões → Gerar chave</b>:</p>
-      <form id="form" autocomplete="off">
-        <label for="hubUrl">Endereço do Orvia</label>
-        <input id="hubUrl" type="url" placeholder="https://orvia-gestao.vercel.app" required />
-        <div class="hint">Use https://. Para desenvolvimento local, <code>http://localhost:3000</code>.</div>
-        <label for="apiKey">Chave de API</label>
-        <input id="apiKey" type="password" placeholder="ck_live_…" required spellcheck="false" />
-        <div class="hint">Fica só neste navegador (armazenamento local da extensão). Nunca é enviada ao iFood.</div>
-        <div class="actions">
-          <button class="primary" type="submit" id="save">Salvar e testar</button>
-          <button type="button" id="clear">Desconectar</button>
-        </div>
-      </form>
-      <div id="status" role="status"></div>
+      <p class="sub">Conecte a extensão ao seu Orvia para importar cardápios e aplicar as otimizações no iFood.</p>
+
+      <section class="card" id="connected">
+        <h2>✓ Conectada</h2>
+        <p class="who" id="who"></p>
+        <p class="hint">Abra o Portal do Parceiro iFood e clique no botão azul <b>O</b>.</p>
+        <div class="actions"><button type="button" id="logout">Sair desta conta</button></div>
+      </section>
+
+      <section class="card" id="loginCard">
+        <h2>Entrar com seu usuário do Orvia</h2>
+        <form id="loginForm" autocomplete="on">
+          <label for="email">E-mail</label>
+          <input id="email" type="email" autocomplete="username" required />
+          <label for="password">Senha</label>
+          <input id="password" type="password" autocomplete="current-password" required />
+          <div id="wsWrap" style="display:none">
+            <label for="workspace">Workspace</label>
+            <select id="workspace"></select>
+          </div>
+          <div class="actions"><button class="primary" type="submit" id="loginBtn">Entrar e conectar</button></div>
+          <p class="hint">A senha é usada só para entrar e nunca fica salva. A extensão recebe um acesso próprio, que você pode revogar no Orvia em <b>Extensões</b>.</p>
+        </form>
+        <div class="status" id="loginStatus" role="status"></div>
+      </section>
+
+      <details>
+        <summary>Avançado: endereço do servidor, conexão por chave ou com um clique</summary>
+        <section class="card">
+          <label for="hubUrl">Endereço do Orvia</label>
+          <input id="hubUrl" type="url" placeholder="https://orvia-gestao.vercel.app" />
+          <div class="hint">Padrão: <code>https://orvia-gestao.vercel.app</code>. Para desenvolvimento, <code>http://localhost:3000</code>.</div>
+          <div class="actions"><button type="button" id="auto">Conectar com um clique (pelo painel)</button></div>
+          <form id="form" autocomplete="off">
+            <label for="apiKey">Chave de API (opcional)</label>
+            <input id="apiKey" type="password" placeholder="ck_live_…" spellcheck="false" />
+            <div class="actions"><button type="submit" id="save">Salvar chave e testar</button></div>
+          </form>
+          <div class="status" id="status" role="status"></div>
+        </section>
+      </details>
     </main>
     <script src="dist/options.js"></script>
   </body>

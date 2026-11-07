@@ -177,3 +177,32 @@ export function originMatchesPatterns(origin: string, patterns: string[]): boole
     return host!.startsWith('*.') && url.hostname.endsWith(host!.slice(1))
   })
 }
+
+export type LoginResult =
+  | { needs_workspace: true; workspaces: { slug: string; name: string }[] }
+  | { key: string; workspace: { name: string; slug: string }; user: { email: string } }
+
+/** Login do usuário (e-mail/senha do Orvia) → o servidor devolve a chave da extensão. Sem chave prévia. */
+export async function loginToHub(
+  hubUrl: string,
+  input: { email: string; password: string; workspace_slug?: string; device_id: string; device_label?: string },
+  fetchImpl: (input: string, init?: RequestInit) => Promise<Response> = (i, init) => fetch(i, init),
+): Promise<HubResult<LoginResult>> {
+  const base = normalizeHubUrl(hubUrl)
+  if (!base) return { ok: false, status: 0, code: 'invalid_url', message: 'Endereço do Orvia inválido.' }
+  let res: Response
+  try {
+    res = await fetchImpl(`${base}/api/v1/extension-auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(input),
+      credentials: 'omit',
+      cache: 'no-store',
+    })
+  } catch {
+    return { ok: false, status: 0, code: 'network', message: 'Sem conexão com o Orvia.' }
+  }
+  const json: any = await res.json().catch(() => null)
+  if (!res.ok) return { ok: false, status: res.status, code: json?.error?.code ?? `http_${res.status}`, message: json?.error?.message ?? `Erro ${res.status}` }
+  return { ok: true, data: json?.data as LoginResult, etag: null }
+}

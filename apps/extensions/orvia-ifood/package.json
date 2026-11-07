@@ -1,6 +1,6 @@
 {
   "name": "orvia-ifood-extension",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Orvia · Otimizador de Cardápio iFood — extensão Chrome MV3 (leitura, análise e execução assistida).",
   "type": "module",

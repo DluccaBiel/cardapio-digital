@@ -13,6 +13,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Sparkles,
   Trash2,
   UtensilsCrossed,
 } from 'lucide-react'
@@ -22,6 +23,7 @@ import { cn, TextSelect, Toast } from '@/components/hub/ui'
 import * as actions from '@/app/a/[ws]/cardapio/actions'
 import { Btn, Empty, InlinePrice, StatusBadge, SyncBadge, useMenuAction, type ActionResult } from './shared'
 import { CategoryModal, ClientModal, ComboModal, ConfirmModal, GroupModal, ItemModal } from './MenuModals'
+import { AiModal } from './AiModal'
 
 export type ExtensionStatus = { status: string; version: string | null; last_seen_at: string | null } | null
 
@@ -29,6 +31,7 @@ type Tab = 'produtos' | 'combos' | 'complementos' | 'ifood'
 
 type Dialog =
   | { kind: 'client' }
+  | { kind: 'ai' }
   | { kind: 'category'; category: MenuCategory | null }
   | { kind: 'item'; item: MenuItem | null }
   | { kind: 'combo'; combo: MenuItem | null }
@@ -77,7 +80,7 @@ export function MenuScreen({
   extension: ExtensionStatus
 }) {
   const router = useRouter()
-  const { run, pending, toast } = useMenuAction()
+  const { run, pending, toast, setToast } = useMenuAction()
   const [tab, setTab] = useState<Tab>('produtos')
   const [dialog, setDialog] = useState<Dialog>(null)
   const close = () => setDialog(null)
@@ -114,6 +117,11 @@ export function MenuScreen({
                 options={clients.map((c) => ({ value: c.id, label: c.name }))}
               />
             </div>
+          )}
+          {canEdit && catalog && catalog.items.length > 0 && (
+            <Btn variant="primary" onClick={() => setDialog({ kind: 'ai' })}>
+              <Sparkles size={14} /> Otimizar com IA
+            </Btn>
           )}
           {canEdit && (
             <Btn onClick={() => setDialog({ kind: 'client' })}>
@@ -220,6 +228,18 @@ export function MenuScreen({
           clientId={catalog.client.id}
           onClose={close}
           onSave={(input) => run(() => actions.saveGroupAction(ws, input), 'Grupo salvo.')}
+        />
+      )}
+      {dialog?.kind === 'ai' && catalog && (
+        <AiModal
+          ws={ws}
+          clientId={catalog.client.id}
+          clientName={catalog.client.name}
+          onClose={close}
+          onApplied={(msg) => {
+            setToast(msg)
+            router.refresh()
+          }}
         />
       )}
       {dialog?.kind === 'confirm' && (

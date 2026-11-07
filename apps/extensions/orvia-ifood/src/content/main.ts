@@ -14,6 +14,8 @@ import { NICHES, runRules, suggestCombos } from '../core/rules'
 import { comboComponentsFromIfood, findInSnapshot, guessClient, pendingChanges } from '../lib/bridge'
 import type { HubCatalog, HubClientRow, HubPendingItem, ImportSummary } from '../lib/hub'
 import { SELECTED_CLIENT_KEY, send } from '../lib/messages'
+import { applyPending, applyRaw, coverage, desiredFromPending } from '../lib/executor'
+import { FIELD_LABEL, learnFromWrite, type Field, type Observed, type Template } from '../lib/learn'
 import { CSS } from './styles'
 
 type Tab = 'cardapio' | 'pendencias' | 'analise'
@@ -33,7 +35,17 @@ const state = {
   niche: 'hamburgueria',
   discount: 10,
   analysed: false,
+  templates: [] as Template[],
+  autoMode: false,
+  lastLearn: null as null | { ok: boolean; text: string },
+  runLog: [] as { name: string; ok: boolean; text: string }[],
+  undoAvailable: false,
 }
+
+const TEMPLATES_KEY = 'orvia.templates'
+const AUTO_KEY = 'orvia.autoApply'
+const UNDO_KEY = 'orvia.lastBatch'
+const recentReads: Observed[] = []
 
 // ---------------------------------------------------------------------------
 // Captura passiva (page hook → aqui)
@@ -48,11 +60,8 @@ function mergeSnapshots(base: MenuSnapshot | null, next: MenuSnapshot): MenuSnap
 }
 
 let saveTimer: number | undefined
-window.addEventListener('message', (event: MessageEvent) => {
-  if (event.source !== window || event.origin !== window.location.origin) return
-  const data = event.data as { source?: string; path?: string; payload?: unknown } | null
-  if (!data || data.source !== 'orvia-hook') return
-  const normalized = normalizeMenuPayload(data.payload, { origin: 'passive', requestPath: data.path ?? null, domUrl: location.href })
+function onMenuPayload(payload: unknown, path: string | null) {
+  const normalized = normalizeMenuPayload(payload, { origin: 'passive', requestPath: path, domUrl: location.href })
   if (!normalized) return
   state.snapshot = mergeSnapshots(state.snapshot, finalizeSnapshot(normalized))
   window.clearTimeout(saveTimer)
@@ -60,7 +69,131 @@ window.addEventListener('message', (event: MessageEvent) => {
     if (state.snapshot) void send({ type: 'snapshot:save', snapshot: state.snapshot })
   }, 1500)
   render()
+}
+
+/** Você editou um item no portal → aprende como o portal salva aquele campo. */
+async function onPortalWrite(write: Observed) {
+  if (!state.snapshot) return
+  const items = new Map(state.snapshot.items.map((i) => [i.id, { price: i.price, status: i.status }]))
+  const res = learnFromWrite(write, recentReads, items)
+  if (!res.ok) {
+    state.lastLearn = { ok: false, text: `Vi uma alteração no portal, mas não aprendi: ${res.reason}.` }
+    return render()
+  }
+  const fields = new Set(res.templates.map((t) => t.field))
+  state.templates = [...state.templates.filter((t) => !fields.has(t.field)), ...res.templates]
+  await chrome.storage.local.set({ [TEMPLATES_KEY]: state.templates })
+  state.lastLearn = { ok: true, text: `Aprendi como o iFood salva: ${res.templates.map((t) => FIELD_LABEL[t.field]).join(', ')}.` }
+  render()
+}
+
+window.addEventListener('message', (event: MessageEvent) => {
+  if (event.source !== window || event.origin !== window.location.origin) return
+  const data = event.data as {
+    source?: string
+    kind?: string
+    path?: string
+    payload?: unknown
+    method?: string
+    url?: string
+    status?: number
+    json?: unknown
+    body?: unknown
+  } | null
+  if (!data || data.source !== 'orvia-hook') return
+  if (data.kind === 'menu') return onMenuPayload(data.payload, data.path ?? null)
+  if (data.kind === 'read' && data.url) {
+    recentReads.push({ method: 'GET', url: data.url, json: data.json, status: data.status, at: Date.now() })
+    while (recentReads.length > 40) recentReads.shift()
+  }
+  if (data.kind === 'write' && data.url && data.method) {
+    void onPortalWrite({ method: data.method, url: data.url, body: data.body, json: data.json, status: data.status, at: Date.now() })
+  }
 })
+
+/** Requisição feita pela PRÓPRIA aba do portal (sessão do portal; nada sai da página). */
+function portalRequest(method: string, url: string, body?: unknown): Promise<{ status: number; json: unknown }> {
+  const id = `x${Date.now()}${Math.random().toString(16).slice(2)}`
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      window.removeEventListener('message', onReply)
+      resolve({ status: 0, json: { error: 'tempo esgotado' } })
+    }, 20_000)
+    function onReply(event: MessageEvent) {
+      const d = event.data as { source?: string; id?: string; status?: number; json?: unknown } | null
+      if (event.source !== window || !d || d.source !== 'orvia-exec-result' || d.id !== id) return
+      window.clearTimeout(timer)
+      window.removeEventListener('message', onReply)
+      resolve({ status: d.status ?? 0, json: d.json })
+    }
+    window.addEventListener('message', onReply)
+    window.postMessage({ source: 'orvia-exec', id, method, url, body }, window.location.origin)
+  })
+}
+
+const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms))
+
+/** Aplica todas as pendências de ATUALIZAÇÃO cobertas pelos moldes. Para no 1º erro real. */
+function applyAll(dryRun: boolean) {
+  return run(async () => {
+    state.runLog = []
+    const undo: { ifoodId: string; rawBefore: Partial<Record<Field, unknown>> }[] = []
+    const queue = state.pending.filter((p) => p.action === 'update')
+    for (const item of queue) {
+      const current = findInSnapshot(state.snapshot, item)
+      const res = await applyPending(item, current, state.templates, portalRequest, { dryRun })
+      if (!res.ok) {
+        state.runLog.push({
+          name: item.name,
+          ok: false,
+          text: res.missing.length ? `falta ensinar: ${res.missing.map((f) => FIELD_LABEL[f]).join(', ')}` : res.message,
+        })
+        if (!res.missing.length) break // erro real: para o lote
+        continue
+      }
+      if (dryRun) {
+        const parts = (res.dryRun ?? []).flatMap((d) => d.changes.map((c) => `${FIELD_LABEL[c.field]}: ${JSON.stringify(c.before)} → ${JSON.stringify(c.after)}`))
+        state.runLog.push({ name: item.name, ok: true, text: parts.join(' · ') || 'já igual' })
+        continue
+      }
+      if (Object.keys(res.rawBefore).length) undo.push({ ifoodId: item.ifood_id!, rawBefore: res.rawBefore })
+      const synced = await send({ type: 'hub:sync', itemId: item.id, etag: item.etag, ifoodId: item.ifood_id })
+      state.runLog.push({
+        name: item.name,
+        ok: synced.ok,
+        text: synced.ok ? 'aplicado e conferido no iFood ✓' : `aplicado no iFood, mas o Orvia não confirmou: ${synced.ok ? '' : synced.error}`,
+      })
+      if (synced.ok) state.pending = state.pending.filter((p) => p.id !== item.id)
+      render()
+      await sleep(900) // ritmo humano entre escritas
+    }
+    if (!dryRun && undo.length) {
+      await chrome.storage.local.set({ [UNDO_KEY]: undo })
+      state.undoAvailable = true
+    }
+    const okCount = state.runLog.filter((l) => l.ok).length
+    notify(okCount ? 'ok' : 'info', dryRun ? `Simulação: ${okCount} item(ns) prontos para aplicar.` : `${okCount} item(ns) aplicados no iFood.`)
+  })
+}
+
+function undoLast() {
+  return run(async () => {
+    const batch = ((await chrome.storage.local.get(UNDO_KEY))[UNDO_KEY] ?? []) as { ifoodId: string; rawBefore: Partial<Record<Field, unknown>> }[]
+    let okCount = 0
+    for (const entry of batch) {
+      const res = await applyRaw(entry.ifoodId, entry.rawBefore, state.templates, portalRequest)
+      if (!res.ok) {
+        notify('erro', `Desfazer parou em ${entry.ifoodId}: ${res.message}`)
+        return
+      }
+      okCount += 1
+      await sleep(900)
+    }
+    await chrome.storage.local.remove(UNDO_KEY)
+    state.undoAvailable = false
+    notify('ok', `${okCount} item(ns) voltaram ao valor anterior no iFood. No Orvia eles seguem com a versão nova (voltam para Pendências).`)
+  })
+}
 
 // ---------------------------------------------------------------------------
 // DOM helpers (textContent sempre — nada de innerHTML com dados do portal/API)
@@ -104,7 +237,7 @@ function notify(kind: 'ok' | 'erro' | 'info', text: string) {
 async function connect() {
   const status = await send<{ configured: boolean; workspace?: { name: string } }>({ type: 'hub:status' })
   if (!status.ok) state.connected = { error: status.error }
-  else if (!status.data.configured) state.connected = { error: 'Não conectada. Abra as opções e cole a chave do Orvia.' }
+  else if (!status.data.configured) state.connected = { error: 'Não conectada. Clique na engrenagem (⚙) e entre com seu e-mail e senha do Orvia.' }
   else {
     state.connected = { workspace: status.data.workspace?.name ?? '' }
     const clients = await send<HubClientRow[]>({ type: 'hub:clients' })
@@ -324,9 +457,40 @@ function tabPendencias() {
     h('p', { class: 'hint' }, 'Alterações feitas no Orvia que ainda não estão no iFood. Aplique no portal e confirme aqui — se o item mudar no Orvia no meio do caminho, a confirmação é recusada.'),
     h('button', { class: 'btn', disabled: state.busy || !state.clientId, onclick: loadPending }, state.pendingLoaded ? 'Atualizar lista' : 'Carregar pendências'),
   )
+  box.append(automationCard())
   if (state.pendingLoaded && state.pending.length === 0) box.append(h('div', { class: 'card ok' }, 'Tudo em dia: Orvia e iFood iguais.'))
   for (const item of state.pending) box.append(pendingCard(item))
   return box
+}
+
+function automationCard() {
+  const fields: Field[] = ['price', 'status', 'name', 'description']
+  const learned = new Set(state.templates.map((t) => t.field))
+  const updates = state.pending.filter((p) => p.action === 'update')
+  const ready = updates.filter((p) => coverage(desiredFromPending(p, findInSnapshot(state.snapshot, p)), state.templates).missing.length === 0)
+  const auto = h('input', {
+    type: 'checkbox',
+    checked: state.autoMode,
+    onchange: async (e: Event) => {
+      state.autoMode = (e.target as HTMLInputElement).checked
+      await chrome.storage.local.set({ [AUTO_KEY]: state.autoMode })
+      render()
+    },
+  })
+  return h('div', { class: 'card' },
+    h('b', {}, 'Aplicação automática no iFood'),
+    h('p', { class: 'muted' }, 'A extensão aprende vendo VOCÊ editar 1 produto no portal (ex.: mude um preço e salve). Depois ela repete sozinha para os outros, conferindo antes e depois.'),
+    h('div', { class: 'chips' }, ...fields.map((f) => h('span', { class: learned.has(f) ? 'pill ok' : 'pill' }, `${learned.has(f) ? '✓' : '○'} ${FIELD_LABEL[f]}`))),
+    state.lastLearn ? h('p', { class: state.lastLearn.ok ? 'okText' : 'warn' }, state.lastLearn.text) : null,
+    h('div', { class: 'grid2' },
+      h('button', { class: 'btn', disabled: state.busy || ready.length === 0, onclick: () => applyAll(true) }, `Simular (${ready.length})`),
+      h('button', { class: 'btn primary', disabled: state.busy || ready.length === 0, onclick: () => applyAll(false) }, `Aplicar automaticamente (${ready.length})`),
+    ),
+    updates.length > ready.length ? h('p', { class: 'hint' }, `${updates.length - ready.length} item(ns) precisam de um campo ainda não ensinado.`) : null,
+    state.undoAvailable ? h('button', { class: 'btn', disabled: state.busy, onclick: undoLast }, 'Desfazer último lote no iFood') : null,
+    h('label', { class: 'check' }, auto, ' Aplicar sozinho ao abrir o portal (itens já ensinados)'),
+    state.runLog.length ? h('div', { class: 'log' }, ...state.runLog.map((l) => h('p', { class: l.ok ? 'okText' : 'warn' }, `${l.ok ? '✓' : '✗'} ${l.name}: ${l.text}`))) : null,
+  )
 }
 
 function tabAnalise() {
@@ -401,10 +565,25 @@ function render() {
 
 async function boot() {
   document.documentElement.append(host)
+  const stored = await chrome.storage.local.get([TEMPLATES_KEY, AUTO_KEY, UNDO_KEY])
+  state.templates = (stored[TEMPLATES_KEY] as Template[] | undefined) ?? []
+  state.autoMode = Boolean(stored[AUTO_KEY])
+  state.undoAvailable = Array.isArray(stored[UNDO_KEY]) && (stored[UNDO_KEY] as unknown[]).length > 0
   const latest = await send<MenuSnapshot | null>({ type: 'snapshot:latest' })
   if (latest.ok && latest.data && !state.snapshot) state.snapshot = latest.data
   render()
   await connect()
+  const beat = () => {
+    if (document.visibilityState === 'visible') void send({ type: 'hub:heartbeat' })
+  }
+  beat()
+  window.setInterval(beat, 120_000)
+  // Modo automático: espera o cardápio ser lido e aplica o que já foi ensinado
+  if (state.autoMode && state.clientId) {
+    for (let i = 0; i < 30 && !state.snapshot; i += 1) await sleep(1000)
+    await loadPending()
+    if (state.pending.some((p) => p.action === 'update')) await applyAll(false)
+  }
 }
 
 void boot()

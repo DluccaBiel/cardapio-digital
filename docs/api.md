@@ -219,6 +219,7 @@ Endpoints já ativos (Route Handlers em `app/api/v1/`). Os demais da §4 continu
 
 | Método | Rota | Escopo | Descrição |
 |---|---|---|---|
+| POST | `/extension-auth/login` | (sem chave) | Login de usuário na extensão `{ email, password, device_id, workspace_slug? }` → `{ key }` (escopos mínimos, 365 dias; 8 tentativas/min/IP; mesmo dispositivo revoga a chave anterior). Pode responder `{ needs_workspace, workspaces }` |
 | GET | `/me` | (qualquer chave válida) | Workspace + escopos da chave ("Testar conexão") |
 | POST | `/extensions/handshake` | (chave vinculada a extensão) | `{ version }` → upsert em `extension_installs` (`last_seen_at`) |
 | GET | `/clients` | `clientes:ler` | Lista enxuta `{ id, name, ifood_merchant_id }` (sem PII) |

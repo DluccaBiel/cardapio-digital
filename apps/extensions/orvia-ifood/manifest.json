@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Orvia · Otimizador iFood",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Lê o cardápio no Portal do Parceiro iFood, envia ao Orvia e guia a aplicação de combos e edições feitas no painel.",
   "permissions": [
     "storage"

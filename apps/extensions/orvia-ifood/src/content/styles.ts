@@ -43,4 +43,9 @@ table.diff { width: 100%; border-collapse: collapse; margin-top: 8px; font-size:
 table.diff th { text-align: left; color: #8FA0C4; font-weight: 600; padding: 4px 6px 4px 0; vertical-align: top; width: 70px; }
 table.diff td { padding: 4px 6px; vertical-align: top; } td.before { color: #7C8AA1; text-decoration: line-through; } td.after { color: #fff; }
 .combo { margin-top: 8px; padding: 8px; border-radius: 8px; background: #080D18; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.pill.ok { color: #6EE7B7; border-color: rgba(52,211,153,.4); }
+.okText { color: #6EE7B7; font-size: 12px; }
+.check { display: flex; gap: 6px; align-items: center; margin-top: 10px; font-size: 12px; color: #B4BFD0; cursor: pointer; }
+.log { margin-top: 8px; max-height: 180px; overflow-y: auto; border-top: 1px solid #1A2231; padding-top: 6px; }
 `
