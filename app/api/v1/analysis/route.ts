@@ -3,6 +3,8 @@ import { err, ok, preflight, readJson } from '@/lib/api/http'
 import { z } from 'zod'
 import { GOALS, suggestOptimizations } from '@/lib/ai/optimize'
 import { researchCompetitors } from '@/lib/ai/competitors'
+import { researchFree } from '@/lib/ai/free-research'
+import { freeSuggest } from '@/lib/ai/free-core'
 import { loadCatalog } from '@/lib/menu/load'
 import { audit } from '@/lib/audit'
 
@@ -20,6 +22,8 @@ const bodySchema = z.object({
   strategy_brief: z.string().max(600).optional(),
   competitors: z.boolean().default(false),
   max_price_change_pct: z.number().min(0).max(30).default(10),
+  /** número da rodada (v1, v2…): faz as ideias do modo gratuito mudarem a cada rodada */
+  variant: z.number().int().min(1).max(50).default(1),
 })
 
 /**
@@ -42,13 +46,33 @@ export async function POST(req: Request) {
   let competitorsStatus: 'ok' | 'indisponivel' | 'desligado' = 'desligado'
   let research = null as Awaited<ReturnType<typeof researchCompetitors>>
   if (b.competitors && b.city.trim()) {
-    research = await researchCompetitors({ niche: b.niche, city: b.city, restaurant: catalog.client.name, strategy: b.strategy, strategyBrief: b.strategy_brief })
+    // 1º a pesquisa com IA (se houver chave); sem chave ou se falhar → pesquisa pública gratuita (sem token)
+    research = (await researchCompetitors({ niche: b.niche, city: b.city, restaurant: catalog.client.name, strategy: b.strategy, strategyBrief: b.strategy_brief })) ?? (await researchFree({ niche: b.niche, city: b.city }))
     competitorsStatus = research ? 'ok' : 'indisponivel'
     if (!research) notices.push('Não consegui pesquisar concorrentes agora; a análise usou só o seu cardápio.')
   }
 
   const notes = [b.strategy_brief ? `Estratégia escolhida pelo gestor: ${b.strategy_brief}` : null, b.notes, research ? `Referências públicas de concorrentes da região (use como contexto, não copie):\n${research.notes}` : null].filter(Boolean).join('\n\n')
-  const result = await suggestOptimizations(catalog, { goal: b.goal, notes: notes || undefined, maxPriceChangePct: b.max_price_change_pct })
+  // Sem chave da Anthropic: modo gratuito (regras + concorrentes públicos). Com chave: IA como antes (e, se a IA falhar, cai no gratuito).
+  const freeMode = !process.env.ANTHROPIC_API_KEY
+  let result: Awaited<ReturnType<typeof suggestOptimizations>>
+  let aiStatus: 'ok' | 'regras' = 'ok'
+  const freeResult = () => {
+    const items = (catalog.items as any[]).map((i) => ({ id: String(i.id), ifood_id: i.ifood_id ?? null, name: String(i.name), price: Number(i.price ?? i.base_price ?? 0) || null, description: i.description ?? null }))
+    return { ok: true as const, data: freeSuggest(items, research, { maxPct: b.max_price_change_pct, variant: b.variant }) as any } as Awaited<ReturnType<typeof suggestOptimizations>>
+  }
+  if (freeMode) {
+    result = freeResult()
+    aiStatus = 'regras'
+    notices.push('Modo gratuito: ideias por regras e pesquisa pública, sem IA. Para ideias mais criativas, configure ANTHROPIC_API_KEY.')
+  } else {
+    result = await suggestOptimizations(catalog, { goal: b.goal, notes: notes || undefined, maxPriceChangePct: b.max_price_change_pct })
+    if (!result.ok) {
+      result = freeResult()
+      aiStatus = 'regras'
+      notices.push('A IA não respondeu agora; usei o modo gratuito (regras + pesquisa pública).')
+    }
+  }
   if (!result.ok) {
     await audit({ workspaceId: auth.workspaceId, actorType: 'api_key', actorId: auth.keyId, action: 'analysis.failed', entityType: 'client', entityId: b.client_id })
     return err(req, 'internal', result.error)
@@ -79,7 +103,7 @@ export async function POST(req: Request) {
     insights: research?.insights ?? [],
     sources: research?.sources ?? [],
     competitors_status: competitorsStatus,
-    ai_status: 'ok' as const,
+    ai_status: aiStatus,
     notices,
   }
   await audit({
@@ -89,7 +113,7 @@ export async function POST(req: Request) {
     action: 'analysis.created',
     entityType: 'client',
     entityId: b.client_id,
-    metadata: { goal: b.goal, updates: data.updates.length, combos: data.combos.length, competitors: competitorsStatus },
+    metadata: { goal: b.goal, mode: aiStatus, updates: data.updates.length, combos: data.combos.length, competitors: competitorsStatus },
   })
   return ok(req, data)
 }

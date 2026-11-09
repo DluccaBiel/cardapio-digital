@@ -319,3 +319,27 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 - [ ] Uma otimização enviada aparece na aba **Cardápio Web** do relatório, com prints que abrem e baixam (individual e "Baixar todos").
 - [ ] Cliente que vende nos dois canais **não** é duplicado (cada canal tem sua trava de loja).
 - [ ] Derrubar a internet ao enviar → relatório entra na fila e chega sozinho em ≤ 1 min após voltar.
+
+---
+
+## 6. Estado das extensões entregues em `visualização geral/` (verificado em 2026-11-09)
+
+| | Cardápio Web 0.4.2 | iFood 0.4.22 |
+|---|---|---|
+| Id no Chrome (`key` do manifest) | `onolpcebolaabfapfnmemokkinncppok` (fixo, igual à 0.3.x) | `abenodfggldfldoobiiknlagebipaedl` (fixo, novo) |
+| Hubs (`host_permissions`) | `nextjs-cardapio.vercel.app`, `orvia-gestao.vercel.app` | idem |
+| Manda `extension` no login? | **não** → o servidor reconhece pelo Origin (id acima) ✅ | não → padrão iFood ✅ |
+| `manifest_name` no handshake | "Orvia · Otimizador iFood" (errado, inofensivo) | correto |
+| Usa `variant` na análise | sim | sim |
+| Espera modo gratuito na análise (`ai_status: "regras"`) | sim | sim |
+
+O que o servidor precisa ter (todos presentes na branch `release/orvia-v0.5`):
+`/extension-auth/login`, `/me`, `/extensions/handshake`, `/clients`, `/clients/ensure`, `/menu`, `/menu/import`,
+`/menu/pending`, `/menu/items/{id}/ifood-sync`, `/menu/combos`, `/analysis` (com **modo gratuito** quando não há
+`ANTHROPIC_API_KEY`), `/optimizations` (POST/GET). Do pacote `orvia-servidor-v0.4.18` só o modo gratuito foi
+incorporado (`lib/ai/free-core.ts`, `lib/ai/free-research.ts` com redirecionamento revalidado contra SSRF,
+`app/api/v1/analysis/route.ts`); `ensure`/`optimizations`/`0005` do pacote eram versões ANTERIORES às do repo
+(sem separação por canal) e **não** foram copiadas.
+
+Pendências para a próxima versão das extensões (não bloqueiam): mandar `extension` no login; corrigir o
+`manifest_name` da Cardápio Web; adicionar `https://www.orviahub.com.br/*` quando o DNS existir.
