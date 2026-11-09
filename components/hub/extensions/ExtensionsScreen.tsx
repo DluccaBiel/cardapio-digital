@@ -2,10 +2,22 @@
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Copy, KeyRound, Plug, Plus, ShieldCheck } from 'lucide-react'
+import { Check, Copy, EyeOff, KeyRound, Plug, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { cn, FieldLabel, Modal, TextInput, TextSelect, Toast } from '@/components/hub/ui'
 import { Btn, Empty } from '@/components/hub/menu/shared'
-import { createApiKeyAction, pairIfoodExtensionAction, revokeApiKeyAction } from '@/app/a/[ws]/extensoes/actions'
+import { SYNC_EVENT } from '@/components/hub/Header'
+import { ExtensionReport, type OptimizationReport } from '@/components/hub/extensions/ExtensionReport'
+import {
+  checkExtensionsAction,
+  createApiKeyAction,
+  deleteApiKeysAction,
+  pairIfoodExtensionAction,
+  revokeApiKeyAction,
+  revokeApiKeysAction,
+  type ExtensionLiveStatus,
+} from '@/app/a/[ws]/extensoes/actions'
+
+export type { OptimizationReport }
 
 type Extension = { id: string; slug: string; name: string; description: string | null }
 type ApiKey = {
@@ -19,11 +31,45 @@ type ApiKey = {
   revoked_at: string | null
   created_at: string
 }
-type Install = { extension_id: string; version: string | null; status: string; last_seen_at: string | null; api_keys?: { name: string } | { name: string }[] | null }
+type InstallKey = { name: string; revoked_at?: string | null; expires_at?: string | null }
+type Install = { extension_id: string; version: string | null; status: string; last_seen_at: string | null; api_keys?: InstallKey | InstallKey[] | null }
 
-function installKeyName(i: Install): string | null {
-  const k = Array.isArray(i.api_keys) ? i.api_keys[0] : i.api_keys
-  return k?.name ?? null
+function installKey(i: Install): InstallKey | null {
+  return (Array.isArray(i.api_keys) ? i.api_keys[0] : i.api_keys) ?? null
+}
+
+/** Mesmo formato vindo da página (Install) ou do "Sincronizar" (ExtensionLiveStatus). */
+function liveFromInstall(i: Install): ExtensionLiveStatus {
+  const k = installKey(i)
+  const key: ExtensionLiveStatus['key'] = !k ? 'missing' : k.revoked_at ? 'revoked' : k.expires_at && new Date(k.expires_at).getTime() < Date.now() ? 'expired' : 'active'
+  return { extension_id: i.extension_id, version: i.version, last_seen_at: i.last_seen_at, key, key_name: k?.name ?? null, key_last_used_at: null }
+}
+
+const ONLINE_MS = 10 * 60_000 // a extensão renova o contato ~1×/min com o portal iFood aberto
+type Conn = 'online' | 'idle' | 'off'
+function connOf(s: ExtensionLiveStatus): Conn {
+  if (s.key !== 'active') return 'off'
+  return s.last_seen_at && Date.now() - new Date(s.last_seen_at).getTime() < ONLINE_MS ? 'online' : 'idle'
+}
+const KEY_PROBLEM: Record<Exclude<ExtensionLiveStatus['key'], 'active'>, string> = {
+  revoked: 'a chave de acesso foi revogada',
+  expired: 'a chave de acesso expirou',
+  missing: 'a chave de acesso foi excluída',
+}
+function connText(s: ExtensionLiveStatus): string {
+  const c = connOf(s)
+  if (c === 'off') return `Desconectada — ${KEY_PROBLEM[s.key as Exclude<ExtensionLiveStatus['key'], 'active'>]}. Use “Conectar extensão”.`
+  if (c === 'online') return `Conectada · último contato ${ago(s.last_seen_at)}`
+  return `Conectada, sem contato recente${s.last_seen_at ? ` (último ${ago(s.last_seen_at)})` : ''} — abra o portal do iFood com a extensão ativa`
+}
+
+function ago(iso: string | null) {
+  if (!iso) return 'nunca'
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000))
+  if (s < 60) return `há ${s}s`
+  if (s < 3600) return `há ${Math.round(s / 60)} min`
+  if (s < 86_400) return `há ${Math.round(s / 3600)} h`
+  return when(iso)
 }
 
 const SCOPE_INFO: { value: string; label: string; hint: string }[] = [
@@ -41,32 +87,50 @@ function when(iso: string | null) {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
 }
 
+type SyncState = { kind: 'idle' | 'busy' | 'done' | 'err'; text?: string; at?: string }
+type Bulk = { action: 'revoke' | 'delete'; ids: string[] }
+
 export function ExtensionsScreen({
   ws,
   workspaceName,
   canManage,
+  canDelete = false,
   hubUrl,
   extensions,
   keys,
   installs,
+  reports = [],
+  reportsUnavailable = false,
   highlightPair = false,
 }: {
   highlightPair?: boolean
   ws: string
   workspaceName: string
   canManage: boolean
+  canDelete?: boolean
   hubUrl: string
   extensions: Extension[]
   keys: ApiKey[]
   installs: Install[]
+  reports?: OptimizationReport[]
+  reportsUnavailable?: boolean
 }) {
   const router = useRouter()
   const refresh = useCallback(() => router.refresh(), [router])
   const [creating, setCreating] = useState(false)
   const [revoking, setRevoking] = useState<ApiKey | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulk, setBulk] = useState<Bulk | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [sync, setSync] = useState<SyncState>({ kind: 'idle' })
+  const [live, setLive] = useState<Map<string, ExtensionLiveStatus> | null>(null)
   const extName = useMemo(() => new Map(extensions.map((e) => [e.id, e.name])), [extensions])
-  const installBy = useMemo(() => new Map(installs.map((i) => [i.extension_id, i])), [installs])
+  const status = useMemo(() => {
+    const m = new Map(installs.map((i) => [i.extension_id, liveFromInstall(i)]))
+    if (live) live.forEach((s, id) => m.set(id, s))
+    return m
+  }, [installs, live])
   const [origin, setOrigin] = useState(hubUrl)
   useEffect(() => {
     if (!hubUrl) setOrigin(window.location.origin)
@@ -78,6 +142,65 @@ export function ExtensionsScreen({
     return () => clearTimeout(t)
   }, [toast])
 
+  // Seleção só com chaves que ainda existem na lista (após excluir/atualizar)
+  useEffect(() => {
+    setSelected((cur) => {
+      const ids = new Set(keys.map((k) => k.id))
+      const next = new Set(Array.from(cur).filter((id) => ids.has(id)))
+      return next.size === cur.size ? cur : next
+    })
+  }, [keys])
+
+  /** "Sincronizar" (header) nesta tela: consulta agora se a extensão segue conectada. */
+  const checkConnection = useCallback(async () => {
+    setSync({ kind: 'busy', text: 'Consultando a conexão da extensão…' })
+    const inBrowser = document.documentElement.dataset.orviaIfood ?? null
+    const res = await checkExtensionsAction(ws)
+    router.refresh() // relê chaves, instalações e relatório (renova os links dos prints)
+    if (!res.ok) return setSync({ kind: 'err', text: res.error })
+    setLive(new Map(res.installs.map((s) => [s.extension_id, s])))
+    const parts = res.installs.map((s) => `${extName.get(s.extension_id) ?? 'Extensão'}: ${connText(s)}`)
+    if (!parts.length) parts.push('Nenhuma extensão conectada a este workspace ainda.')
+    parts.push(inBrowser ? `Neste navegador: extensão instalada (v${inBrowser}).` : 'Neste navegador: extensão não detectada.')
+    const anyOff = res.installs.some((s) => connOf(s) === 'off') || !res.installs.length
+    setSync({ kind: anyOff ? 'err' : 'done', text: parts.join(' · '), at: res.checked_at })
+  }, [ws, router, extName])
+
+  useEffect(() => {
+    const onSync = (event: Event) => {
+      event.preventDefault() // avisa o header que esta tela tratou a sincronização
+      void checkConnection()
+    }
+    window.addEventListener(SYNC_EVENT, onSync)
+    return () => window.removeEventListener(SYNC_EVENT, onSync)
+  }, [checkConnection])
+
+  const allSelected = keys.length > 0 && selected.size === keys.length
+  const toggle = (id: string) =>
+    setSelected((cur) => {
+      const next = new Set(cur)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const selectedKeys = keys.filter((k) => selected.has(k.id))
+  const selectedActive = selectedKeys.filter((k) => !k.revoked_at)
+
+  const runBulk = async () => {
+    if (!bulk) return
+    setBulkBusy(true)
+    const res = bulk.action === 'delete' ? await deleteApiKeysAction(ws, bulk.ids) : await revokeApiKeysAction(ws, bulk.ids)
+    setBulkBusy(false)
+    setBulk(null)
+    if (res.ok) {
+      setSelected(new Set())
+      setToast(`${res.count} chave${res.count === 1 ? '' : 's'} ${bulk.action === 'delete' ? 'excluída' : 'revogada'}${res.count === 1 ? '' : 's'}.`)
+    } else setToast(res.error)
+    router.refresh()
+  }
+
+  const showReport = reports.length > 0 || installs.length > 0
+
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 pb-10 pt-5 sm:px-6 md:px-[30px] md:pt-[26px]">
       <h1 className="text-[26px] font-extrabold leading-tight tracking-[-0.03em] text-[#F1F5FC] md:text-[28px]">Extensões</h1>
@@ -85,11 +208,29 @@ export function ExtensionsScreen({
         Conecte as extensões do Chrome ao Orvia com chaves de acesso por escopo · <span className="text-[#C9D3E3]">{workspaceName}</span>
       </p>
 
+      {sync.kind !== 'idle' && (
+        <div
+          role="status"
+          className={cn(
+            'mt-4 flex items-start gap-2 rounded-xl border px-4 py-3 text-[12px] leading-relaxed',
+            sync.kind === 'busy' && 'border-[#3D8EFF]/40 bg-[#3D8EFF]/10 text-[#CFE0FF]',
+            sync.kind === 'done' && 'border-[#34D399]/40 bg-[#34D399]/10 text-[#A7F3D0]',
+            sync.kind === 'err' && 'border-[#FBBF24]/40 bg-[#FBBF24]/10 text-[#FDE68A]',
+          )}
+        >
+          <RefreshCw size={14} className={cn('mt-0.5 shrink-0', sync.kind === 'busy' && 'animate-spin')} />
+          <span className="min-w-0 flex-1">
+            {sync.text}
+            {sync.at && <span className="ml-1 opacity-70">(verificado {when(sync.at)})</span>}
+          </span>
+        </div>
+      )}
+
       {/* Catálogo */}
       <div className="mt-6 grid gap-3 md:grid-cols-2">
         {extensions.map((e) => {
-          const inst = installBy.get(e.id)
-          const online = inst?.last_seen_at && Date.now() - new Date(inst.last_seen_at).getTime() < 10 * 60_000
+          const s = status.get(e.id)
+          const c = s ? connOf(s) : null
           return (
             <article key={e.id} className="rounded-xl border border-[#1E2738] bg-[#0D1320] p-4">
               <div className="flex items-start gap-3">
@@ -99,11 +240,20 @@ export function ExtensionsScreen({
                 <div className="min-w-0">
                   <h2 className="text-[15px] font-bold text-[#F1F5FC]">{e.name}</h2>
                   <p className="mt-0.5 text-[12px] leading-relaxed text-[#8A97AC]">{e.description}</p>
-                  <p className="mt-2 text-[12px] text-[#B4BFD0]">
-                    <span className={cn('mr-1.5 inline-block h-2 w-2 rounded-full', online ? 'bg-[#34D399]' : inst ? 'bg-[#FBBF24]' : 'bg-[#4B5870]')} />
-                    {inst ? `${online ? 'Conectada agora' : 'Instalada (sem contato recente)'} · v${inst.version ?? '?'} · último contato ${when(inst.last_seen_at)}` : 'Ainda não conectada'}
+                  <p className="mt-2 text-[12px] text-[#B4BFD0]" suppressHydrationWarning>
+                    <span
+                      className={cn(
+                        'mr-1.5 inline-block h-2 w-2 rounded-full',
+                        c === 'online' ? 'bg-[#34D399]' : c === 'idle' ? 'bg-[#FBBF24]' : c === 'off' ? 'bg-[#F87171]' : 'bg-[#4B5870]',
+                      )}
+                    />
+                    {s ? connText(s) : 'Ainda não conectada'}
                   </p>
-                  {inst && installKeyName(inst) && <p className="mt-0.5 text-[11px] text-[#7C8AA1]">Acesso: {installKeyName(inst)}</p>}
+                  {s && (s.key_name || s.version) && (
+                    <p className="mt-0.5 text-[11px] text-[#7C8AA1]">
+                      {[s.key_name && `Acesso: ${s.key_name}`, s.version && `v${s.version}`].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                 </div>
               </div>
             </article>
@@ -112,6 +262,8 @@ export function ExtensionsScreen({
       </div>
 
       {canManage && <PairCard ws={ws} highlight={highlightPair} onDone={refresh} />}
+
+      {showReport && <ExtensionReport reports={reports} unavailable={reportsUnavailable} />}
 
       {/* Passo a passo */}
       <section className="mt-6 rounded-xl border border-[#1E2738] bg-[#0D1320] p-4 text-[13px] leading-relaxed text-[#B4BFD0]">
@@ -151,59 +303,101 @@ export function ExtensionsScreen({
             <Empty title="Nenhuma chave criada">Gere a primeira chave para conectar a extensão Orvia · iFood.</Empty>
           </div>
         ) : (
-          <div className="mt-3 overflow-x-auto rounded-xl border border-[#1E2738]">
-            <table className="w-full min-w-[820px] border-collapse text-left">
-              <thead>
-                <tr className="border-b border-[#1A2231] bg-[#0B111D] text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC]">
-                  <th className="px-3 py-2.5">Nome</th>
-                  <th className="px-3 py-2.5">Prefixo</th>
-                  <th className="px-3 py-2.5">Extensão</th>
-                  <th className="px-3 py-2.5">Escopos</th>
-                  <th className="px-3 py-2.5">Último uso</th>
-                  <th className="px-3 py-2.5">Status</th>
-                  <th className="px-3 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {keys.map((k) => {
-                  const expired = k.expires_at && new Date(k.expires_at).getTime() < Date.now()
-                  return (
-                    <tr key={k.id} className="border-b border-[#141B28] bg-[#0D1320] text-[12px] last:border-b-0">
-                      <td className="px-3 py-2.5 font-semibold text-[#E8EDF7]">{k.name}</td>
-                      <td className="px-3 py-2.5 font-mono text-[#B4BFD0]">{k.key_prefix}…</td>
-                      <td className="px-3 py-2.5 text-[#B4BFD0]">{k.extension_id ? extName.get(k.extension_id) ?? '—' : '—'}</td>
-                      <td className="px-3 py-2.5">
-                        <span className="flex flex-wrap gap-1">
-                          {k.scopes.map((s) => (
-                            <span key={s} className="rounded border border-[#26314A] bg-[#080D18] px-1.5 py-px font-mono text-[10px] text-[#B4BFD0]">
-                              {s}
-                            </span>
-                          ))}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-[#8A97AC]">{when(k.last_used_at)}</td>
-                      <td className="px-3 py-2.5">
-                        {k.revoked_at ? (
-                          <span className="text-[#F87171]">Revogada</span>
-                        ) : expired ? (
-                          <span className="text-[#FBBF24]">Expirada</span>
-                        ) : (
-                          <span className="text-[#34D399]">Ativa{k.expires_at ? ` até ${when(k.expires_at)}` : ''}</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        {!k.revoked_at && (
-                          <Btn size="sm" variant="danger" onClick={() => setRevoking(k)}>
-                            Revogar
-                          </Btn>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {selected.size > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#3D8EFF]/40 bg-[#0C1A31] px-3 py-2 text-[12px] text-[#CFE0FF]">
+                <span className="font-semibold">
+                  {selected.size} selecionada{selected.size === 1 ? '' : 's'}
+                </span>
+                <span className="flex-1" />
+                <Btn size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+                  Limpar seleção
+                </Btn>
+                <Btn size="sm" disabled={selectedActive.length === 0} onClick={() => setBulk({ action: 'revoke', ids: selectedActive.map((k) => k.id) })}>
+                  Revogar {selectedActive.length > 0 ? `(${selectedActive.length})` : ''}
+                </Btn>
+                {canDelete ? (
+                  <Btn size="sm" variant="danger" onClick={() => setBulk({ action: 'delete', ids: Array.from(selected) })}>
+                    <Trash2 size={13} /> Excluir ({selected.size})
+                  </Btn>
+                ) : (
+                  <span className="text-[11px] text-[#8A97AC]">Excluir: somente o dono</span>
+                )}
+              </div>
+            )}
+            <div className="mt-3 overflow-x-auto rounded-xl border border-[#1E2738]">
+              <table className="w-full min-w-[860px] border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-[#1A2231] bg-[#0B111D] text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC]">
+                    <th className="w-10 px-3 py-2.5">
+                      <input
+                        type="checkbox"
+                        aria-label="Selecionar todas as chaves"
+                        checked={allSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = selected.size > 0 && !allSelected
+                        }}
+                        onChange={() => setSelected(allSelected ? new Set() : new Set(keys.map((k) => k.id)))}
+                        className="accent-[#3D8EFF]"
+                      />
+                    </th>
+                    <th className="px-3 py-2.5">Nome</th>
+                    <th className="px-3 py-2.5">Prefixo</th>
+                    <th className="px-3 py-2.5">Extensão</th>
+                    <th className="px-3 py-2.5">Escopos</th>
+                    <th className="px-3 py-2.5">Último uso</th>
+                    <th className="px-3 py-2.5">Status</th>
+                    <th className="px-3 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {keys.map((k) => {
+                    const expired = k.expires_at && new Date(k.expires_at).getTime() < Date.now()
+                    const isSel = selected.has(k.id)
+                    return (
+                      <tr key={k.id} className={cn('border-b border-[#141B28] text-[12px] last:border-b-0', isSel ? 'bg-[#0F1B30]' : 'bg-[#0D1320]')}>
+                        <td className="px-3 py-2.5">
+                          <input type="checkbox" aria-label={`Selecionar ${k.name}`} checked={isSel} onChange={() => toggle(k.id)} className="accent-[#3D8EFF]" />
+                        </td>
+                        <td className="px-3 py-2.5 font-semibold text-[#E8EDF7]">{k.name}</td>
+                        <td className="px-3 py-2.5 font-mono text-[#B4BFD0]">{k.key_prefix}…</td>
+                        <td className="px-3 py-2.5 text-[#B4BFD0]">{k.extension_id ? extName.get(k.extension_id) ?? '—' : '—'}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="flex flex-wrap gap-1">
+                            {k.scopes.map((s) => (
+                              <span key={s} className="rounded border border-[#26314A] bg-[#080D18] px-1.5 py-px font-mono text-[10px] text-[#B4BFD0]">
+                                {s}
+                              </span>
+                            ))}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-[#8A97AC]">{when(k.last_used_at)}</td>
+                        <td className="px-3 py-2.5">
+                          {k.revoked_at ? (
+                            <span className="text-[#F87171]">Revogada</span>
+                          ) : expired ? (
+                            <span className="text-[#FBBF24]">Expirada</span>
+                          ) : (
+                            <span className="text-[#34D399]">Ativa{k.expires_at ? ` até ${when(k.expires_at)}` : ''}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          {!k.revoked_at && (
+                            <Btn size="sm" variant="danger" onClick={() => setRevoking(k)}>
+                              Revogar
+                            </Btn>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-[11px] text-[#7C8AA1]">
+              Por segurança o Orvia guarda só o hash das chaves: o valor completo só pode ser copiado no momento em que a chave é gerada.
+            </p>
+          </>
         )}
       </section>
 
@@ -240,6 +434,33 @@ export function ExtensionsScreen({
           </div>
         </Modal>
       )}
+      {bulk && (
+        <Modal title={bulk.action === 'delete' ? 'Excluir chaves' : 'Revogar chaves'} onClose={() => !bulkBusy && setBulk(null)}>
+          <p className="text-[13px] text-[#C9D3E3]">
+            {bulk.action === 'delete' ? 'Excluir' : 'Revogar'} <b>{bulk.ids.length}</b> chave{bulk.ids.length === 1 ? '' : 's'}?{' '}
+            {bulk.action === 'delete'
+              ? 'Elas somem da lista e param de funcionar na hora. Extensões que usam essas chaves ficam desconectadas. Não dá para desfazer.'
+              : 'As extensões que usam essas chaves param de funcionar imediatamente.'}
+          </p>
+          <ul className="mt-3 max-h-40 space-y-0.5 overflow-y-auto rounded-lg border border-[#1A2231] bg-[#080D18] px-3 py-2 text-[12px] text-[#B4BFD0]">
+            {keys
+              .filter((k) => bulk.ids.includes(k.id))
+              .map((k) => (
+                <li key={k.id}>
+                  {k.name} <span className="font-mono text-[#7C8AA1]">({k.key_prefix}…)</span>
+                </li>
+              ))}
+          </ul>
+          <div className="mt-5 flex justify-end gap-2 border-t border-[#1A2231] pt-4">
+            <Btn variant="ghost" disabled={bulkBusy} onClick={() => setBulk(null)}>
+              Cancelar
+            </Btn>
+            <Btn variant="danger" disabled={bulkBusy} onClick={runBulk}>
+              {bulkBusy ? 'Aguarde…' : bulk.action === 'delete' ? 'Excluir' : 'Revogar'}
+            </Btn>
+          </div>
+        </Modal>
+      )}
       <Toast message={toast} />
     </div>
   )
@@ -253,28 +474,39 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
   const [expires, setExpires] = useState('180')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [created, setCreated] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [created, setCreated] = useState<{ key: string; prefix: string } | null>(null)
+  const [copy, setCopy] = useState<'idle' | 'ok' | 'fail'>('idle')
 
   if (created) {
+    // A chave NUNCA é exibida: só o prefixo + máscara, e um botão que copia o valor completo.
     return (
-      <Modal title="Chave criada" description="Copie agora — ela não será exibida de novo." onClose={onClose} width="max-w-lg">
+      <Modal title="Chave criada" description="Copie agora — por segurança ela não pode ser exibida nem copiada depois." onClose={onClose} width="max-w-lg">
         <div className="flex items-center gap-2 rounded-lg border border-[#3D8EFF]/50 bg-[#0C1A31] p-3">
-          <code className="min-w-0 flex-1 break-all font-mono text-[12px] text-white">{created}</code>
+          <EyeOff size={15} className="shrink-0 text-[#6EA8FF]" aria-hidden="true" />
+          <span className="min-w-0 flex-1 select-none truncate font-mono text-[12px] text-[#CFE0FF]" aria-label="Chave oculta">
+            {created.prefix}
+            {'•'.repeat(24)}
+          </span>
           <Btn
             size="sm"
+            variant={copy === 'ok' ? 'secondary' : 'primary'}
             onClick={async () => {
               try {
-                await navigator.clipboard.writeText(created)
-                setCopied(true)
+                await navigator.clipboard.writeText(created.key)
+                setCopy('ok')
               } catch {
-                setCopied(false)
+                setCopy('fail')
               }
             }}
           >
-            {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copiada' : 'Copiar'}
+            {copy === 'ok' ? <Check size={13} /> : <Copy size={13} />} {copy === 'ok' ? 'Copiada' : 'Copiar chave'}
           </Btn>
         </div>
+        {copy === 'fail' && (
+          <p className="mt-2 rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 px-3 py-2 text-[12px] text-[#FCA5A5]">
+            O navegador bloqueou a área de transferência. Clique de novo em “Copiar chave”; se continuar, revogue esta chave e gere outra.
+          </p>
+        )}
         <p className="mt-3 text-[12px] leading-relaxed text-[#8A97AC]">
           Cole nas opções da extensão (campo de senha). Não envie por chat/e-mail. Se perder, revogue e gere outra.
         </p>
@@ -297,7 +529,7 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
       expires_in_days: Number.parseInt(expires, 10) || 0,
     })
     setBusy(false)
-    if (res.ok) setCreated(res.key)
+    if (res.ok) setCreated({ key: res.key, prefix: res.prefix })
     else setError(res.error)
   }
 

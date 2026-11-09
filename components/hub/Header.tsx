@@ -14,7 +14,10 @@ import {
   X,
 } from 'lucide-react'
 
-const roleLabel = (role: string) =>
+/** Evento global do botão "Sincronizar" do header (cancelable: a tela que tratar chama preventDefault). */
+export const SYNC_EVENT = 'orvia:sync'
+
+const roleLabel =(role: string) =>
   ({ owner: 'OWNER', coordenador: 'COORDENADOR', editor: 'EDITOR', visualizador: 'VISUALIZADOR' })[role] ?? role.toUpperCase()
 
 export function Header({
@@ -146,8 +149,13 @@ export function Header({
         <div className="relative">
           <button
             type="button"
-            onClick={() => setSoon(true)}
-            title="Sincronização disponível na próxima fase"
+            onClick={() => {
+              // A tela atual pode tratar a sincronização (ex.: Extensões → checa a conexão)
+              // chamando event.preventDefault(); se ninguém tratar, mostra o aviso de "simulada".
+              const handled = !window.dispatchEvent(new CustomEvent(SYNC_EVENT, { cancelable: true }))
+              if (!handled) setSoon(true)
+            }}
+            title="Sincronizar"
             className="flex h-[44px] items-center gap-2 rounded-[10px] bg-[#3D8EFF] px-4 text-[14px] font-bold text-[#06101F] transition-colors hover:bg-[#6EA8FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6EA8FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080C14]"
           >
             <RefreshCw size={17} strokeWidth={2.2} />

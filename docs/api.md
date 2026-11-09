@@ -234,6 +234,17 @@ Regras da importação: nunca apaga; não sobrescreve item com edição local pe
 ETag de linha = `updated_at` bruto do Postgres (com microssegundos). "Sincronizado" é gravado pela RPC `mark_menu_items_ifood_synced`, com o `now()` do banco.
 Rate limit: janela de 1 min por chave, **em memória por instância** (ver decisoes-em-aberto #4). Testes: `supabase/tests/api_menu.mjs` (34 checks).
 
+## 7.2 Extensão iFood v0.4 — cliente, análise e histórico (2026-11-08)
+
+| Método | Rota | Escopo | Descrição |
+|---|---|---|---|
+| POST | `/clients/ensure` | `catalogo:escrever` | `{ name, ifood_merchant_id? }` → `{ id, name, ifood_merchant_id, created }`. Acha por `ifood_merchant_id`; senão por nome exato sem diferenciar maiúsculas (ignorando clientes já vinculados a OUTRA loja); senão cria (201). Idempotente; só preenche `ifood_merchant_id` quando NULL (nunca sobrescreve) |
+| POST | `/analysis` | `catalogo:ler` | IA (+ concorrentes públicos opcionais) → sugestões. **Não grava nada.** Requer `ANTHROPIC_API_KEY`; sem ela → 500 com mensagem. Concorrentes indisponíveis não derrubam a resposta (`competitors_status`) |
+| POST | `/optimizations` | `catalogo:escrever` | Salva plano aprovado + status por alteração + até 6 PNG (≤ 2,5 MB cada; corpo total ≤ ~4,5 MB, limite da Vercel) em bucket privado `optimization-evidence` |
+| GET | `/optimizations?client_id=` | `catalogo:ler` | Últimas 20 otimizações do cliente, prints com URL assinada (10 min) |
+
+POST de criação não usa If-Match (não há versão anterior a proteger). Tabelas: `menu_optimizations`, `menu_optimization_evidence` (migration 0005). Testes: `supabase/tests/api_clients_ensure.mjs` (12 checks).
+
 ## 8. Fora de escopo da Fase 1 (Fases futuras)
 
 Cardápio público/pedidos, Meta Ads sync, relatórios semanais, envio de WhatsApp, rate-limit distribuído via Redis, SDKs. Ver `docs/roadmap-fase-1.md` e `docs/decisoes-em-aberto.md`.
