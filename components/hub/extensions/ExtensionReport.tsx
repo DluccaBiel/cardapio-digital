@@ -9,6 +9,8 @@ export type OptimizationReport = {
   id: string
   client_id: string
   client_name: string
+  /** Canal de origem (extensão que enviou): iFood ou Cardápio Web. */
+  platform: Platform
   version: number
   summary: string
   aborted: boolean
@@ -19,6 +21,12 @@ export type OptimizationReport = {
   results: { action_id?: string; status?: string; message?: string }[]
   evidence: { id: string; name: string; url: string | null; download_url: string | null }[]
 }
+
+export type Platform = 'ifood' | 'cardapioweb'
+const CHANNELS: { id: Platform; label: string; portal: string }[] = [
+  { id: 'ifood', label: 'iFood', portal: 'no iFood' },
+  { id: 'cardapioweb', label: 'Cardápio Web', portal: 'no Cardápio Web' },
+]
 
 const OK = new Set(['ok', 'feito', 'done', 'aplicado'])
 const ERR = new Set(['erro', 'error', 'failed', 'falhou'])
@@ -78,24 +86,56 @@ function DownloadLink({ href, name, compact = false }: { href: string; name: str
   )
 }
 
+/**
+ * Baixa todos os prints de uma execução, um após o outro (cada URL assinada já
+ * responde como anexo). O Chrome pode pedir 1× permissão para "vários downloads".
+ */
+async function downloadAll(files: { name: string; download_url: string | null }[]) {
+  for (const f of files) {
+    if (!f.download_url) continue
+    const a = document.createElement('a')
+    a.href = f.download_url
+    a.download = f.name
+    a.rel = 'noopener noreferrer'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    await new Promise((r) => setTimeout(r, 400))
+  }
+}
+
 export function ExtensionReport({ reports, unavailable }: { reports: OptimizationReport[]; unavailable: boolean }) {
+  const counts = useMemo(() => {
+    const c: Record<Platform, number> = { ifood: 0, cardapioweb: 0 }
+    for (const r of reports) c[r.platform] += 1
+    return c
+  }, [reports])
+  // Abre na aba do envio mais recente
+  const [tab, setTab] = useState<Platform>(reports[0]?.platform ?? 'ifood')
   const [clientFilter, setClientFilter] = useState('')
   const [open, setOpen] = useState<string | null>(reports[0]?.id ?? null)
   const [viewing, setViewing] = useState<{ name: string; url: string; download: string | null } | null>(null)
+  const [busyAll, setBusyAll] = useState<string | null>(null)
 
+  const inTab = useMemo(() => reports.filter((r) => r.platform === tab), [reports, tab])
+  const channel = CHANNELS.find((c) => c.id === tab)!
   const clients = useMemo(() => {
     const m = new Map<string, string>()
-    for (const r of reports) m.set(r.client_id, r.client_name)
+    for (const r of inTab) m.set(r.client_id, r.client_name)
     return Array.from(m, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
-  }, [reports])
-  const list = clientFilter ? reports.filter((r) => r.client_id === clientFilter) : reports
+  }, [inTab])
+  const list = clientFilter ? inTab.filter((r) => r.client_id === clientFilter) : inTab
+  const switchTab = (p: Platform) => {
+    setTab(p)
+    setClientFilter('')
+    setOpen(reports.find((r) => r.platform === p)?.id ?? null)
+  }
 
   return (
     <section className="mt-6" aria-labelledby="ext-report-title">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="ext-report-title" className="flex items-center gap-2 text-[16px] font-bold text-[#F1F5FC]">
-          <FileText size={16} className="text-[#6EA8FF]" /> Relatório da extensão
-          {reports.length > 0 && <span className="text-[12px] font-medium text-[#7C8AA1]">· últimas {reports.length}</span>}
+          <FileText size={16} className="text-[#6EA8FF]" /> Relatório das extensões
         </h2>
         {clients.length > 1 && (
           <div className="w-[220px]">
@@ -104,13 +144,37 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
         )}
       </div>
 
+      <div role="tablist" aria-label="Canal" className="mt-3 flex gap-1 border-b border-[#1A2231]">
+        {CHANNELS.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            role="tab"
+            id={`ext-report-tab-${c.id}`}
+            aria-selected={tab === c.id}
+            aria-controls="ext-report-panel"
+            onClick={() => switchTab(c.id)}
+            className={cn(
+              '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3D8EFF]',
+              tab === c.id ? 'border-[#3D8EFF] text-[#F1F5FC]' : 'border-transparent text-[#8A97AC] hover:text-[#C9D3E3]',
+            )}
+          >
+            {c.label}
+            <span className={cn('rounded px-1.5 py-px text-[11px]', tab === c.id ? 'bg-[#3D8EFF]/15 text-[#9CC3FF]' : 'bg-white/[0.05] text-[#7C8AA1]')}>{counts[c.id]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" id="ext-report-panel" aria-labelledby={`ext-report-tab-${tab}`}>
       {unavailable ? (
         <div className="mt-3">
           <Empty title="Relatório ainda indisponível">O banco ainda não tem as tabelas de histórico (migration 0005). Assim que forem aplicadas, as otimizações e os prints enviados pela extensão aparecem aqui.</Empty>
         </div>
       ) : list.length === 0 ? (
         <div className="mt-3">
-          <Empty title="Nenhuma otimização enviada ainda">Quando a extensão aplicar um plano aprovado no iFood, o resultado de cada alteração e os prints aparecem aqui.</Empty>
+          <Empty title={`Nenhuma otimização do ${channel.label} ainda`}>
+            Quando a extensão {channel.label} aplicar um plano aprovado {channel.portal}, o resultado de cada alteração e os prints aparecem aqui.
+          </Empty>
         </div>
       ) : (
         <div className="mt-3 space-y-2">
@@ -186,9 +250,25 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
                       </div>
                     )}
 
-                    <h3 className="mt-4 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.08em] text-[#8A97AC]">
-                      <Images size={14} /> Prints enviados pela extensão
-                    </h3>
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.08em] text-[#8A97AC]">
+                        <Images size={14} /> Prints enviados pela extensão {channel.label}
+                      </h3>
+                      {r.evidence.some((e) => e.download_url) && (
+                        <button
+                          type="button"
+                          disabled={busyAll === r.id}
+                          onClick={async () => {
+                            setBusyAll(r.id)
+                            await downloadAll(r.evidence)
+                            setBusyAll(null)
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-[#26314A] px-2.5 py-1 text-[12px] font-semibold text-[#C9D3E3] transition-colors hover:border-[#3D8EFF] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF] disabled:opacity-60"
+                        >
+                          <Download size={14} /> {busyAll === r.id ? 'Baixando…' : `Baixar todos (${r.evidence.filter((e) => e.download_url).length})`}
+                        </button>
+                      )}
+                    </div>
                     {r.evidence.length === 0 ? (
                       <p className="mt-1 text-[12px] text-[#7C8AA1]">Nenhum print nesta execução.</p>
                     ) : (
@@ -226,6 +306,7 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
           <p className="text-[11px] text-[#7C8AA1]">Os links dos prints expiram em 10 min — use “Sincronizar” para renovar.</p>
         </div>
       )}
+      </div>
 
       {viewing && (
         <Modal title={viewing.name} onClose={() => setViewing(null)} width="max-w-5xl">

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Building2,
   Check,
@@ -18,6 +19,19 @@ import {
 import { formatBRL } from '@/lib/format'
 import type { MockAdAccount } from '@/lib/mock'
 import { cn, Modal, Toast, Toggle } from '@/components/hub/ui'
+import { SYNC_EVENT } from '@/components/hub/Header'
+import { createClientAndLinkAction, linkAccountAction, setWatchedAction, syncMetaAccountsAction } from '@/app/a/[ws]/contas/actions'
+
+/** Modo real (painel): dados do banco + ações no servidor. Sem `live` = demonstração. */
+export type AccountsLive = {
+  ws: string
+  canManage: boolean
+  /** META_ACCESS_TOKEN + META_BUSINESS_ID presentes no servidor */
+  configured: boolean
+  /** migration 0007 aplicada (a leitura das contas funcionou) */
+  schemaReady: boolean
+  clients: { id: string; name: string }[]
+}
 
 type Tab = 'all' | 'watched' | 'unwatched'
 
@@ -25,6 +39,7 @@ const STATUS_STYLE: Record<MockAdAccount['status'], string> = {
   Ativa: 'border-[#2A3549] bg-[#161C26] text-[#34D399]',
   Pausada: 'border-[#FBBF24]/45 bg-[#FBBF24]/10 text-[#FBBF24]',
   Desativada: 'border-[#2A3549] bg-[#161C26] text-[#B4BFD0]',
+  Pendente: 'border-[#F87171]/45 bg-[#F87171]/10 text-[#FCA5A5]',
 }
 
 function syncLabel(iso: string) {
@@ -39,11 +54,17 @@ function syncLabel(iso: string) {
 export function AccountsScreen({
   initialAccounts,
   workspaceName,
+  live,
 }: {
   initialAccounts: MockAdAccount[]
   workspaceName: string
+  live?: AccountsLive
 }) {
+  const router = useRouter()
   const [accounts, setAccounts] = useState(initialAccounts)
+  useEffect(() => setAccounts(initialAccounts), [initialAccounts])
+  const [syncing, setSyncing] = useState(false)
+  const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [tab, setTab] = useState<Tab>('all')
   const [query, setQuery] = useState('')
   const [menuFor, setMenuFor] = useState<string | null>(null)
@@ -76,8 +97,49 @@ export function AccountsScreen({
     })
   }, [accounts, query, tab])
 
-  const toggleWatched = (id: string) => {
-    setAccounts((current) => current.map((account) => (account.id === id ? { ...account, watched: !account.watched } : account)))
+  const sync = useCallback(async () => {
+    if (!live) return
+    if (!live.canManage) return setBanner({ kind: 'err', text: 'Somente dono ou coordenador sincronizam as contas da Meta.' })
+    setSyncing(true)
+    setBanner(null)
+    const res = await syncMetaAccountsAction(live.ws)
+    setSyncing(false)
+    if (!res.ok) return setBanner({ kind: 'err', text: res.error })
+    setBanner({
+      kind: 'ok',
+      text: `${res.total} conta${res.total === 1 ? '' : 's'} sincronizada${res.total === 1 ? '' : 's'} da Meta · ${res.created} nova${res.created === 1 ? '' : 's'}${res.linked ? ` · ${res.linked} vinculada${res.linked === 1 ? '' : 's'} automaticamente pelo nome` : ''}.`,
+    })
+    router.refresh()
+  }, [live, router])
+
+  // Botão "Sincronizar" do cabeçalho: nesta tela, busca na Meta
+  useEffect(() => {
+    if (!live) return
+    const onSync = (event: Event) => {
+      event.preventDefault()
+      void sync()
+    }
+    window.addEventListener(SYNC_EVENT, onSync)
+    return () => window.removeEventListener(SYNC_EVENT, onSync)
+  }, [live, sync])
+
+  const toggleWatched = async (id: string) => {
+    const next = !accounts.find((a) => a.id === id)?.watched
+    setAccounts((current) => current.map((account) => (account.id === id ? { ...account, watched: next } : account)))
+    if (!live) return
+    const res = await setWatchedAction(live.ws, id, next)
+    if (!res.ok) {
+      setAccounts((current) => current.map((account) => (account.id === id ? { ...account, watched: !next } : account)))
+      setToast(res.error)
+    }
+  }
+
+  const setLink = async (accountId: string, client: { id: string; name: string } | null) => {
+    if (!live) return
+    const res = await linkAccountAction(live.ws, accountId, client?.id ?? null)
+    if (!res.ok) return setToast(res.error)
+    setAccounts((current) => current.map((a) => (a.id === accountId ? { ...a, clientId: client?.id ?? null, clientName: client?.name ?? null } : a)))
+    setToast(client ? `Conta vinculada a ${client.name}.` : 'Vínculo removido.')
   }
 
   const copy = async (value: string, message: string) => {
@@ -105,14 +167,30 @@ export function AccountsScreen({
         </div>
         <button
           type="button"
-          disabled
-          title="Integração com a Meta disponível na próxima fase"
-          className="flex h-[46px] cursor-not-allowed items-center gap-2 rounded-lg bg-[#3D8EFF] px-5 text-[14px] font-bold text-[#06101F] opacity-60"
+          disabled={!live || !live.canManage || syncing}
+          onClick={() => void sync()}
+          title={!live ? 'Demonstração' : !live.canManage ? 'Somente dono ou coordenador' : 'Buscar as contas do portfólio empresarial na Meta'}
+          className="flex h-[46px] items-center gap-2 rounded-lg bg-[#3D8EFF] px-5 text-[14px] font-bold text-[#06101F] transition-colors hover:bg-[#6EA8FF] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <RefreshCw size={16} strokeWidth={2.2} />
-          Buscar contas da BM
+          <RefreshCw size={16} strokeWidth={2.2} className={cn(syncing && 'animate-spin')} />
+          {syncing ? 'Buscando na Meta…' : 'Buscar contas da BM'}
         </button>
       </div>
+
+      {live && (!live.configured || !live.schemaReady || banner) && (
+        <div
+          role="status"
+          className={cn(
+            'mt-4 rounded-xl border px-4 py-3 text-[12px] leading-relaxed',
+            banner?.kind === 'ok' ? 'border-[#34D399]/40 bg-[#34D399]/10 text-[#A7F3D0]' : 'border-[#FBBF24]/40 bg-[#FBBF24]/10 text-[#FDE68A]',
+          )}
+        >
+          {banner?.text ??
+            (!live.schemaReady
+              ? 'O banco ainda não tem os campos da sincronização com a Meta (migration 0007). Aplique a migration e recarregue.'
+              : 'Integração com a Meta não configurada no servidor: cadastre META_ACCESS_TOKEN (token de Usuário do Sistema) e META_BUSINESS_ID na Vercel e refaça o deploy.')}
+        </div>
+      )}
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 md:mt-6">
         <div className="flex flex-wrap items-center gap-1 rounded-xl border border-[#1A2231] bg-[#0D1320] p-1.5" role="tablist" aria-label="Filtro de contas">
@@ -167,7 +245,7 @@ export function AccountsScreen({
             </colgroup>
             <thead className="sticky top-0 z-20 bg-[#0D1320]">
               <tr>
-                {['Conta / ID', 'Status', 'Tipo', 'Saldo', 'Gasto total', 'Última sinc.', 'Acompanhar', 'Cliente', 'Ações'].map((label) => (
+                {['Conta / ID', 'Status', 'Tipo', 'Saldo', live ? 'Gasto no mês' : 'Gasto total', 'Última sinc.', 'Acompanhar', 'Cliente', 'Ações'].map((label) => (
                   <th
                     key={label}
                     scope="col"
@@ -185,7 +263,7 @@ export function AccountsScreen({
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={9} className="h-[140px] text-center text-[13px] text-[#8A97AC]">
-                    Nenhuma conta encontrada.
+                    {live && accounts.length === 0 ? 'Nenhuma conta ainda — use “Buscar contas da BM” para trazer as contas do portfólio da Meta.' : 'Nenhuma conta encontrada.'}
                   </td>
                 </tr>
               )}
@@ -215,7 +293,10 @@ export function AccountsScreen({
                         <Star size={11} fill={account.starred ? 'currentColor' : 'none'} />
                       </button>
                     </div>
-                    <p className="mt-1 text-[10px] text-[#7C8AA1]">{account.timezone}</p>
+                    <p className="mt-1 truncate text-[10px] text-[#7C8AA1]">
+                      {account.timezone}
+                      {account.ownerBusinessName && ` · BM: ${account.ownerBusinessName}`}
+                    </p>
                   </td>
                   <td className="h-[84px] px-4 py-0 align-middle">
                     <span className={cn('inline-flex rounded-full border px-3 py-1 text-[10px] font-bold', STATUS_STYLE[account.status])}>
@@ -323,8 +404,9 @@ export function AccountsScreen({
                         <button
                           type="button"
                           onClick={() => {
-                            setAccounts((current) => current.map((item) => (item.id === account.id ? { ...item, clientId: null, clientName: null } : item)))
                             setMenuFor(null)
+                            if (live) return void setLink(account.id, null)
+                            setAccounts((current) => current.map((item) => (item.id === account.id ? { ...item, clientId: null, clientName: null } : item)))
                             setToast('Vínculo removido nesta demonstração.')
                           }}
                           className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] text-[#FCA5A5] hover:bg-[#F87171]/10"
@@ -342,10 +424,30 @@ export function AccountsScreen({
       </div>
 
       <p className="mt-3 px-1 text-[11px] text-[#7C8AA1]">
-        {filtered.length} de {accounts.length} contas · dados fictícios de demonstração
+        {filtered.length} de {accounts.length} contas · {live ? 'dados da Meta (portfólio empresarial)' : 'dados fictícios de demonstração'}
       </p>
 
-      {linkFor && (
+      {linkFor && live && (
+        <LiveLinkModal
+          account={linkFor}
+          clients={live.clients}
+          onClose={() => setLinkFor(null)}
+          onLink={async (client) => {
+            setLinkFor(null)
+            await setLink(linkFor.id, client)
+          }}
+          onCreate={async (name) => {
+            const res = await createClientAndLinkAction(live.ws, linkFor.id, name)
+            if (!res.ok) return setToast(res.error)
+            setLinkFor(null)
+            setAccounts((current) => current.map((a) => (a.id === linkFor.id ? { ...a, clientId: res.client.id, clientName: res.client.name } : a)))
+            setToast(`Cliente ${res.client.name} criado e vinculado.`)
+            router.refresh()
+          }}
+        />
+      )}
+
+      {linkFor && !live && (
         <LinkAccountModal
           account={linkFor}
           onClose={() => setLinkFor(null)}
@@ -360,14 +462,15 @@ export function AccountsScreen({
       )}
 
       {detailFor && (
-        <Modal title={detailFor.name ?? detailFor.externalId} description="Detalhes fictícios da conta" onClose={() => setDetailFor(null)}>
+        <Modal title={detailFor.name ?? detailFor.externalId} description={live ? 'Dados da última sincronização com a Meta' : 'Detalhes fictícios da conta'} onClose={() => setDetailFor(null)}>
           <div className="space-y-2 text-[12px]">
             {[
               ['ID externo', detailFor.externalId],
               ['Status', detailFor.status],
               ['Tipo', detailFor.type],
               ['Saldo', formatBRL(detailFor.balance)],
-              ['Gasto total', formatBRL(detailFor.spendTotal)],
+              [live ? 'Gasto no mês' : 'Gasto total', formatBRL(detailFor.spendTotal)],
+              ...(detailFor.ownerBusinessName ? [['BM dona', detailFor.ownerBusinessName]] : []),
               ['Fuso', detailFor.timezone],
               ['Cliente', detailFor.clientName ?? 'Sem vínculo'],
             ].map(([label, value]) => (
@@ -425,6 +528,79 @@ function LinkAccountModal({
         >
           Vincular
         </button>
+      </div>
+    </Modal>
+  )
+}
+
+/** Vincular conta real: escolhe um cliente do workspace ou cria um com o nome da BM/conta. */
+function LiveLinkModal({
+  account,
+  clients,
+  onClose,
+  onLink,
+  onCreate,
+}: {
+  account: MockAdAccount
+  clients: { id: string; name: string }[]
+  onClose: () => void
+  onLink: (client: { id: string; name: string }) => Promise<void>
+  onCreate: (name: string) => Promise<void>
+}) {
+  const [filter, setFilter] = useState('')
+  const [selected, setSelected] = useState<string | null>(null)
+  const [newName, setNewName] = useState(account.ownerBusinessName ?? account.name ?? '')
+  const [busy, setBusy] = useState(false)
+  const list = clients.filter((c) => c.name.toLowerCase().includes(filter.trim().toLowerCase())).slice(0, 50)
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true)
+    await fn()
+    setBusy(false)
+  }
+  const input = 'mb-0 h-[38px] w-full rounded-lg border border-[#26314A] bg-[#080D18] px-3 text-[13px] text-[#E8EDF7] outline-none placeholder:text-[#7C8AA1] focus:border-[#3D8EFF]'
+  return (
+    <Modal title="Vincular cliente" description={account.externalId} onClose={onClose} width="max-w-md">
+      <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar cliente…" aria-label="Buscar cliente" className={input} />
+      <div className="hub-scrollbar mt-2 max-h-[240px] space-y-1 overflow-auto">
+        {list.length === 0 && <p className="px-1 py-2 text-[12px] text-[#7C8AA1]">Nenhum cliente encontrado.</p>}
+        {list.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setSelected(c.id)}
+            className={cn('flex w-full items-center justify-between rounded-lg px-3 py-2 text-[13px]', selected === c.id ? 'bg-[#3D8EFF]/15 text-[#E8EDF7]' : 'text-[#C9D3E3] hover:bg-white/[0.04]')}
+          >
+            {c.name}
+            {selected === c.id && <Check size={14} className="text-[#3D8EFF]" />}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 flex justify-end gap-2">
+        <button type="button" onClick={onClose} className="rounded-lg border border-[#26314A] px-4 py-2 text-[12px] font-semibold text-[#C9D3E3] hover:text-white">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          disabled={!selected || busy}
+          onClick={() => run(() => onLink(clients.find((c) => c.id === selected)!))}
+          className="rounded-lg bg-[#3D8EFF] px-4 py-2 text-[12px] font-bold text-[#06101F] hover:bg-[#6EA8FF] disabled:opacity-50"
+        >
+          Vincular
+        </button>
+      </div>
+      <div className="mt-4 border-t border-[#1A2231] pt-3">
+        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8A97AC]">Ou criar novo cliente</p>
+        <div className="mt-2 flex gap-2">
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} aria-label="Nome do novo cliente" className={input} />
+          <button
+            type="button"
+            disabled={!newName.trim() || busy}
+            onClick={() => run(() => onCreate(newName))}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#3D8EFF]/50 px-3 text-[12px] font-bold text-[#6EA8FF] hover:bg-[#3D8EFF]/10 disabled:opacity-50"
+          >
+            <Building2 size={13} /> Criar e vincular
+          </button>
+        </div>
       </div>
     </Modal>
   )

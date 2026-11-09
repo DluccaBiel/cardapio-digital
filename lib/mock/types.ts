@@ -44,7 +44,7 @@ export type MockAdAccount = {
   id: string
   externalId: string
   name: string | null
-  status: 'Ativa' | 'Pausada' | 'Desativada'
+  status: 'Ativa' | 'Pausada' | 'Desativada' | 'Pendente'
   type: 'Pré-paga' | 'Cartão'
   balance: number
   spendTotal: number
@@ -54,6 +54,8 @@ export type MockAdAccount = {
   clientName: string | null
   timezone: string
   starred: boolean
+  /** BM dona da conta (contas de clientes compartilhadas) — só nos dados reais. */
+  ownerBusinessName?: string | null
 }
 
 export type MockCreative = {
