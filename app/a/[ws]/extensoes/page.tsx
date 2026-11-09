@@ -11,20 +11,30 @@ const EVIDENCE_BUCKET = 'optimization-evidence'
 const SIGNED_URL_TTL = 600 // 10 min — a tela renova ao Sincronizar/recarregar
 
 /**
- * Relatório da extensão: últimas otimizações enviadas (plano aprovado + status por
- * alteração) e os prints. Leitura com a sessão do usuário (RLS: membro do workspace);
+ * Relatório das extensões, separado por canal (iFood / Cardápio Web — coluna
+ * menu_optimizations.platform, 0006): últimas otimizações enviadas (plano aprovado
+ * + status por alteração) e os prints. Leitura com a sessão do usuário (RLS: membro do workspace);
  * o bucket é privado e sem policy, então as URLs assinadas são geradas aqui no
  * servidor — e só para caminhos do PRÓPRIO workspace.
  * Se a migration 0005 ainda não foi aplicada, devolve `unavailable` (a tela avisa).
  */
 async function loadReports(db: ReturnType<typeof createServerClient>, workspaceId: string): Promise<{ reports: OptimizationReport[]; unavailable: boolean }> {
-  const { data, error } = await db
-    .from('menu_optimizations')
-    .select('id, client_id, plan_hash, version, summary, aborted, approved, results, ok_count, error_count, created_at, clients ( name ), menu_optimization_evidence ( id, name, storage_path, bytes )')
-    .eq('workspace_id', workspaceId)
-    .order('created_at', { ascending: false })
-    .limit(20)
-  if (error) return { reports: [], unavailable: true }
+  const COLS = 'id, client_id, plan_hash, version, summary, aborted, approved, results, ok_count, error_count, created_at, clients ( name ), menu_optimization_evidence ( id, name, storage_path, bytes )'
+  // Até 30 por canal (iFood e Cardápio Web), para uma aba não "esconder" a outra
+  const query = (cols: string, platform?: 'ifood' | 'cardapioweb') => {
+    let q = db.from('menu_optimizations').select(cols).eq('workspace_id', workspaceId)
+    if (platform) q = q.eq('platform', platform)
+    return q.order('created_at', { ascending: false }).limit(30)
+  }
+  const [ifood, cw] = await Promise.all([query(`${COLS}, platform`, 'ifood'), query(`${COLS}, platform`, 'cardapioweb')])
+  let data: unknown[] | null = null
+  if (!ifood.error && !cw.error) data = [...(ifood.data ?? []), ...(cw.data ?? [])]
+  else {
+    // Banco sem a migration 0006 (sem coluna platform): tudo conta como iFood
+    const legacy = await query(COLS)
+    if (legacy.error) return { reports: [], unavailable: true }
+    data = legacy.data ?? []
+  }
 
   const rows = (data ?? []) as any[]
   const paths = rows.flatMap((r) => (r.menu_optimization_evidence ?? []).map((e: any) => e.storage_path as string)).filter((p) => p.startsWith(`${workspaceId}/`))
@@ -40,6 +50,7 @@ async function loadReports(db: ReturnType<typeof createServerClient>, workspaceI
       id: r.id,
       client_id: r.client_id,
       client_name: client?.name ?? 'Cliente removido',
+      platform: r.platform === 'cardapioweb' ? 'cardapioweb' : 'ifood',
       version: r.version,
       summary: r.summary ?? '',
       aborted: Boolean(r.aborted),
@@ -58,6 +69,7 @@ async function loadReports(db: ReturnType<typeof createServerClient>, workspaceI
         .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'pt-BR', { numeric: true })),
     }
   })
+  reports.sort((a, b) => b.created_at.localeCompare(a.created_at))
   return { reports, unavailable: false }
 }
 

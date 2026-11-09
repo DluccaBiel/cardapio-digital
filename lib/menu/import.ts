@@ -2,7 +2,8 @@
  * Importação iFood → Orvia (chamada pela extensão via POST /api/v1/menu/import).
  *
  * Regras de segurança/consistência:
- *  - Trava de loja: se o cliente já tem ifood_merchant_id e o snapshot é de outra
+ *  - Trava de loja: se o cliente já tem loja vinculada NO CANAL (ifood_merchant_id ou,
+ *    para a extensão Cardápio Web, cardapioweb_store_id) e o snapshot é de outra
  *    loja → merchant_mismatch (nada é gravado).
  *  - Nunca apaga nada: itens do Orvia que não vieram no snapshot só são contados.
  *  - Nunca sobrescreve edição local pendente: item com ifood_id e alterado no
@@ -12,6 +13,7 @@
  */
 import { z } from 'zod'
 import { audit } from '../audit'
+import { PLATFORM_LABEL, STORE_COLUMN, type Platform } from '../api/extensions'
 import type { Ctx, Fail } from './mutations'
 import { isPending, money } from './model'
 
@@ -57,7 +59,7 @@ export type ImportSummary = {
 const realId = (id: string | null | undefined) => (id && !SYNTHETIC.test(id) ? id.slice(0, 120) : null)
 const norm = (s: string) => s.trim().toLowerCase()
 
-export async function importIfoodSnapshot(ctx: Ctx, input: ImportInput): Promise<{ ok: true; data: ImportSummary } | Fail> {
+export async function importIfoodSnapshot(ctx: Ctx, input: ImportInput, platform: Platform = 'ifood'): Promise<{ ok: true; data: ImportSummary } | Fail> {
   const { db, workspaceId } = ctx
   const clientId = input.client_id
   const summary: ImportSummary = {
@@ -69,28 +71,31 @@ export async function importIfoodSnapshot(ctx: Ctx, input: ImportInput): Promise
     missing_in_ifood: 0,
   }
 
-  // ---- 1) Cliente + trava de loja
+  // ---- 1) Cliente + trava de loja (coluna do canal: iFood ou Cardápio Web — 0006)
+  const col = STORE_COLUMN[platform]
+  const label = PLATFORM_LABEL[platform]
   const { data: client } = await db
     .from('clients')
-    .select('id, ifood_merchant_id')
+    .select(`id, ${col}`)
     .eq('workspace_id', workspaceId)
     .eq('id', clientId)
     .is('archived_at', null)
     .maybeSingle()
   if (!client) return { ok: false, code: 'not_found', message: 'Cliente não encontrado.' }
+  const linked = ((client as Record<string, unknown>)[col] as string | null) ?? null
   const merchantId = input.merchant.id?.trim() || null
-  if (client.ifood_merchant_id && merchantId && client.ifood_merchant_id !== merchantId) {
+  if (linked && merchantId && linked !== merchantId) {
     return {
       ok: false,
       code: 'merchant_mismatch',
-      message: 'Esta loja do iFood é diferente da vinculada a este cliente. Confira a loja aberta no portal.',
-      current: { ifood_merchant_id: client.ifood_merchant_id },
+      message: `Esta loja do ${label} é diferente da vinculada a este cliente. Confira a loja aberta no portal.`,
+      current: { [col]: linked },
     }
   }
-  if (!client.ifood_merchant_id && merchantId) {
-    const { error } = await db.from('clients').update({ ifood_merchant_id: merchantId }).eq('workspace_id', workspaceId).eq('id', clientId)
+  if (!linked && merchantId) {
+    const { error } = await db.from('clients').update({ [col]: merchantId }).eq('workspace_id', workspaceId).eq('id', clientId)
     if (error?.code === '23505') {
-      return { ok: false, code: 'merchant_mismatch', message: 'Esta loja do iFood já está vinculada a outro cliente do workspace.' }
+      return { ok: false, code: 'merchant_mismatch', message: `Esta loja do ${label} já está vinculada a outro cliente do workspace.` }
     }
   }
 
@@ -325,7 +330,7 @@ export async function importIfoodSnapshot(ctx: Ctx, input: ImportInput): Promise
     workspaceId,
     actorType: ctx.actor.type,
     actorId: ctx.actor.id,
-    action: 'menu.import.ifood',
+    action: platform === 'cardapioweb' ? 'menu.import.cardapioweb' : 'menu.import.ifood',
     entityType: 'client',
     entityId: clientId,
     metadata: {

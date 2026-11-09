@@ -46,7 +46,7 @@ function liveFromInstall(i: Install): ExtensionLiveStatus {
   return { extension_id: i.extension_id, version: i.version, last_seen_at: i.last_seen_at, key, key_name: k?.name ?? null, key_last_used_at: null }
 }
 
-const ONLINE_MS = 10 * 60_000 // a extensão renova o contato ~1×/min com o portal iFood aberto
+const ONLINE_MS = 10 * 60_000 // a extensão renova o contato ~1×/min com o portal (iFood / Cardápio Web) aberto
 type Conn = 'online' | 'idle' | 'off'
 function connOf(s: ExtensionLiveStatus): Conn {
   if (s.key !== 'active') return 'off'
@@ -57,11 +57,12 @@ const KEY_PROBLEM: Record<Exclude<ExtensionLiveStatus['key'], 'active'>, string>
   expired: 'a chave de acesso expirou',
   missing: 'a chave de acesso foi excluída',
 }
-function connText(s: ExtensionLiveStatus): string {
+const PORTAL: Record<string, string> = { 'orvia-ifood': 'o portal do iFood', 'orvia-cardapioweb': 'o Portal do Cardápio Web' }
+function connText(s: ExtensionLiveStatus, slug?: string): string {
   const c = connOf(s)
   if (c === 'off') return `Desconectada — ${KEY_PROBLEM[s.key as Exclude<ExtensionLiveStatus['key'], 'active'>]}. Use “Conectar extensão”.`
   if (c === 'online') return `Conectada · último contato ${ago(s.last_seen_at)}`
-  return `Conectada, sem contato recente${s.last_seen_at ? ` (último ${ago(s.last_seen_at)})` : ''} — abra o portal do iFood com a extensão ativa`
+  return `Conectada, sem contato recente${s.last_seen_at ? ` (último ${ago(s.last_seen_at)})` : ''} — abra ${PORTAL[slug ?? ''] ?? 'o portal'} com a extensão ativa`
 }
 
 function ago(iso: string | null) {
@@ -141,6 +142,7 @@ export function ExtensionsScreen({
   const [sync, setSync] = useState<SyncState>({ kind: 'idle' })
   const [live, setLive] = useState<Map<string, ExtensionLiveStatus> | null>(null)
   const extName = useMemo(() => new Map(extensions.map((e) => [e.id, e.name])), [extensions])
+  const extSlug = useMemo(() => new Map(extensions.map((e) => [e.id, e.slug])), [extensions])
   const status = useMemo(() => {
     const m = new Map(installs.map((i) => [i.extension_id, liveFromInstall(i)]))
     if (live) live.forEach((s, id) => m.set(id, s))
@@ -174,12 +176,12 @@ export function ExtensionsScreen({
     router.refresh() // relê chaves, instalações e relatório (renova os links dos prints)
     if (!res.ok) return setSync({ kind: 'err', text: res.error })
     setLive(new Map(res.installs.map((s) => [s.extension_id, s])))
-    const parts = res.installs.map((s) => `${extName.get(s.extension_id) ?? 'Extensão'}: ${connText(s)}`)
+    const parts = res.installs.map((s) => `${extName.get(s.extension_id) ?? 'Extensão'}: ${connText(s, extSlug.get(s.extension_id))}`)
     if (!parts.length) parts.push('Nenhuma extensão conectada a este workspace ainda.')
     parts.push(inBrowser ? `Neste navegador: extensão instalada (v${inBrowser}).` : 'Neste navegador: extensão não detectada.')
     const anyOff = res.installs.some((s) => connOf(s) === 'off') || !res.installs.length
     setSync({ kind: anyOff ? 'err' : 'done', text: parts.join(' · '), at: res.checked_at })
-  }, [ws, router, extName])
+  }, [ws, router, extName, extSlug])
 
   useEffect(() => {
     const onSync = (event: Event) => {
@@ -262,7 +264,7 @@ export function ExtensionsScreen({
                         c === 'online' ? 'bg-[#34D399]' : c === 'idle' ? 'bg-[#FBBF24]' : c === 'off' ? 'bg-[#F87171]' : 'bg-[#4B5870]',
                       )}
                     />
-                    {s ? connText(s) : 'Ainda não conectada'}
+                    {s ? connText(s, e.slug) : 'Ainda não conectada — faça login dentro da extensão'}
                   </p>
                   {s && (s.key_name || s.version) && (
                     <p className="mt-0.5 text-[11px] text-[#7C8AA1]">

@@ -148,3 +148,28 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 - Hash: `sha256(chave)` em `api_keys.key_hash`; prefixo `ck_live_xxxx` em `key_prefix` (ver decisoes-em-aberto #3).
 - Primeira extensão: `apps/extensions/orvia-ifood` (slug `orvia-ifood`, registrada na migration 0004). Fluxo e segurança no README dela.
 - CORS: a extensão chama pelo service worker (host_permissions), então não precisa de CORS. Preflight só para origens em `ALLOWED_EXTENSION_ORIGINS`.
+
+## 13. Dois canais: iFood e Cardápio Web (2026-11-09)
+
+```text
+ extensão (login e-mail+senha)                hub
+ ─────────────────────────────                ───────────────────────────────────────────
+ orvia-ifood        ──POST /extension-auth/login──►  detectExtensionSlug(req, body.extension)
+ orvia-cardapioweb  ──  (Origin chrome-extension://onolpce…)  1) body.extension  2) Origin  3) iFood
+                                                     │
+                                                     ▼
+                                        api_keys.extension_id = extensão detectada
+                                                     │  (toda chamada seguinte usa a chave)
+                    ┌────────────────────────────────┼─────────────────────────────────┐
+                    ▼                                ▼                                 ▼
+        clients/ensure, menu/import       optimizations (POST)               painel /a/{ws}/extensoes
+        trava de loja do CANAL:           menu_optimizations.platform        abas iFood | Cardápio Web,
+        ifood_merchant_id ou              = 'ifood' | 'cardapioweb'          prints com "Baixar" e
+        cardapioweb_store_id                                                 "Baixar todos"
+```
+
+- Migration `0006_cardapioweb_channel.sql`: extensão `orvia-cardapioweb` no catálogo, `clients.cardapioweb_store_id` (índice único por workspace) e `menu_optimizations.platform`. Teste: `supabase/tests/cardapioweb_channel.sql`.
+- Id do Chrome da extensão Cardápio Web 0.3.x (do `key` do manifest): `onolpcebolaabfapfnmemokkinncppok`. Outro id (nova chave de manifest) → env `CARDAPIOWEB_EXTENSION_IDS` (lista por vírgula). Versões novas das extensões devem mandar `extension: "orvia-cardapioweb" | "orvia-ifood"` no login (não depender do Origin) e corrigir o `manifest_name` do handshake (a 0.3.0 envia "Otimizador iFood").
+- **Quem já tinha feito login na extensão Cardápio Web antes da 0006 precisa sair e entrar de novo** dentro dela: a chave antiga foi criada como iFood. O novo login revoga a chave antiga do mesmo dispositivo. Otimizações enviadas antes da 0006 ficam na aba iFood (não há como distinguir com segurança).
+- Contrato da API inalterado (campo aditivo `extension` no login; respostas com `extension`/`platform`). Para a extensão Cardápio Web, `ifood_merchant_id` em `GET /clients` e `POST /clients/ensure` significa "id da loja no canal da chave" — compatibilidade com a 0.3.x.
+- **Risco em aberto:** o cardápio importado (`menu_items`/`menu_categories`) ainda é **um por cliente**, sem canal. Se o mesmo cliente importa do iFood e do Cardápio Web, os itens se misturam (o vínculo usa `ifood_id`). Recomendação: na próxima migration, `menu_*.channel` ou ids por canal (`cardapioweb_id`), e a importação filtrar por canal. Até lá, use clientes distintos ou importe por um canal só.

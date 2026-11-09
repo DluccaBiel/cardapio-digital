@@ -1,4 +1,5 @@
 import { authenticate, isResponse } from '@/lib/api/auth'
+import { platformOfExtensionId } from '@/lib/api/extensions'
 import { err, fromFail, ok, preflight, readJson } from '@/lib/api/http'
 import { importIfoodSnapshot, importSchema } from '@/lib/menu/import'
 import { loadCatalog } from '@/lib/menu/load'
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
     })
   }
 
-  const res = await importIfoodSnapshot(auth.ctx, parsed.data)
+  const res = await importIfoodSnapshot(auth.ctx, parsed.data, await platformOfExtensionId(auth.ctx.db, auth.extensionId))
   if (!res.ok) return fromFail(req, res)
   const after = await loadCatalog(auth.ctx.db, auth.workspaceId, parsed.data.client_id)
   return ok(req, res.data, { headers: after ? { ETag: after.etag } : {} })

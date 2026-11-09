@@ -1,6 +1,7 @@
 import { authenticate, isResponse } from '@/lib/api/auth'
 import { err, ok, preflight, readJson } from '@/lib/api/http'
 import { audit } from '@/lib/audit'
+import { platformOfExtensionId, STORE_COLUMN } from '@/lib/api/extensions'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -11,15 +12,17 @@ const bodySchema = z.object({
   ifood_merchant_id: z.string().trim().min(1).max(80).nullable().optional(),
 })
 
-const COLS = 'id, name, ifood_merchant_id'
-type ClientRow = { id: string; name: string; ifood_merchant_id: string | null }
+type ClientRow = { id: string; name: string; ifood_merchant_id: string | null; cardapioweb_store_id?: string | null }
 
 /** Escapa curingas do ILIKE: o nome vira comparação exata, só sem diferenciar maiúsculas. */
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (m) => `\\${m}`)
 
 /**
- * POST /api/v1/clients/ensure — "garante" o cliente da loja do iFood.
- * 1) acha pelo ifood_merchant_id; 2) senão, pelo nome (case-insensitive), ignorando
+ * POST /api/v1/clients/ensure — "garante" o cliente da loja (iFood ou Cardápio Web).
+ * O canal vem da extensão da chave: iFood usa clients.ifood_merchant_id, Cardápio Web
+ * usa clients.cardapioweb_store_id (0006). O campo do corpo continua `ifood_merchant_id`
+ * por compatibilidade com as extensões já publicadas — é "o id da loja no canal".
+ * 1) acha pelo id da loja; 2) senão, pelo nome (case-insensitive), ignorando
  *    clientes já vinculados a OUTRA loja (redes com o mesmo nome); 3) senão, cria.
  * Escopo catalogo:escrever (o da extensão). Idempotente. SEMPRE filtrado pelo workspace da chave.
  * Sem If-Match: é criação/vinculação (POST); o único "update" preenche ifood_merchant_id
@@ -34,6 +37,12 @@ export async function POST(req: Request) {
   const merchantId = ifood_merchant_id ?? null
   const db = auth.ctx.db
   const ws = auth.workspaceId
+  const platform = await platformOfExtensionId(db, auth.extensionId)
+  const col = STORE_COLUMN[platform]
+  const COLS: string = platform === 'cardapioweb' ? 'id, name, ifood_merchant_id, cardapioweb_store_id' : 'id, name, ifood_merchant_id'
+  const storeOf = (c: ClientRow) => (col === 'cardapioweb_store_id' ? (c.cardapioweb_store_id ?? null) : c.ifood_merchant_id)
+  // Resposta no formato que as extensões já entendem: ifood_merchant_id = id da loja NO CANAL da chave
+  const out = (c: ClientRow, created: boolean) => ({ id: c.id, name: c.name, ifood_merchant_id: storeOf(c), created })
 
   const byMerchant = async (): Promise<ClientRow | null> => {
     if (!merchantId) return null
@@ -41,14 +50,14 @@ export async function POST(req: Request) {
       .from('clients')
       .select(COLS)
       .eq('workspace_id', ws)
-      .eq('ifood_merchant_id', merchantId)
+      .eq(col, merchantId)
       .is('archived_at', null)
       .maybeSingle()
     return (data as ClientRow | null) ?? null
   }
 
   const existing = await byMerchant()
-  if (existing) return ok(req, { ...existing, created: false })
+  if (existing) return ok(req, out(existing, false))
 
   const { data: byName, error: nameErr } = await db
     .from('clients')
@@ -60,39 +69,39 @@ export async function POST(req: Request) {
     .limit(10)
   if (nameErr) return err(req, 'internal', 'Falha ao procurar o cliente.')
 
-  const candidates = (byName ?? []) as ClientRow[]
+  const candidates = (byName ?? []) as unknown as ClientRow[]
   // Com merchant: só aceita cliente sem loja vinculada (ou da mesma loja). Sem merchant: o primeiro.
   const found = merchantId
-    ? candidates.find((c) => !c.ifood_merchant_id || c.ifood_merchant_id === merchantId)
+    ? candidates.find((c) => !storeOf(c) || storeOf(c) === merchantId)
     : candidates[0]
 
   if (found) {
-    if (merchantId && !found.ifood_merchant_id) {
+    if (merchantId && !storeOf(found)) {
       const upd = await db
         .from('clients')
-        .update({ ifood_merchant_id: merchantId })
+        .update({ [col]: merchantId })
         .eq('id', found.id)
         .eq('workspace_id', ws)
-        .is('ifood_merchant_id', null)
-      if (!upd.error) found.ifood_merchant_id = merchantId
+        .is(col, null)
+      if (!upd.error) found[col] = merchantId
     }
-    return ok(req, { ...found, created: false })
+    return ok(req, out(found, false))
   }
 
   const { data: created, error } = await db
     .from('clients')
-    .insert({ workspace_id: ws, name, ifood_merchant_id: merchantId })
+    .insert({ workspace_id: ws, name, [col]: merchantId })
     .select(COLS)
     .single()
   if (error || !created) {
-    // Corrida: outra chamada criou a mesma loja (uq_clients_ifood_merchant) → devolve a existente.
+    // Corrida: outra chamada criou a mesma loja (índice único do canal) → devolve a existente.
     if (error?.code === '23505') {
       const again = await byMerchant()
-      if (again) return ok(req, { ...again, created: false })
+      if (again) return ok(req, out(again, false))
     }
     return err(req, 'internal', 'Não consegui cadastrar o cliente.')
   }
-  const row = created as ClientRow
+  const row = created as unknown as ClientRow
   await audit({
     workspaceId: ws,
     actorType: 'api_key',
@@ -100,7 +109,7 @@ export async function POST(req: Request) {
     action: 'client.created_by_extension',
     entityType: 'client',
     entityId: row.id,
-    metadata: { source: 'ifood' },
+    metadata: { source: platform },
   })
-  return ok(req, { ...row, created: true }, { status: 201 })
+  return ok(req, out(row, true), { status: 201 })
 }

@@ -2,6 +2,7 @@ import { authenticate, isResponse } from '@/lib/api/auth'
 import { err, ok, preflight, readJson } from '@/lib/api/http'
 import { decodePng, optimizationSchema } from '@/lib/menu/optimizations'
 import { audit } from '@/lib/audit'
+import { platformOfExtensionId } from '@/lib/api/extensions'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -32,25 +33,27 @@ export async function POST(req: Request) {
     images.push({ name: e.name, buf })
   }
 
+  const platform = await platformOfExtensionId(auth.ctx.db, auth.extensionId)
   const okCount = b.results.filter((r) => OK_STATUS.has(r.status.toLowerCase())).length
   const errorCount = b.results.filter((r) => ERR_STATUS.has(r.status.toLowerCase())).length
-  const { data: row, error } = await auth.ctx.db
-    .from('menu_optimizations')
-    .insert({
-      workspace_id: auth.workspaceId,
-      client_id: b.client_id,
-      plan_hash: b.plan_hash,
-      version: b.version,
-      summary: b.summary,
-      aborted: b.aborted,
-      approved: b.approved,
-      results: b.results,
-      ok_count: okCount,
-      error_count: errorCount,
-      created_by_key: auth.keyId,
-    })
-    .select('id')
-    .single()
+  const base = {
+    workspace_id: auth.workspaceId,
+    client_id: b.client_id,
+    plan_hash: b.plan_hash,
+    version: b.version,
+    summary: b.summary,
+    aborted: b.aborted,
+    approved: b.approved,
+    results: b.results,
+    ok_count: okCount,
+    error_count: errorCount,
+    created_by_key: auth.keyId,
+  }
+  let { data: row, error } = await auth.ctx.db.from('menu_optimizations').insert({ ...base, platform }).select('id').single()
+  // Banco ainda sem a migration 0006 (coluna platform): grava sem o canal em vez de perder o relatório
+  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+    ;({ data: row, error } = await auth.ctx.db.from('menu_optimizations').insert(base).select('id').single())
+  }
   if (error || !row) return err(req, 'internal', 'Não consegui salvar a otimização.')
 
   let saved = 0
@@ -68,7 +71,7 @@ export async function POST(req: Request) {
     action: 'optimization.saved',
     entityType: 'client',
     entityId: b.client_id,
-    metadata: { optimization_id: row.id, ok: okCount, errors: errorCount, images: saved },
+    metadata: { optimization_id: row.id, platform, ok: okCount, errors: errorCount, images: saved },
   })
   return ok(req, { id: row.id, evidence: saved }, { status: 201 })
 }
@@ -84,6 +87,7 @@ export async function GET(req: Request) {
     .select('id, plan_hash, version, summary, aborted, ok_count, error_count, approved, results, created_at, menu_optimization_evidence ( name, storage_path )')
     .eq('workspace_id', auth.workspaceId)
     .eq('client_id', clientId)
+    .eq('platform', await platformOfExtensionId(auth.ctx.db, auth.extensionId))
     .order('created_at', { ascending: false })
     .limit(20)
   const out = []

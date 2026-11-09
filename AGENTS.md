@@ -153,6 +153,8 @@ Usadas pelo app (Preview e Production têm cópia, configuradas em 04/11/2026):
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (públicas, client-side)
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (secret, **somente servidor**: server actions/admin)
 - `SUPABASE_JWKS_URL` (secret, hoje Production e Preview; reservada para auth futura)
+- `META_ACCESS_TOKEN` (secret, **somente servidor**: token de Usuário do Sistema da Meta) e `META_BUSINESS_ID` (id do portfólio) — sincronização de Contas de anúncio (`lib/meta/graph.ts`, 0007)
+- `CARDAPIOWEB_EXTENSION_IDS` (opcional) — id(s) do Chrome da extensão Cardápio Web (ver `docs/extensoes.md` §13 e `docs/integracao-extensoes-hub.md`)
 
 Regras:
 - `NEXT_PUBLIC_*` é embutida no build — se mudar, **refaça o build** (push de novo ou redeploy).
@@ -172,3 +174,4 @@ Regras:
 - `docs/decisoes-em-aberto.md` — Riscos e decisões pendentes (máx. 8)
 - `docs/rebrand-inventario.md` — Inventário e decisões do rebrand para Orvia
 - `docs/db-validacao.md` — Validação local do schema/RLS: o que passou, falhas e correções
+- `docs/integracao-extensoes-hub.md` — Kit para as extensões (iFood/Cardápio Web): prompt, contrato e cliente pronto
