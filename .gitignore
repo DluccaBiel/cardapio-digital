@@ -54,3 +54,6 @@ coverage/
 # Referências visuais (contêm nomes reais de clientes — manter só local)
 imagens/
 
+
+# Dumps de banco (contÃªm dados reais/PII) â€” guardar FORA do repo: %USERPROFILE%\orvia-backups
+backups/
