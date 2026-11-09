@@ -16,8 +16,10 @@ info:
   contact:
     name: Assessoria — Plataforma
 servers:
-  - url: https://seu-app.vercel.app/api/v1
-    description: Produção
+  - url: https://www.orviahub.com.br/api/v1
+    description: Produção (domínio próprio)
+  - url: https://orvia-gestao.vercel.app/api/v1
+    description: Produção (endereço Vercel — usado pela extensão 0.4.x)
   - url: http://localhost:3000/api/v1
     description: Desenvolvimento
 tags:

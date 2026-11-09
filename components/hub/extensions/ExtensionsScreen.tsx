@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, Copy, EyeOff, KeyRound, Plug, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { cn, FieldLabel, Modal, TextInput, TextSelect, Toast } from '@/components/hub/ui'
 import { Btn, Empty } from '@/components/hub/menu/shared'
+import { brand } from '@orvia/brand'
 import { SYNC_EVENT } from '@/components/hub/Header'
 import { ExtensionReport, type OptimizationReport } from '@/components/hub/extensions/ExtensionReport'
 import {
@@ -85,6 +86,20 @@ function when(iso: string | null) {
   if (!iso) return '—'
   // fuso fixo: servidor (UTC) e navegador precisam renderizar o mesmo texto (hidratação)
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+}
+
+/**
+ * A extensão 0.4.x só tem host_permissions para *.vercel.app (e localhost em dev).
+ * No domínio próprio (www.orviahub.com.br) ela não é injetada: a conexão continua pelo
+ * endereço Vercel (brand.extensionHubUrl), que serve o mesmo sistema.
+ */
+function extensionCompatible(origin: string): boolean {
+  try {
+    const h = new URL(origin).hostname
+    return h === 'localhost' || h === '127.0.0.1' || h.endsWith('.vercel.app')
+  } catch {
+    return false
+  }
 }
 
 type SyncState = { kind: 'idle' | 'busy' | 'done' | 'err'; text?: string; at?: string }
@@ -277,7 +292,7 @@ export function ExtensionsScreen({
             <span className="font-mono text-[12px]">apps/extensions/orvia-ifood</span>.
           </li>
           <li>
-            Abra as opções da extensão, cole o endereço do Orvia (<span className="font-mono text-[12px]">{origin || 'https://orvia-gestao.vercel.app'}</span>) e a chave → “Testar conexão”.
+            Abra as opções da extensão, cole o endereço do Orvia (<span className="font-mono text-[12px]">{origin && extensionCompatible(origin) ? origin : brand.extensionHubUrl}</span>) e a chave → “Testar conexão”.
           </li>
         </ol>
       </section>
@@ -610,6 +625,11 @@ type PairState = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string }
 function PairCard({ ws, highlight, onDone }: { ws: string; highlight: boolean; onDone: () => void }) {
   const [version, setVersion] = useState<string | null>(null)
   const [state, setState] = useState<PairState>({ kind: 'idle' })
+  // Link para abrir esta mesma tela no endereço que a extensão aceita (só quando estamos no domínio próprio)
+  const [otherHost, setOtherHost] = useState<string | null>(null)
+  useEffect(() => {
+    if (!extensionCompatible(window.location.origin)) setOtherHost(`${brand.extensionHubUrl}${window.location.pathname}`)
+  }, [])
 
   useEffect(() => {
     const read = () => setVersion(document.documentElement.dataset.orviaIfood ?? null)
@@ -657,7 +677,18 @@ function PairCard({ ws, highlight, onDone }: { ws: string; highlight: boolean; o
           <p className="mt-1 text-[12px] text-[#8A97AC]">
             {version
               ? `Extensão detectada (v${version}). Um clique e ela fica conectada — sem copiar chave.`
-              : 'Extensão não detectada neste navegador. Instale/ative a extensão e recarregue esta página (F5).'}
+              : otherHost
+                ? null
+                : 'Extensão não detectada neste navegador. Instale/ative a extensão e recarregue esta página (F5).'}
+            {!version && otherHost && (
+              <>
+                A extensão conecta pelo endereço{' '}
+                <a href={otherHost} className="font-semibold text-[#6EA8FF] underline">
+                  {new URL(brand.extensionHubUrl).host}
+                </a>{' '}
+                (mesmo sistema). Abra esta tela por lá, entre com o mesmo login e clique em “Conectar extensão”.
+              </>
+            )}
           </p>
         </div>
         <Btn variant="primary" disabled={!version || state.kind === 'busy'} onClick={connect}>
