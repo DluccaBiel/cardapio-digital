@@ -9,13 +9,13 @@ export const brand = {
   slug: 'orvia',
   tagline: 'Gestão que conecta',
   description: 'Hub de gestão para assessorias: clientes, cardápio, relatórios e extensões.',
-  // Domínio oficial (decidido em 2026-11-08). O apex orviahub.com.br redireciona para o www (Vercel).
-  // A extensão iFood continua falando com `extensionHubUrl` até sair uma versão com o domínio novo
-  // em host_permissions (a 0.4.x só conhece *.vercel.app).
-  domain: 'orviahub.com.br',
-  baseUrl: 'https://www.orviahub.com.br',
+  // Endereço público (decidido em 2026-11-11): sem domínio próprio, o link curto da Vercel.
+  // orviahub.com.br nunca foi registrado. As extensões continuam falando com `extensionHubUrl`
+  // (o único hub fixo em host_permissions); os dois endereços servem o mesmo deployment.
+  domain: 'orviahub.vercel.app',
+  baseUrl: 'https://orviahub.vercel.app',
   extensionHubUrl: 'https://orvia-gestao.vercel.app',
-  supportEmail: 'suporte@orviahub.com.br', // caixa ainda não criada
+  supportEmail: 'suporte@orviahub.com.br', // placeholder: domínio e caixa ainda não existem
 
   version: '0.2.0',
 
