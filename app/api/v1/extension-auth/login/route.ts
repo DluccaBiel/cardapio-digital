@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 
   const { data: ext } = await admin.from('extensions').select('id').eq('slug', slug).maybeSingle()
   if (!ext) {
-    return err(req, 'internal', slug === 'orvia-cardapioweb' ? 'Extensão Cardápio Web ainda não registrada no servidor (migration 0006 pendente).' : 'Extensão não registrada no servidor.')
+    return err(req, 'internal', slug === 'orvia-cardapioweb' ? 'Extensão Cardápio Web ainda não registrada no servidor (migration 0006 pendente).' : slug === 'orvia-anotaai' ? 'Extensão Anota AI ainda não registrada no servidor (migration 0008 pendente).' : 'Extensão não registrada no servidor.')
   }
 
   const device = device_id.slice(0, 8)

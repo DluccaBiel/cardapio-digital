@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Copy, EyeOff, KeyRound, Plug, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
+import { Check, Copy, Eye, EyeOff, KeyRound, Plug, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { cn, FieldLabel, Modal, TextInput, TextSelect, Toast } from '@/components/hub/ui'
 import { Btn, Empty } from '@/components/hub/menu/shared'
 import { brand } from '@orvia/brand'
@@ -12,7 +12,7 @@ import {
   checkExtensionsAction,
   createApiKeyAction,
   deleteApiKeysAction,
-  pairIfoodExtensionAction,
+  pairExtensionAction,
   revokeApiKeyAction,
   revokeApiKeysAction,
   type ExtensionLiveStatus,
@@ -57,10 +57,13 @@ const KEY_PROBLEM: Record<Exclude<ExtensionLiveStatus['key'], 'active'>, string>
   expired: 'a chave de acesso expirou',
   missing: 'a chave de acesso foi excluída',
 }
-const PORTAL: Record<string, string> = { 'orvia-ifood': 'o portal do iFood', 'orvia-cardapioweb': 'o Portal do Cardápio Web' }
+const PORTAL: Record<string, string> = { 'orvia-ifood': 'o portal do iFood', 'orvia-cardapioweb': 'o Portal do Cardápio Web', 'orvia-anotaai': 'o painel do Anota AI' }
+const SHORT: Record<string, string> = { 'orvia-ifood': 'iFood', 'orvia-cardapioweb': 'Cardápio Web', 'orvia-anotaai': 'Anota AI' }
+const ORDER = ['orvia-ifood', 'orvia-cardapioweb', 'orvia-anotaai']
+const rank = (slug: string) => (ORDER.includes(slug) ? ORDER.indexOf(slug) : ORDER.length)
 function connText(s: ExtensionLiveStatus, slug?: string): string {
   const c = connOf(s)
-  if (c === 'off') return `Desconectada — ${KEY_PROBLEM[s.key as Exclude<ExtensionLiveStatus['key'], 'active'>]}. Use “Conectar extensão”.`
+  if (c === 'off') return `Desconectada — ${KEY_PROBLEM[s.key as Exclude<ExtensionLiveStatus['key'], 'active'>]}. Gere um código de conexão abaixo.`
   if (c === 'online') return `Conectada · último contato ${ago(s.last_seen_at)}`
   return `Conectada, sem contato recente${s.last_seen_at ? ` (último ${ago(s.last_seen_at)})` : ''} — abra ${PORTAL[slug ?? ''] ?? 'o portal'} com a extensão ativa`
 }
@@ -243,42 +246,15 @@ export function ExtensionsScreen({
         </div>
       )}
 
-      {/* Catálogo */}
-      <div className="mt-6 grid gap-3 md:grid-cols-2">
-        {extensions.map((e) => {
-          const s = status.get(e.id)
-          const c = s ? connOf(s) : null
-          return (
-            <article key={e.id} className="rounded-xl border border-[#1E2738] bg-[#0D1320] p-4">
-              <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#3D8EFF]/35 bg-[#3D8EFF]/10 text-[#3D8EFF]">
-                  <Plug size={18} />
-                </span>
-                <div className="min-w-0">
-                  <h2 className="text-[15px] font-bold text-[#F1F5FC]">{e.name}</h2>
-                  <p className="mt-0.5 text-[12px] leading-relaxed text-[#8A97AC]">{e.description}</p>
-                  <p className="mt-2 text-[12px] text-[#B4BFD0]" suppressHydrationWarning>
-                    <span
-                      className={cn(
-                        'mr-1.5 inline-block h-2 w-2 rounded-full',
-                        c === 'online' ? 'bg-[#34D399]' : c === 'idle' ? 'bg-[#FBBF24]' : c === 'off' ? 'bg-[#F87171]' : 'bg-[#4B5870]',
-                      )}
-                    />
-                    {s ? connText(s, e.slug) : 'Ainda não conectada — faça login dentro da extensão'}
-                  </p>
-                  {s && (s.key_name || s.version) && (
-                    <p className="mt-0.5 text-[11px] text-[#7C8AA1]">
-                      {[s.key_name && `Acesso: ${s.key_name}`, s.version && `v${s.version}`].filter(Boolean).join(' · ')}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </article>
-          )
-        })}
-      </div>
-
-      {canManage && <PairCard ws={ws} highlight={highlightPair} onDone={refresh} />}
+      <ConnectionPanel
+        ws={ws}
+        extensions={extensions}
+        status={status}
+        canManage={canManage}
+        highlight={highlightPair}
+        hubAddress={origin && extensionCompatible(origin) ? origin : brand.extensionHubUrl}
+        onDone={refresh}
+      />
 
       {showReport && <ExtensionReport reports={reports} unavailable={reportsUnavailable} />}
 
@@ -317,7 +293,7 @@ export function ExtensionsScreen({
           </div>
         ) : keys.length === 0 ? (
           <div className="mt-3">
-            <Empty title="Nenhuma chave criada">Gere a primeira chave para conectar a extensão Orvia · iFood.</Empty>
+            <Empty title="Nenhuma chave criada">Gere um código de conexão no painel acima ou uma chave manual aqui.</Empty>
           </div>
         ) : (
           <>
@@ -620,18 +596,221 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
 type PairState = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string }
 
 /**
- * "Conectar com um clique": a extensão instalada injeta uma ponte nesta página
+ * Painel de conexão — uma aba por extensão (iFood, Cardápio Web, Anota AI).
+ * Mostra se a extensão está conectada a este workspace; se não estiver, gera um
+ * CÓDIGO DE CONEXÃO (chave vinculada à extensão, escopos mínimos) para copiar e colar
+ * nas opções da extensão, junto com o endereço do Orvia.
+ */
+function ConnectionPanel({
+  ws,
+  extensions,
+  status,
+  canManage,
+  highlight,
+  hubAddress,
+  onDone,
+}: {
+  ws: string
+  extensions: Extension[]
+  status: Map<string, ExtensionLiveStatus>
+  canManage: boolean
+  highlight: boolean
+  hubAddress: string
+  onDone: () => void
+}) {
+  const sorted = useMemo(() => [...extensions].sort((a, b) => rank(a.slug) - rank(b.slug)), [extensions])
+  const [tab, setTab] = useState(sorted[0]?.id ?? '')
+  const ext = sorted.find((e) => e.id === tab) ?? sorted[0]
+  if (!ext) return null
+  const s = status.get(ext.id)
+  const c = s ? connOf(s) : null
+  const short = SHORT[ext.slug] ?? ext.name
+
+  return (
+    <section
+      aria-labelledby="ext-conn-title"
+      className={cn('mt-6 rounded-xl border bg-[#0D1320] p-4', highlight ? 'border-[#3D8EFF] shadow-[0_0_0_3px_rgba(61,142,255,0.18)]' : 'border-[#1E2738]')}
+    >
+      <h2 id="ext-conn-title" className="flex items-center gap-2 text-[15px] font-bold text-[#F1F5FC]">
+        <Plug size={16} className="text-[#6EA8FF]" /> Conexão das extensões
+      </h2>
+      <div role="tablist" aria-label="Extensão" className="mt-3 flex flex-wrap gap-1 border-b border-[#1A2231]">
+        {sorted.map((e) => {
+          const st = status.get(e.id)
+          const cc = st ? connOf(st) : null
+          return (
+            <button
+              key={e.id}
+              type="button"
+              role="tab"
+              id={`ext-conn-tab-${e.slug}`}
+              aria-selected={ext.id === e.id}
+              aria-controls="ext-conn-panel"
+              onClick={() => setTab(e.id)}
+              className={cn(
+                '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3D8EFF]',
+                ext.id === e.id ? 'border-[#3D8EFF] text-[#F1F5FC]' : 'border-transparent text-[#8A97AC] hover:text-[#C9D3E3]',
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn('inline-block h-2 w-2 rounded-full', cc === 'online' ? 'bg-[#34D399]' : cc === 'idle' ? 'bg-[#FBBF24]' : cc === 'off' ? 'bg-[#F87171]' : 'bg-[#4B5870]')}
+              />
+              {SHORT[e.slug] ?? e.name}
+            </button>
+          )
+        })}
+      </div>
+
+      <div role="tabpanel" id="ext-conn-panel" aria-labelledby={`ext-conn-tab-${ext.slug}`} className="pt-4">
+        <p className="text-[12px] leading-relaxed text-[#8A97AC]">{ext.description}</p>
+        <div
+          className={cn(
+            'mt-3 rounded-lg border px-3 py-2.5 text-[13px]',
+            c === 'online' && 'border-[#34D399]/40 bg-[#34D399]/10 text-[#A7F3D0]',
+            c === 'idle' && 'border-[#FBBF24]/40 bg-[#FBBF24]/10 text-[#FDE68A]',
+            (c === 'off' || c === null) && 'border-[#F87171]/40 bg-[#F87171]/10 text-[#FCA5A5]',
+          )}
+          suppressHydrationWarning
+        >
+          {s ? (
+            connText(s, ext.slug)
+          ) : (
+            <>
+              <b>Não conectada</b> — a extensão {short} ainda não se conectou a este workspace. Gere o código abaixo e cole na extensão.
+            </>
+          )}
+          {s && (s.key_name || s.version) && (
+            <span className="mt-0.5 block text-[11px] opacity-80">{[s.key_name && `Acesso: ${s.key_name}`, s.version && `v${s.version}`].filter(Boolean).join(' · ')}</span>
+          )}
+        </div>
+
+        {!canManage ? (
+          <p className="mt-3 text-[12px] text-[#8A97AC]">Somente dono ou coordenador geram o código de conexão.</p>
+        ) : (
+          <>
+            {ext.slug === 'orvia-ifood' && <OneClickPair ws={ws} onDone={onDone} />}
+            <ConnectionCode key={ext.id} ws={ws} slug={ext.slug} label={short} connected={c === 'online' || c === 'idle'} hubAddress={hubAddress} onDone={onDone} />
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function CopyBtn({ value, label }: { value: string; label: string }) {
+  const [state, setState] = useState<'idle' | 'ok' | 'fail'>('idle')
+  return (
+    <Btn
+      size="sm"
+      variant={state === 'ok' ? 'secondary' : 'primary'}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value)
+          setState('ok')
+        } catch {
+          setState('fail')
+        }
+      }}
+    >
+      {state === 'ok' ? <Check size={13} /> : <Copy size={13} />} {state === 'ok' ? 'Copiado' : state === 'fail' ? 'Use Mostrar e copie à mão' : label}
+    </Btn>
+  )
+}
+
+/** Gera o código de conexão (o valor só existe nesta tela, uma vez) com botões de copiar. */
+function ConnectionCode({
+  ws,
+  slug,
+  label,
+  connected,
+  hubAddress,
+  onDone,
+}: {
+  ws: string
+  slug: string
+  label: string
+  connected: boolean
+  hubAddress: string
+  onDone: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [code, setCode] = useState<{ key: string; prefix: string } | null>(null)
+  const [show, setShow] = useState(false)
+
+  const generate = async () => {
+    setBusy(true)
+    setError(null)
+    const res = await pairExtensionAction(ws, slug)
+    setBusy(false)
+    if (!res.ok) return setError(res.error)
+    setCode({ key: res.key, prefix: res.prefix })
+    onDone() // a nova chave aparece na lista abaixo
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-[#1E2738] bg-[#080D18] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="flex items-center gap-1.5 text-[13px] font-bold text-[#E8EDF7]">
+            <KeyRound size={14} className="text-[#6EA8FF]" /> Código de conexão · {label}
+          </h3>
+          <p className="mt-0.5 text-[11px] text-[#7C8AA1]">
+            {connected
+              ? 'Já conectada. Gere um novo código só para conectar outro navegador ou computador.'
+              : 'Cole este código (token) e o endereço do Orvia nas opções da extensão.'}
+          </p>
+        </div>
+        {!code && (
+          <Btn variant={connected ? 'secondary' : 'primary'} disabled={busy} onClick={generate}>
+            {busy ? 'Gerando…' : connected ? 'Gerar novo código' : 'Gerar código de conexão'}
+          </Btn>
+        )}
+      </div>
+
+      {error && <p className="mt-3 rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 px-3 py-2 text-[12px] text-[#FCA5A5]">{error}</p>}
+
+      {code && (
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#3D8EFF]/50 bg-[#0C1A31] p-2.5">
+            <span className="w-full text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC] sm:w-auto">Código</span>
+            <span className={cn('min-w-0 flex-1 break-all font-mono text-[12px] text-[#CFE0FF]', !show && 'select-none')}>
+              {show ? code.key : `${code.prefix}${'•'.repeat(24)}`}
+            </span>
+            <Btn size="sm" variant="ghost" onClick={() => setShow((v) => !v)}>
+              {show ? <EyeOff size={13} /> : <Eye size={13} />} {show ? 'Ocultar' : 'Mostrar'}
+            </Btn>
+            <CopyBtn value={code.key} label="Copiar código" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#1E2738] bg-[#0B111D] p-2.5">
+            <span className="w-full text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC] sm:w-auto">Endereço</span>
+            <span className="min-w-0 flex-1 break-all font-mono text-[12px] text-[#C9D3E3]">{hubAddress}</span>
+            <CopyBtn value={hubAddress} label="Copiar endereço" />
+          </div>
+          <ol className="list-decimal space-y-0.5 pl-5 text-[12px] leading-relaxed text-[#B4BFD0]">
+            <li>Abra a extensão Orvia · {label} → Opções / Conexão.</li>
+            <li>Cole o endereço e o código nos campos correspondentes → “Testar conexão” / “Salvar”.</li>
+            <li>Volte aqui e clique em “Sincronizar” no topo: o status muda para Conectada.</li>
+          </ol>
+          <p className="text-[11px] text-[#7C8AA1]">
+            Por segurança este código só aparece agora (o Orvia guarda só o hash). Não envie por chat ou e-mail; se perder, gere outro e revogue o antigo na lista de chaves.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * "Conectar com um clique" (só a extensão iFood tem a ponte): ela injeta uma ponte nesta página
  * (marca data-orvia-ifood no <html> e responde por window.postMessage, mesma origem).
  * O painel gera a chave no servidor e a entrega direto à extensão — ninguém vê/cola a chave.
+ * Sem a ponte neste navegador, não aparece: vale o código de conexão.
  */
-function PairCard({ ws, highlight, onDone }: { ws: string; highlight: boolean; onDone: () => void }) {
+function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
   const [version, setVersion] = useState<string | null>(null)
   const [state, setState] = useState<PairState>({ kind: 'idle' })
-  // Link para abrir esta mesma tela no endereço que a extensão aceita (só quando estamos no domínio próprio)
-  const [otherHost, setOtherHost] = useState<string | null>(null)
-  useEffect(() => {
-    if (!extensionCompatible(window.location.origin)) setOtherHost(`${brand.extensionHubUrl}${window.location.pathname}`)
-  }, [])
 
   useEffect(() => {
     const read = () => setVersion(document.documentElement.dataset.orviaIfood ?? null)
@@ -656,52 +835,32 @@ function PairCard({ ws, highlight, onDone }: { ws: string; highlight: boolean; o
     }
   }, [onDone])
 
+  if (!version) return null
+
   const connect = async () => {
     setState({ kind: 'busy', text: 'Gerando acesso e entregando à extensão…' })
-    const res = await pairIfoodExtensionAction(ws)
+    const res = await pairExtensionAction(ws, 'orvia-ifood')
     if (!res.ok) return setState({ kind: 'err', text: res.error })
     window.postMessage({ source: 'orvia-hub', type: 'pair', key: res.key, hubUrl: window.location.origin }, window.location.origin)
-    setTimeout(() => setState((cur) => (cur.kind === 'busy' ? { kind: 'err', text: 'A extensão não respondeu. Recarregue esta página (F5) e tente de novo.' } : cur)), 15000)
+    setTimeout(
+      () => setState((cur) => (cur.kind === 'busy' ? { kind: 'err', text: 'A extensão não respondeu. Recarregue esta página (F5) e tente de novo, ou use o código de conexão.' } : cur)),
+      15000,
+    )
   }
 
   return (
-    <section
-      className={cn(
-        'mt-6 rounded-xl border bg-[#0D1320] p-4',
-        highlight ? 'border-[#3D8EFF] shadow-[0_0_0_3px_rgba(61,142,255,0.18)]' : 'border-[#1E2738]',
-      )}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-[15px] font-bold text-[#F1F5FC]">
-            <Plug size={16} className="text-[#6EA8FF]" /> Conectar a extensão iFood neste navegador
-          </h2>
-          <p className="mt-1 text-[12px] text-[#8A97AC]">
-            {version
-              ? `Extensão detectada (v${version}). Um clique e ela fica conectada — sem copiar chave.`
-              : otherHost
-                ? null
-                : 'Extensão não detectada neste navegador. Instale/ative a extensão e recarregue esta página (F5).'}
-            {!version && otherHost && (
-              <>
-                A extensão conecta pelo endereço{' '}
-                <a href={otherHost} className="font-semibold text-[#6EA8FF] underline">
-                  {new URL(brand.extensionHubUrl).host}
-                </a>{' '}
-                (mesmo sistema). Abra esta tela por lá, entre com o mesmo login e clique em “Conectar extensão”.
-              </>
-            )}
-          </p>
-        </div>
-        <Btn variant="primary" disabled={!version || state.kind === 'busy'} onClick={connect}>
-          {state.kind === 'busy' ? 'Conectando…' : state.kind === 'ok' ? 'Conectar de novo' : 'Conectar extensão'}
+    <div className="mt-4 rounded-lg border border-[#1E2738] bg-[#080D18] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12px] text-[#B4BFD0]">Extensão iFood detectada neste navegador (v{version}). Conecte com um clique, sem copiar código.</p>
+        <Btn variant="primary" disabled={state.kind === 'busy'} onClick={connect}>
+          {state.kind === 'busy' ? 'Conectando…' : state.kind === 'ok' ? 'Conectar de novo' : 'Conectar com um clique'}
         </Btn>
       </div>
       {state.text && (
         <p
           role="status"
           className={cn(
-            'mt-3 rounded-lg px-3 py-2 text-[12px]',
+            'mt-2 rounded-lg px-3 py-2 text-[12px]',
             state.kind === 'ok' && 'bg-[#34D399]/10 text-[#6EE7B7]',
             state.kind === 'err' && 'bg-[#F87171]/10 text-[#FCA5A5]',
             state.kind === 'busy' && 'bg-[#3D8EFF]/10 text-[#CFE0FF]',
@@ -710,6 +869,6 @@ function PairCard({ ws, highlight, onDone }: { ws: string; highlight: boolean; o
           {state.text}
         </p>
       )}
-    </section>
+    </div>
   )
 }

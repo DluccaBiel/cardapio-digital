@@ -12,7 +12,7 @@ const bodySchema = z.object({
   ifood_merchant_id: z.string().trim().min(1).max(80).nullable().optional(),
 })
 
-type ClientRow = { id: string; name: string; ifood_merchant_id: string | null; cardapioweb_store_id?: string | null }
+type ClientRow = { id: string; name: string; ifood_merchant_id: string | null; cardapioweb_store_id?: string | null; anotaai_store_id?: string | null }
 
 /** Escapa curingas do ILIKE: o nome vira comparação exata, só sem diferenciar maiúsculas. */
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (m) => `\\${m}`)
@@ -39,8 +39,8 @@ export async function POST(req: Request) {
   const ws = auth.workspaceId
   const platform = await platformOfExtensionId(db, auth.extensionId)
   const col = STORE_COLUMN[platform]
-  const COLS: string = platform === 'cardapioweb' ? 'id, name, ifood_merchant_id, cardapioweb_store_id' : 'id, name, ifood_merchant_id'
-  const storeOf = (c: ClientRow) => (col === 'cardapioweb_store_id' ? (c.cardapioweb_store_id ?? null) : c.ifood_merchant_id)
+  const COLS: string = col === 'ifood_merchant_id' ? 'id, name, ifood_merchant_id' : `id, name, ifood_merchant_id, ${col}`
+  const storeOf = (c: ClientRow) => (c[col] ?? null) as string | null
   // Resposta no formato que as extensões já entendem: ifood_merchant_id = id da loja NO CANAL da chave
   const out = (c: ClientRow, created: boolean) => ({ id: c.id, name: c.name, ifood_merchant_id: storeOf(c), created })
 

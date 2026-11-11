@@ -239,7 +239,7 @@ Rate limit: janela de 1 min por chave, **em memória por instância** (ver decis
 | Método | Rota | Escopo | Descrição |
 |---|---|---|---|
 | POST | `/clients/ensure` | `catalogo:escrever` | `{ name, ifood_merchant_id? }` → `{ id, name, ifood_merchant_id, created }`. Acha por `ifood_merchant_id`; senão por nome exato sem diferenciar maiúsculas (ignorando clientes já vinculados a OUTRA loja); senão cria (201). Idempotente; só preenche `ifood_merchant_id` quando NULL (nunca sobrescreve) |
-| POST | `/analysis` | `catalogo:ler` | IA (+ concorrentes públicos opcionais) → sugestões. **Não grava nada.** Requer `ANTHROPIC_API_KEY`; sem ela → 500 com mensagem. Concorrentes indisponíveis não derrubam a resposta (`competitors_status`) |
+| POST | `/analysis` | `catalogo:ler` | IA (+ concorrentes públicos opcionais) → sugestões. **Não grava nada.** Sem `ANTHROPIC_API_KEY` usa o modo gratuito (regras + pesquisa pública, `ai_status: "regras"`). Concorrentes indisponíveis não derrubam a resposta (`competitors_status`). **Refazer com pedido** (decidido em 2026-11-10): o texto de `notes` ("refazer combos com coca cola 2l") é lido no servidor — itens citados que existem no cardápio viram obrigatórios nos combos (com IA ou sem), as "Ideias JÁ REPROVADAS" não se repetem e o que o servidor entendeu (ou não achou no cardápio) volta no começo de `notices[]` |
 | POST | `/optimizations` | `catalogo:escrever` | Salva plano aprovado + status por alteração + até 6 PNG (≤ 2,5 MB cada; corpo total ≤ ~4,5 MB, limite da Vercel) em bucket privado `optimization-evidence` |
 | GET | `/optimizations?client_id=` | `catalogo:ler` | Últimas 20 otimizações do cliente, prints com URL assinada (10 min) |
 

@@ -330,7 +330,7 @@ export async function importIfoodSnapshot(ctx: Ctx, input: ImportInput, platform
     workspaceId,
     actorType: ctx.actor.type,
     actorId: ctx.actor.id,
-    action: platform === 'cardapioweb' ? 'menu.import.cardapioweb' : 'menu.import.ifood',
+    action: `menu.import.${platform}`,
     entityType: 'client',
     entityId: clientId,
     metadata: {
