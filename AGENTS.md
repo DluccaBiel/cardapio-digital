@@ -162,7 +162,7 @@ Regras:
 - `NEXT_PUBLIC_*` é embutida no build — se mudar, **refaça o build** (push de novo ou redeploy).
 - Valores do tipo `Secret` não são revelados pela CLI/painel (mascarados); para espelhar de Production para Preview, re-cadastre-os no painel (Settings → Environment Variables) com escopo Preview — nunca cole valores no chat/commit.
 - `.env.local` da máquina fica só com placeholders; valores reais vivem na Vercel.
-- **Domínio oficial (decidido em 08/11/2026): `https://www.orviahub.com.br`** — apex `orviahub.com.br` redireciona para o www (configurado na Vercel; DNS no registro.br). `brand.baseUrl` em `packages/brand`. A extensão iFood 0.4.x só tem permissão para `*.vercel.app` → continua usando `orvia-gestao.vercel.app` (`brand.extensionHubUrl`) até sair versão com o domínio novo em `host_permissions`/`KNOWN_HUBS`. Supabase Auth: incluir o domínio em Site URL/Redirect URLs.
+- **Endereço público (decidido em 11/11/2026): `https://orviahub.vercel.app`** — não há domínio próprio (`orviahub.com.br` nunca foi registrado; a decisão de 08/11 foi revertida). `brand.baseUrl` em `packages/brand`. As extensões continuam usando `orvia-gestao.vercel.app` (`brand.extensionHubUrl`, fixo em `host_permissions`); os dois aliases servem o mesmo deployment de produção — não remover nenhum.
 - Projeto Vercel: **`orvia`** (público em `https://orvia-gestao.vercel.app`; `orvia.vercel.app` já estava ocupado; alias legado `nextjs-cardapio.vercel.app` segue ativo) — renomeado em 04/11/2026 por decisão do usuário.
 
 ## 📖 Sumário da documentação

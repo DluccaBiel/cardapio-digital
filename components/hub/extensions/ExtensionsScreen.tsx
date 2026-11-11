@@ -93,13 +93,14 @@ function when(iso: string | null) {
 }
 
 /**
- * A extensão 0.4.x só tem host_permissions para *.vercel.app (e localhost em dev).
- * No domínio próprio (www.orviahub.com.br) ela não é injetada: a conexão continua pelo
- * endereço Vercel (brand.extensionHubUrl), que serve o mesmo sistema.
+ * A extensão 0.4.x só tem host_permission fixa para brand.extensionHubUrl (previews *.vercel.app
+ * e localhost são opcionais). No link curto público (brand.baseUrl) a conexão continua pelo
+ * endereço da extensão, que serve o mesmo sistema.
  */
 function extensionCompatible(origin: string): boolean {
   try {
     const h = new URL(origin).hostname
+    if (h === new URL(brand.baseUrl).hostname && h !== new URL(brand.extensionHubUrl).hostname) return false
     return h === 'localhost' || h === '127.0.0.1' || h.endsWith('.vercel.app')
   } catch {
     return false
