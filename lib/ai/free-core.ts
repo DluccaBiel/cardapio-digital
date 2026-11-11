@@ -4,8 +4,9 @@
  * A parte de rede fica em free-research.ts.
  */
 import type { CompetitorResearch } from './competitors'
+import { cleanName, isRejected, parseRequest, type ParsedRequest } from './request'
 
-export type FreeItem = { id: string; ifood_id: string | null; name: string; price: number | null; description: string | null }
+export type FreeItem = { id: string; ifood_id: string | null; name: string; price: number | null; description: string | null; kind?: 'item' | 'combo'; status?: string }
 export type SearchHit = { title: string; url: string; snippet: string }
 export type MenuLine = { name: string; price: number }
 
@@ -207,38 +208,151 @@ export function priceIdeas(items: FreeItem[], research: CompetitorResearch | nul
   return out.sort((a, b) => b.gap - a.gap).slice(0, 12).map(({ gap: _g, ...u }) => u)
 }
 
-export function comboIdeas(items: FreeItem[], research: CompetitorResearch | null, variant: number, discountPct = 10): FreeCombo[] {
-  const priced = items.filter((i) => i.price && i.price > 0)
-  const mains = priced.filter((i) => !isDrink(i.name) && !/combo/i.test(i.name)).sort((a, b) => (b.price ?? 0) - (a.price ?? 0))
+const SIDE = /\b(batata|fritas|onion|an[eé]is|por[cç][aã]o|nuggets?|mandioca|aipim|polenta|salada|acompanhamento)\b/i
+const DESSERT = /\b(sobremesa|doce|pudim|brownie|sorvete|a[cç]a[ií]|mousse|torta|petit)\b/i
+const BIG_DRINK = /\b(\d+([.,]\d+)?\s*(l|litros?|lts?))\b/i
+const brl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`
+const sellable = (i: FreeItem) => Boolean(i.price && i.price > 0) && (i.kind ?? 'item') === 'item' && (i.status ?? 'active') === 'active' && !/combo/i.test(i.name)
+
+/** desconto do combo cresce com o nº de itens (2 → 10%, 3 → 12%, 4+ → 15%) */
+export function comboPrice(full: number, units: number, discountPct?: number): number {
+  const d = (discountPct ?? (units >= 4 ? 15 : units === 3 ? 12 : 10)) / 100
+  let price = toNinety(full * (1 - d))
+  if (price >= full || price < full * 0.75) price = Math.floor(full * (1 - d) * 100) / 100
+  return Number(price.toFixed(2))
+}
+
+type Part = { item: FreeItem; quantity: number }
+function makeCombo(name: string, parts: Part[], reason: (full: number, price: number) => string, discountPct?: number): FreeCombo | null {
+  const full = Number(parts.reduce((s, p) => s + (p.item.price ?? 0) * p.quantity, 0).toFixed(2))
+  const units = parts.reduce((s, p) => s + p.quantity, 0)
+  const price = comboPrice(full, units, discountPct)
+  if (!(price > 0 && price < full)) return null
+  return {
+    name: name.slice(0, 80),
+    description: parts.map((p) => `${p.quantity > 1 ? `${p.quantity}x ` : ''}${cleanName(p.item.name)}`).join(' + ').slice(0, 300),
+    components: parts.map((p) => ({ component_id: p.item.id, name: p.item.name, quantity: p.quantity })),
+    price,
+    full_price: full,
+    reason: reason(full, price).slice(0, 300),
+  }
+}
+/** a extensão identifica combos pelo conjunto de itens: dois combos com os mesmos itens colidem */
+const partsKey = (c: FreeCombo) => c.components.map((k) => k.component_id).sort().join('+')
+
+export function comboIdeas(items: FreeItem[], research: CompetitorResearch | null, variant: number, discountPct = 10, rejected = ''): FreeCombo[] {
+  const priced = items.filter(sellable)
+  const mains = priced.filter((i) => !isDrink(i.name) && !DESSERT.test(i.name)).sort((a, b) => (b.price ?? 0) - (a.price ?? 0))
   const drinks = priced.filter((i) => isDrink(i.name)).sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
   if (!mains.length || !drinks.length) return []
   const seenCombo = research?.insights.some((i) => /combo/i.test(i))
+  const sides = mains.filter((i) => SIDE.test(i.name)).sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
+  const plates = mains.filter((i) => !SIDE.test(i.name))
+  const base = plates.length ? plates : mains
   const out: FreeCombo[] = []
   const start = Math.max(0, variant - 1) * 3
-  for (let k = 0; k < Math.min(3, mains.length); k += 1) {
+  const tries = Math.max(mains.length, drinks.length) * 2
+  const intro = seenCombo ? 'Combos já são comuns entre os concorrentes da região. ' : ''
+  const cands: (FreeCombo | null)[] = []
+  // 1º prato + bebida (inclui acompanhamentos, como antes); depois prato + acompanhamento + bebida
+  for (let k = 0; k < tries; k += 1) {
     const main = mains[(start + k) % mains.length]!
-    const drink = drinks[(start + k) % drinks.length]!
-    const full = (main.price ?? 0) + (drink.price ?? 0)
-    const price = Number(toNinety(full * (1 - discountPct / 100)).toFixed(2))
-    if (price >= full) continue
-    out.push({
-      name: `Combo ${main.name} + ${drink.name}`.slice(0, 80),
-      description: `${main.name} + ${drink.name}`,
-      components: [{ component_id: main.id, name: main.name, quantity: 1 }, { component_id: drink.id, name: drink.name, quantity: 1 }],
-      price,
-      full_price: Number(full.toFixed(2)),
-      reason: `${seenCombo ? 'Combos já são comuns entre os concorrentes da região. ' : ''}Juntar prato e bebida com ${discountPct}% de economia aumenta o ticket médio e simplifica a escolha.`,
-    })
+    const drink = drinks[(start + k + Math.floor(k / mains.length)) % drinks.length]!
+    cands.push(makeCombo(`Combo ${cleanName(main.name)} + ${cleanName(drink.name)}`, [{ item: main, quantity: 1 }, { item: drink, quantity: 1 }], (full, price) =>
+      `${intro}Juntar prato e bebida: avulso ${brl(full)}, no combo ${brl(price)} (economia de ${brl(full - price)}). Aumenta o ticket médio e simplifica a escolha.`, discountPct))
+  }
+  for (let k = 0; sides.length && k < base.length; k += 1) {
+    const main = base[(start + k) % base.length]!
+    const side = sides[k % sides.length]!
+    const drink = drinks[k % drinks.length]!
+    if (main.id === side.id) continue
+    cands.push(makeCombo(`Combo Completo ${cleanName(main.name)} + ${cleanName(side.name)} + ${cleanName(drink.name)}`, [{ item: main, quantity: 1 }, { item: side, quantity: 1 }, { item: drink, quantity: 1 }], (full, price) =>
+      `${intro}Refeição completa (prato, acompanhamento e bebida): avulso ${brl(full)}, no combo ${brl(price)} (economia de ${brl(full - price)}). Sobe o ticket com um desconto que o cliente percebe.`))
+  }
+  for (const c of cands) {
+    if (!c || isRejected(c.name, rejected) || out.some((o) => partsKey(o) === partsKey(c))) continue
+    out.push(c)
+    if (out.length >= 3) break
   }
   return out
 }
 
-export function freeSuggest(items: FreeItem[], research: CompetitorResearch | null, o: { maxPct: number; variant: number }) {
+/**
+ * Combos que OBRIGATORIAMENTE incluem os itens pedidos pelo gestor ("combos com coca cola 2l").
+ * Bebida grande (≥ 1 L) → combos para dividir (dupla/família); bebida pequena → prato + bebida;
+ * prato/acompanhamento pedido → ele + bebida (+ acompanhamento).
+ */
+export function requiredComboIdeas(items: FreeItem[], required: FreeItem[], variant: number, rejected = '', max = 4): FreeCombo[] {
+  const priced = items.filter(sellable)
+  const req = new Set(required.map((r) => r.id))
+  const mains = priced.filter((i) => !req.has(i.id) && !isDrink(i.name) && !SIDE.test(i.name) && !DESSERT.test(i.name)).sort((a, b) => (b.price ?? 0) - (a.price ?? 0))
+  const sides = priced.filter((i) => !req.has(i.id) && SIDE.test(i.name)).sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
+  const drinks = priced.filter((i) => !req.has(i.id) && isDrink(i.name)).sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
+  const rot = <T,>(xs: T[], k: number) => (xs.length ? xs[(Math.max(0, variant - 1) + k) % xs.length]! : null)
+  const cands: FreeCombo[] = []
+  for (const r of required.filter((x) => x.price && x.price > 0)) {
+    const R = cleanName(r.name)
+    const asked = `Pedido do gestor: combo com ${R}.`
+    if (isDrink(r.name)) {
+      const big = BIG_DRINK.test(r.name)
+      for (let k = 0; k < Math.max(1, mains.length); k += 1) {
+        const m = rot(mains, k)
+        const m2 = rot(mains, k + 1)
+        const side = rot(sides, k)
+        if (!m) break
+        const why = (people: number) => (full: number, price: number) =>
+          `${asked} Avulso ${brl(full)}, no combo ${brl(price)} (economia de ${brl(full - price)}${people > 1 ? `; ${brl(price / people)} por pessoa` : ''}). ${big ? 'A bebida de família puxa pedidos para dividir e sobe o ticket médio.' : 'Bebida junto do prato aumenta o ticket sem esforço do cliente.'}`
+        if (big) {
+          if (side) cands.push(makeCombo(`Combo Família ${cleanName(m.name)} + ${R}`, [{ item: m, quantity: 2 }, { item: side, quantity: 1 }, { item: r, quantity: 1 }], why(2))!)
+          cands.push(makeCombo(`Combo Dupla ${cleanName(m.name)} + ${R}`, [{ item: m, quantity: 2 }, { item: r, quantity: 1 }], why(2))!)
+          if (m2 && m2.id !== m.id) cands.push(makeCombo(`Combo Casal ${cleanName(m.name)} e ${cleanName(m2.name)} + ${R}`, [{ item: m, quantity: 1 }, { item: m2, quantity: 1 }, { item: r, quantity: 1 }], why(2))!)
+        } else {
+          cands.push(makeCombo(`Combo ${cleanName(m.name)} + ${R}`, [{ item: m, quantity: 1 }, { item: r, quantity: 1 }], why(1))!)
+          if (side) cands.push(makeCombo(`Combo Completo ${cleanName(m.name)} + ${R}`, [{ item: m, quantity: 1 }, { item: side, quantity: 1 }, { item: r, quantity: 1 }], why(1))!)
+        }
+      }
+    } else {
+      for (let k = 0; k < Math.max(1, drinks.length); k += 1) {
+        const d = rot(drinks, k)
+        const side = SIDE.test(r.name) ? null : rot(sides, k)
+        if (!d) break
+        const why = (full: number, price: number) => `${asked} Avulso ${brl(full)}, no combo ${brl(price)} (economia de ${brl(full - price)}). Aumenta o ticket médio e destaca o produto pedido.`
+        cands.push(makeCombo(`Combo ${R} + ${cleanName(d.name)}`, [{ item: r, quantity: 1 }, { item: d, quantity: 1 }], why)!)
+        if (side) cands.push(makeCombo(`Combo Completo ${R} + ${cleanName(d.name)}`, [{ item: r, quantity: 1 }, { item: side, quantity: 1 }, { item: d, quantity: 1 }], why)!)
+      }
+    }
+  }
+  const out: FreeCombo[] = []
+  for (const c of cands) {
+    if (!c || isRejected(c.name, rejected) || out.some((o) => partsKey(o) === partsKey(c) || o.name === c.name)) continue
+    out.push(c)
+    if (out.length >= max) break
+  }
+  return out
+}
+
+export function freeSuggest(items: FreeItem[], research: CompetitorResearch | null, o: { maxPct: number; variant: number; notes?: string; strategy?: string }) {
+  const req = parseRequest(o.notes, items.filter(sellable), o.strategy)
   const updates = priceIdeas(items, research, o.maxPct)
-  const combos = comboIdeas(items, research, o.variant)
+  const asked = req.required.length ? requiredComboIdeas(items, req.required, o.variant, req.rejected) : []
+  const generic = comboIdeas(items, research, o.variant, 10, req.rejected).filter((g) => !asked.some((a) => partsKey(a) === partsKey(g)))
+  const combos = [...asked, ...generic].slice(0, 4)
+  const understood = requestNotices(req, asked.length)
+  if (!combos.length && req.rejected) understood.push('As combinações possíveis com os produtos atuais já foram reprovadas. Peça um item específico (ex.: "combos com batata grande") ou cadastre novos produtos.')
   return {
-    summary: `Modo gratuito (sem IA): ${updates.length} ajuste(s) de preço comparando com concorrentes públicos e ${combos.length} combo(s).${research ? '' : ' Sem pesquisa de concorrentes nesta rodada.'}`,
+    summary: `Modo gratuito (sem IA): ${updates.length} ajuste(s) de preço comparando com concorrentes públicos e ${combos.length} combo(s)${asked.length ? `, ${asked.length} com o que você pediu` : ''}.${research ? '' : ' Sem pesquisa de concorrentes nesta rodada.'}`,
     updates,
     combos,
+    understood,
   }
+}
+
+/** frases curtas para a extensão mostrar o que o servidor entendeu do pedido */
+export function requestNotices(req: ParsedRequest, askedCombos: number): string[] {
+  const out: string[] = []
+  if (req.required.length) out.push(`Entendi o pedido: combos com ${req.required.map((r) => `${cleanName(r.name)} (${brl(r.price ?? 0)})`).join(', ')}${askedCombos ? ` — ${askedCombos} combo(s) novo(s) com preço calculado.` : '.'}`)
+  for (const s of req.substitutes) out.push(`Não achei “${s.asked}” exatamente no cardápio; usei “${cleanName(s.used.name)}”.`)
+  for (const m of req.missing) out.push(`“${m}” não está no cardápio deste cliente. Cadastre o produto no iFood, sincronize e refaça a análise.`)
+  if (req.requests.length && !req.required.length && !req.missing.length && req.wantsCombos) out.push('Gerei combos novos, diferentes dos que você reprovou.')
+  return out
 }

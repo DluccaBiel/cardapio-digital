@@ -173,3 +173,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 - **Quem já tinha feito login na extensão Cardápio Web antes da 0006 precisa sair e entrar de novo** dentro dela: a chave antiga foi criada como iFood. O novo login revoga a chave antiga do mesmo dispositivo. Otimizações enviadas antes da 0006 ficam na aba iFood (não há como distinguir com segurança).
 - Contrato da API inalterado (campo aditivo `extension` no login; respostas com `extension`/`platform`). Para a extensão Cardápio Web, `ifood_merchant_id` em `GET /clients` e `POST /clients/ensure` significa "id da loja no canal da chave" — compatibilidade com a 0.3.x.
 - **Risco em aberto:** o cardápio importado (`menu_items`/`menu_categories`) ainda é **um por cliente**, sem canal. Se o mesmo cliente importa do iFood e do Cardápio Web, os itens se misturam (o vínculo usa `ifood_id`). Recomendação: na próxima migration, `menu_*.channel` ou ids por canal (`cardapioweb_id`), e a importação filtrar por canal. Até lá, use clientes distintos ou importe por um canal só.
+
+## 14. Terceiro canal: Anota AI + painel de conexão (decidido em 2026-11-11)
+
+- Migration `0008_anotaai_channel.sql` (aditiva): registra `orvia-anotaai` no catálogo, cria `clients.anotaai_store_id` (trava de loja própria) e amplia `menu_optimizations.platform` para `ifood | cardapioweb | anotaai`.
+- `lib/api/extensions.ts`: slug `orvia-anotaai` → canal `anotaai` ("Anota AI"). O canal continua vindo da **chave** (`api_keys.extension_id`); a extensão Anota AI pode também mandar `extension: "orvia-anotaai"` no login.
+- Tela **Extensões** → painel **Conexão das extensões** com uma aba por extensão (iFood / Cardápio Web / Anota AI): mostra Conectada / sem contato recente / Não conectada (`extension_installs.last_seen_at`, renovado pelo `POST /extensions/handshake`).
+- Se não estiver conectada: **Gerar código de conexão** (`pairExtensionAction`) cria uma chave vinculada à extensão da aba (escopos mínimos, 365 dias) e mostra o código **uma vez** (Mostrar/Copiar) + o endereço do Orvia, para colar nas opções da extensão. O banco guarda só o hash.
+- A extensão Anota AI em si (Chrome MV3) ainda não existe no repositório: ela deve seguir o mesmo contrato das outras (`docs/integracao-extensoes-hub.md`), com `host_permissions` só do hub.

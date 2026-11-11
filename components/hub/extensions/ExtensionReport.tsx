@@ -9,7 +9,7 @@ export type OptimizationReport = {
   id: string
   client_id: string
   client_name: string
-  /** Canal de origem (extensão que enviou): iFood ou Cardápio Web. */
+  /** Canal de origem (extensão que enviou): iFood, Cardápio Web ou Anota AI. */
   platform: Platform
   version: number
   summary: string
@@ -22,10 +22,11 @@ export type OptimizationReport = {
   evidence: { id: string; name: string; url: string | null; download_url: string | null }[]
 }
 
-export type Platform = 'ifood' | 'cardapioweb'
+export type Platform = 'ifood' | 'cardapioweb' | 'anotaai'
 const CHANNELS: { id: Platform; label: string; portal: string }[] = [
   { id: 'ifood', label: 'iFood', portal: 'no iFood' },
   { id: 'cardapioweb', label: 'Cardápio Web', portal: 'no Cardápio Web' },
+  { id: 'anotaai', label: 'Anota AI', portal: 'no Anota AI' },
 ]
 
 const OK = new Set(['ok', 'feito', 'done', 'aplicado'])
@@ -106,7 +107,7 @@ async function downloadAll(files: { name: string; download_url: string | null }[
 
 export function ExtensionReport({ reports, unavailable }: { reports: OptimizationReport[]; unavailable: boolean }) {
   const counts = useMemo(() => {
-    const c: Record<Platform, number> = { ifood: 0, cardapioweb: 0 }
+    const c: Record<Platform, number> = { ifood: 0, cardapioweb: 0, anotaai: 0 }
     for (const r of reports) c[r.platform] += 1
     return c
   }, [reports])

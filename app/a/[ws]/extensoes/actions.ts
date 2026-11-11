@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { audit } from '../../../../lib/audit'
-import { API_SCOPES, generateApiKey } from '../../../../lib/api/keys'
+import { API_SCOPES, generateApiKey, IFOOD_EXTENSION_SCOPES } from '../../../../lib/api/keys'
+import { isExtensionSlug, PLATFORM_LABEL, PLATFORM_OF } from '../../../../lib/api/extensions'
 import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
 import { createServerClient } from '../../../../lib/supabaseServer'
 
@@ -161,22 +162,29 @@ export async function checkExtensionsAction(ws: string): Promise<{ ok: true; ins
 }
 
 /**
- * Conexão automática ("conectar com um clique"): cria uma chave para a extensão
- * iFood e devolve o valor UMA vez para a própria página, que entrega direto à
- * extensão instalada neste navegador (ponte hub-bridge). O usuário nunca vê/cola a chave.
+ * Código de conexão de uma extensão (iFood, Cardápio Web ou Anota AI): cria uma chave
+ * vinculada à extensão escolhida (escopos mínimos, 365 dias) e devolve o valor UMA vez.
+ * Usado pelo "Conectar com um clique" (entrega direto à extensão pela ponte) e pelo
+ * painel de conexão, onde o usuário copia o código e cola nas opções da extensão.
  */
-export async function pairIfoodExtensionAction(ws: string): Promise<CreateResult> {
+export async function pairExtensionAction(ws: string, slug: string): Promise<CreateResult> {
   const workspace = await getWorkspaceBySlug(ws)
   if (!workspace) return { ok: false, error: 'Workspace não encontrado.' }
   if (!['owner', 'coordenador'].includes(workspace.role)) return { ok: false, error: 'Somente dono ou coordenador podem conectar a extensão.' }
+  if (!isExtensionSlug(slug)) return { ok: false, error: 'Extensão desconhecida.' }
   const db = createServerClient()
-  const { data: ext } = await db.from('extensions').select('id').eq('slug', 'orvia-ifood').maybeSingle()
-  if (!ext) return { ok: false, error: 'Extensão iFood não registrada (migration 0004 pendente).' }
+  const { data: ext } = await db.from('extensions').select('id').eq('slug', slug).maybeSingle()
+  if (!ext) return { ok: false, error: `Extensão ${PLATFORM_LABEL[PLATFORM_OF[slug]]} ainda não registrada no servidor (migration pendente).` }
   const today = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
   return createApiKeyAction(ws, {
-    name: `Conexão automática · ${today}`,
+    name: `Código de conexão ${PLATFORM_LABEL[PLATFORM_OF[slug]]} · ${today}`,
     extension_id: ext.id,
-    scopes: ['clientes:ler', 'catalogo:ler', 'catalogo:escrever'],
+    scopes: IFOOD_EXTENSION_SCOPES,
     expires_in_days: 365,
   })
+}
+
+/** Compatibilidade: conexão automática da extensão iFood. */
+export async function pairIfoodExtensionAction(ws: string): Promise<CreateResult> {
+  return pairExtensionAction(ws, 'orvia-ifood')
 }

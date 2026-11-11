@@ -4,7 +4,8 @@ import { z } from 'zod'
 import { GOALS, suggestOptimizations } from '@/lib/ai/optimize'
 import { researchCompetitors } from '@/lib/ai/competitors'
 import { researchFree } from '@/lib/ai/free-research'
-import { freeSuggest } from '@/lib/ai/free-core'
+import { freeSuggest, requestNotices, requiredComboIdeas, type FreeItem } from '@/lib/ai/free-core'
+import { parseRequest } from '@/lib/ai/request'
 import { loadCatalog } from '@/lib/menu/load'
 import { audit } from '@/lib/audit'
 
@@ -53,26 +54,47 @@ export async function POST(req: Request) {
   }
 
   const notes = [b.strategy_brief ? `Estratégia escolhida pelo gestor: ${b.strategy_brief}` : null, b.notes, research ? `Referências públicas de concorrentes da região (use como contexto, não copie):\n${research.notes}` : null].filter(Boolean).join('\n\n')
+  const freeItems: FreeItem[] = (catalog.items as any[]).map((i) => ({ id: String(i.id), ifood_id: i.ifood_id ?? null, name: String(i.name), price: Number(i.price ?? i.base_price ?? 0) || null, description: i.description ?? null, kind: i.kind, status: i.status }))
+  // Pedido do gestor ao "refazer" (ex.: "novos combos com coca cola 2l") → itens obrigatórios + ideias reprovadas
+  const request = parseRequest(b.notes, freeItems.filter((i) => (i.kind ?? 'item') === 'item' && (i.status ?? 'active') === 'active'), b.strategy)
   // Sem chave da Anthropic: modo gratuito (regras + concorrentes públicos). Com chave: IA como antes (e, se a IA falhar, cai no gratuito).
   const freeMode = !process.env.ANTHROPIC_API_KEY
   let result: Awaited<ReturnType<typeof suggestOptimizations>>
   let aiStatus: 'ok' | 'regras' = 'ok'
+  let understood: string[] = []
   const freeResult = () => {
-    const items = (catalog.items as any[]).map((i) => ({ id: String(i.id), ifood_id: i.ifood_id ?? null, name: String(i.name), price: Number(i.price ?? i.base_price ?? 0) || null, description: i.description ?? null }))
-    return { ok: true as const, data: freeSuggest(items, research, { maxPct: b.max_price_change_pct, variant: b.variant }) as any } as Awaited<ReturnType<typeof suggestOptimizations>>
+    const data = freeSuggest(freeItems, research, { maxPct: b.max_price_change_pct, variant: b.variant, notes: b.notes, strategy: b.strategy })
+    understood = data.understood
+    return { ok: true as const, data: data as any } as Awaited<ReturnType<typeof suggestOptimizations>>
   }
   if (freeMode) {
     result = freeResult()
     aiStatus = 'regras'
     notices.push('Modo gratuito: ideias por regras e pesquisa pública, sem IA. Para ideias mais criativas, configure ANTHROPIC_API_KEY.')
   } else {
-    result = await suggestOptimizations(catalog, { goal: b.goal, notes: notes || undefined, maxPriceChangePct: b.max_price_change_pct })
+    result = await suggestOptimizations(catalog, {
+      goal: b.goal,
+      notes: notes || undefined,
+      maxPriceChangePct: b.max_price_change_pct,
+      requiredItemIds: request.required.map((r) => r.id),
+      rejected: request.rejected || undefined,
+    })
     if (!result.ok) {
       result = freeResult()
       aiStatus = 'regras'
       notices.push('A IA não respondeu agora; usei o modo gratuito (regras + pesquisa pública).')
-    }
+    } else if (request.required.length) {
+      // A IA tem de respeitar o pedido: se nenhum combo trouxe o item pedido, completa com combos calculados por regra
+      const req = new Set(request.required.map((r) => r.id))
+      const hits = result.data.combos.filter((c) => c.components.some((k) => req.has(k.component_id))).length
+      if (!hits) {
+        const extra = requiredComboIdeas(freeItems, request.required, b.variant, request.rejected)
+        result.data.combos = [...extra, ...result.data.combos].slice(0, 5)
+      }
+      understood = requestNotices(request, hits || result.data.combos.filter((c) => c.components.some((k) => req.has(k.component_id))).length)
+    } else understood = requestNotices(request, 0)
   }
+  notices.unshift(...understood)
   if (!result.ok) {
     await audit({ workspaceId: auth.workspaceId, actorType: 'api_key', actorId: auth.keyId, action: 'analysis.failed', entityType: 'client', entityId: b.client_id })
     return err(req, 'internal', result.error)

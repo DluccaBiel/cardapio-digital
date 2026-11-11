@@ -343,3 +343,16 @@ incorporado (`lib/ai/free-core.ts`, `lib/ai/free-research.ts` com redirecionamen
 
 Pendências para a próxima versão das extensões (não bloqueiam): mandar `extension` no login; corrigir o
 `manifest_name` da Cardápio Web; adicionar `https://www.orviahub.com.br/*` quando o DNS existir.
+
+### 6.1 Cardápio Web 0.4.3 / iFood 0.4.23 / fonte 0.8.3 (verificado em 2026-11-09, após o deploy 84cc633)
+
+Aplicaram o kit: login com `extension` (`orvia-cardapioweb` / `orvia-ifood` no build), conferência de `GET /me`
+(`extensionMatches` → mensagem "chave criada para outra extensão" e novo login), `manifest_name` real no handshake,
+`chrome.alarms` de 1 min (heartbeat + fila offline `outbox.ts`, máx. 10), limites de prints (`evidence.ts`).
+Ids mantidos (Cardápio Web `onolpce…`, iFood `abenodf…`); permissão `alarms` adicionada. **Compatíveis com produção.**
+
+Ajustes recomendados (não bloqueiam):
+1. `outbox.flush` descarta em qualquer 4xx — inclusive **401** (chave revogada/re-login). Manter na fila em 401 e
+   reenviar após o novo login, senão o relatório daquela execução se perde.
+2. `fitEvidence(…, otherBytes = 3000)` subestima o resto do corpo (`approved`/`results` podem passar de 100 KB).
+   Medir `JSON.stringify` do corpo sem `evidence` e somar.

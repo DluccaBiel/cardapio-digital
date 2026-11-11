@@ -87,3 +87,51 @@ describe('modo gratuito — ideias', () => {
     expect(r.summary).toMatch(/Modo gratuito/)
   })
 })
+
+// ---------------------------------------------------------------------------
+// "Refazer" com pedido do gestor (ex.: combos com Coca-Cola 2L)
+// ---------------------------------------------------------------------------
+import { parseRequest } from '../lib/ai/request'
+
+const MENU = [
+  { id: 'p1', ifood_id: 'i1', name: 'Pizza Calabresa Grande', price: 49.9, description: null },
+  { id: 'p2', ifood_id: 'i2', name: 'Pizza Mussarela Grande', price: 44.9, description: null },
+  { id: 's1', ifood_id: 'i3', name: 'Batata Frita', price: 19.9, description: null },
+  { id: 'd1', ifood_id: 'i4', name: 'Coca-Cola Lata 350ml', price: 6.5, description: null },
+  { id: 'd2', ifood_id: 'i5', name: 'Coca-Cola 2 Litros', price: 14.9, description: null },
+  { id: 'd3', ifood_id: 'i6', name: 'Coca-Cola Zero 2L', price: 14.9, description: null },
+  { id: 'c1', ifood_id: 'i7', name: 'Combo Família', price: 99.9, description: null, kind: 'combo' as const },
+]
+const NOTES = 'Pedidos do cliente nas versões anteriores: refazer novos combos com coca cola 2l\nIdeias JÁ REPROVADAS (traga outras, não repita): Criar combo Combo Pizza Calabresa Grande + Coca-Cola Lata 350ml: R$ 50,90'
+
+describe('pedido do gestor ao refazer', () => {
+  it('acha a Coca-Cola 2L exata (não a lata, não a Zero) e separa as reprovadas', () => {
+    const r = parseRequest(NOTES, MENU)
+    expect(r.wantsCombos).toBe(true)
+    expect(r.required.map((i) => i.id)).toEqual(['d2'])
+    expect(r.missing).toEqual([])
+    expect(r.rejected).toContain('combo pizza calabresa grande coca cola lata 350ml')
+  })
+  it('gera combos que incluem a Coca 2L, com preço abaixo do avulso e sem repetir reprovadas', () => {
+    const out = freeSuggest(MENU, null, { maxPct: 10, variant: 2, notes: NOTES })
+    const withCoke = out.combos.filter((c) => c.components.some((k) => k.component_id === 'd2'))
+    expect(withCoke.length).toBeGreaterThanOrEqual(2)
+    for (const c of out.combos) {
+      const full = c.components.reduce((s, k) => s + MENU.find((m) => m.id === k.component_id)!.price * k.quantity, 0)
+      expect(c.full_price).toBeCloseTo(full, 2)
+      expect(c.price).toBeLessThan(c.full_price)
+      expect(c.price).toBeGreaterThan(c.full_price * 0.75)
+      expect(c.components.some((k) => k.component_id === 'c1')).toBe(false) // combo não vira componente
+    }
+    expect(out.combos.map((c) => c.name)).not.toContain('Combo Pizza Calabresa Grande + Coca-Cola Lata 350ml')
+    expect(out.understood[0]).toMatch(/Coca-Cola 2 Litros/)
+  })
+  it('avisa quando o item pedido não existe no cardápio', () => {
+    const menu = MENU.filter((m) => !/2/.test(m.name))
+    const r = parseRequest('combos com guaraná antarctica 2l', menu)
+    expect(r.required).toEqual([])
+    expect(r.missing).toEqual(['guarana antarctica 2l'])
+    const out = freeSuggest(menu, null, { maxPct: 10, variant: 1, notes: 'combos com guaraná antarctica 2l' })
+    expect(out.understood.join(' ')).toMatch(/não está no cardápio/)
+  })
+})

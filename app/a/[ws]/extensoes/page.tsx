@@ -20,15 +20,15 @@ const SIGNED_URL_TTL = 600 // 10 min — a tela renova ao Sincronizar/recarregar
  */
 async function loadReports(db: ReturnType<typeof createServerClient>, workspaceId: string): Promise<{ reports: OptimizationReport[]; unavailable: boolean }> {
   const COLS = 'id, client_id, plan_hash, version, summary, aborted, approved, results, ok_count, error_count, created_at, clients ( name ), menu_optimization_evidence ( id, name, storage_path, bytes )'
-  // Até 30 por canal (iFood e Cardápio Web), para uma aba não "esconder" a outra
-  const query = (cols: string, platform?: 'ifood' | 'cardapioweb') => {
+  // Até 30 por canal (iFood, Cardápio Web e Anota AI), para uma aba não "esconder" a outra
+  const query = (cols: string, platform?: 'ifood' | 'cardapioweb' | 'anotaai') => {
     let q = db.from('menu_optimizations').select(cols).eq('workspace_id', workspaceId)
     if (platform) q = q.eq('platform', platform)
     return q.order('created_at', { ascending: false }).limit(30)
   }
-  const [ifood, cw] = await Promise.all([query(`${COLS}, platform`, 'ifood'), query(`${COLS}, platform`, 'cardapioweb')])
+  const [ifood, cw, anota] = await Promise.all([query(`${COLS}, platform`, 'ifood'), query(`${COLS}, platform`, 'cardapioweb'), query(`${COLS}, platform`, 'anotaai')])
   let data: unknown[] | null = null
-  if (!ifood.error && !cw.error) data = [...(ifood.data ?? []), ...(cw.data ?? [])]
+  if (!ifood.error && !cw.error) data = [...(ifood.data ?? []), ...(cw.data ?? []), ...(anota.error ? [] : (anota.data ?? []))]
   else {
     // Banco sem a migration 0006 (sem coluna platform): tudo conta como iFood
     const legacy = await query(COLS)
@@ -50,7 +50,7 @@ async function loadReports(db: ReturnType<typeof createServerClient>, workspaceI
       id: r.id,
       client_id: r.client_id,
       client_name: client?.name ?? 'Cliente removido',
-      platform: r.platform === 'cardapioweb' ? 'cardapioweb' : 'ifood',
+      platform: r.platform === 'cardapioweb' || r.platform === 'anotaai' ? r.platform : 'ifood',
       version: r.version,
       summary: r.summary ?? '',
       aborted: Boolean(r.aborted),
