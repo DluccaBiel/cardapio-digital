@@ -45,7 +45,7 @@ export function ResearchPanel({ ws, hubUrl }: { ws: string; hubUrl: string }) {
   const answer = result?.ok ? result.data : null
 
   return (
-    <section className="relative mt-6 overflow-hidden rounded-3xl border border-[#D7141F]/20 bg-gradient-to-br from-[#160A0C] via-[#0E0E10] to-[#0B0B0C] p-4 sm:p-5" aria-labelledby="ext-research-title">
+    <section id="sec-pesquisa" className="relative mt-6 scroll-mt-24 overflow-hidden rounded-3xl border border-[#D7141F]/20 bg-gradient-to-br from-[#160A0C] via-[#0E0E10] to-[#0B0B0C] p-4 sm:p-5" aria-labelledby="ext-research-title">
       <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#D7141F]/10 blur-3xl" aria-hidden="true" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

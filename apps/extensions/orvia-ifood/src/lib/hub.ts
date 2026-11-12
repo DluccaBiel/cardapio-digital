@@ -5,6 +5,28 @@
 
 export const PRODUCTION_HUB = 'https://orvia-gestao.vercel.app'
 
+/**
+ * Origens canônicas do hub (aliases que servem o mesmo deployment na Vercel). A ponte
+ * "conectar com um clique" aceita qualquer uma delas, para a experiência não depender do
+ * alias antigo da extensão.
+ */
+export const HUB_ORIGINS: readonly string[] = [
+  'https://orvia-gestao.vercel.app',
+  'https://undercuthub.vercel.app',
+  'https://orviahub.vercel.app',
+  'https://nextjs-cardapio.vercel.app',
+]
+
+export function isHubOrigin(origin: string | null | undefined): boolean {
+  if (!origin) return false
+  try {
+    const normalized = new URL(origin).origin
+    return (HUB_ORIGINS as readonly string[]).includes(normalized)
+  } catch {
+    return false
+  }
+}
+
 export interface HubConfig {
   hubUrl: string
   apiKey: string

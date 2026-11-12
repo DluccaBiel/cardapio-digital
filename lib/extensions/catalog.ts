@@ -23,6 +23,8 @@ export type ExtensionCatalogEntry = {
   homepageUrl: string | null
   /** Extensão ainda em desenvolvimento (sem pacote público). */
   upcoming?: boolean
+  /** Parceiro dono da extensão (sistema de gestão integrado). Padrão: undercut. */
+  partner?: string
   /** Monograma usado quando não há logo. */
   monogram: string
 }
@@ -36,6 +38,7 @@ export const EXTENSION_CATALOG: ExtensionCatalogEntry[] = [
     version: '0.3.0',
     downloadUrl: '/extensoes/undercut-ifood.zip',
     homepageUrl: null,
+    partner: 'undercut',
     monogram: 'iF',
   },
   {
@@ -47,6 +50,7 @@ export const EXTENSION_CATALOG: ExtensionCatalogEntry[] = [
     downloadUrl: null,
     homepageUrl: null,
     upcoming: true,
+    partner: 'undercut',
     monogram: 'CW',
   },
   {
@@ -58,7 +62,20 @@ export const EXTENSION_CATALOG: ExtensionCatalogEntry[] = [
     downloadUrl: null,
     homepageUrl: null,
     upcoming: true,
+    partner: 'undercut',
     monogram: 'AI',
+  },
+  {
+    slug: 'orvia-flyto',
+    short: 'FlyTo',
+    name: 'Undercut · FlyTo',
+    description: 'Conecta o sistema FlyTo ao Undercut: lê o cardápio do parceiro, envia ao hub e guia a otimização com os donos da operação.',
+    version: null,
+    downloadUrl: null,
+    homepageUrl: null,
+    upcoming: true,
+    partner: 'flyto',
+    monogram: 'FT',
   },
 ]
 

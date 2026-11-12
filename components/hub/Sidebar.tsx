@@ -13,7 +13,6 @@ import {
   Megaphone,
   Puzzle,
   Settings2,
-  UtensilsCrossed,
   X,
 } from 'lucide-react'
 
@@ -22,7 +21,6 @@ const items = [
   { key: 'agenda', label: 'Agenda', icon: CalendarDays },
   { key: 'contas', label: 'Contas de anúncio', icon: Megaphone },
   { key: 'relatorios', label: 'Relatórios', icon: FileText },
-  { key: 'cardapio', label: 'Cardápio', icon: UtensilsCrossed },
   { key: 'extensoes', label: 'Extensões', icon: Puzzle },
 ]
 

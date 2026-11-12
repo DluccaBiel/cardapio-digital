@@ -2,7 +2,7 @@
  * Service worker: único lugar que conhece a chave de API e fala com o Orvia.
  * Content script e página de opções conversam com ele por mensagens.
  */
-import { HubClient, isValidApiKey, loginToHub, normalizeHubUrl, originMatchesPatterns, PRODUCTION_HUB, type HubConfig, type HubResult } from '../lib/hub'
+import { HubClient, isHubOrigin, isValidApiKey, loginToHub, normalizeHubUrl, originMatchesPatterns, PRODUCTION_HUB, type HubConfig, type HubResult } from '../lib/hub'
 import { snapshotToImport } from '../lib/bridge'
 import { DEVICE_ID_KEY, HUB_CONFIG_KEY, type Msg, type Reply } from '../lib/messages'
 import { listSnapshots, saveSnapshot } from '../storage/store'
@@ -167,14 +167,18 @@ chrome.runtime.onMessage.addListener((msg: Msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return false
   const fromPortal = sender.url?.startsWith('https://portal.ifood.com.br/')
   const fromExtension = sender.url?.startsWith(`chrome-extension://${chrome.runtime.id}/`)
-  // Página do Orvia (ponte hub-bridge): só pode pedir 'hub:pair', e para a PRÓPRIA origem.
+  // Página do Orvia (ponte hub-bridge): só pode pedir 'hub:pair' (com a origem confere) ou 'hub:status'.
   const senderOrigin = sender.url ? normalizeHubUrl(sender.url) : null
   const bridgePatterns = (chrome.runtime.getManifest().content_scripts ?? [])
     .filter((cs) => cs.js?.includes('dist/hub-bridge.js'))
     .flatMap((cs) => cs.matches ?? [])
-  const fromHub = Boolean(senderOrigin && (senderOrigin === PRODUCTION_HUB || originMatchesPatterns(senderOrigin, bridgePatterns)))
+  const fromHub = Boolean(senderOrigin && (isHubOrigin(senderOrigin) || originMatchesPatterns(senderOrigin, bridgePatterns)))
   if (fromHub) {
-    if (msg.type !== 'hub:pair' || normalizeHubUrl(msg.hubUrl) !== senderOrigin) return false
+    if (msg.type === 'hub:pair') {
+      if (normalizeHubUrl(msg.hubUrl) !== senderOrigin) return false
+    } else if (msg.type !== 'hub:status') {
+      return false
+    }
   } else if (!fromPortal && !fromExtension) return false
   handle(msg)
     .then(sendResponse)

@@ -133,7 +133,7 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
   }
 
   return (
-    <section className="uc-neon relative mt-6 overflow-hidden rounded-3xl border border-[#D7141F]/25 bg-gradient-to-b from-[#1A0A0C]/85 via-[#0E0E10] to-[#0B0B0C] p-4 sm:p-5" aria-labelledby="ext-report-title">
+    <section id="sec-relatorio" className="uc-neon relative mt-6 scroll-mt-24 overflow-hidden rounded-3xl border border-[#D7141F]/25 bg-gradient-to-b from-[#1A0A0C]/85 via-[#0E0E10] to-[#0B0B0C] p-4 sm:p-5" aria-labelledby="ext-report-title">
       <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#D7141F]/15 blur-3xl" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#F0333D]/70 to-transparent" aria-hidden="true" />
       <div className="relative flex flex-wrap items-center justify-between gap-3">

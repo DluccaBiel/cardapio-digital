@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Activity,
   ArrowRight,
@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Link2,
   Loader2,
   Package,
   Plug,
@@ -29,7 +30,9 @@ import { brand } from '@undercut/brand'
 import { SYNC_EVENT } from '@/components/hub/Header'
 import { ExtensionReport, type OptimizationReport } from '@/components/hub/extensions/ExtensionReport'
 import { ExtensionHub } from '@/components/hub/extensions/ExtensionHub'
+import { IntegrationsSection } from '@/components/hub/extensions/IntegrationsSection'
 import { ResearchPanel } from '@/components/hub/extensions/ResearchPanel'
+import { PARTNERS } from '@/lib/extensions/partners'
 import {
   checkExtensionsAction,
   createApiKeyAction,
@@ -172,6 +175,9 @@ export function ExtensionsScreen({
   const [bulkBusy, setBulkBusy] = useState(false)
   const [sync, setSync] = useState<SyncState>({ kind: 'idle' })
   const [live, setLive] = useState<Map<string, ExtensionLiveStatus> | null>(null)
+  const [autoAt, setAutoAt] = useState<string | null>(null)
+  const [autoBusy, setAutoBusy] = useState(false)
+  const autoRef = useRef(false)
   const [tab, setTab] = useState('')
   const extName = useMemo(() => new Map(extensions.map((e) => [e.id, e.name])), [extensions])
   const extSlug = useMemo(() => new Map(extensions.map((e) => [e.id, e.slug])), [extensions])
@@ -240,6 +246,50 @@ export function ExtensionsScreen({
     return () => window.removeEventListener(SYNC_EVENT, onSync)
   }, [checkConnection])
 
+  /**
+   * Sincronização automática: consulta o servidor em segundo plano (sem router.refresh,
+   * para não recarregar a tela) a cada 45 s, ao voltar o foco e ao reabrir a aba.
+   * Assim o status reflete o contato real das extensões mesmo sem clicar em "Sincronizar".
+   */
+  const silentCheck = useCallback(async () => {
+    if (autoRef.current) return
+    autoRef.current = true
+    setAutoBusy(true)
+    try {
+      const res = await checkExtensionsAction(ws)
+      if (res.ok) {
+        setLive(new Map(res.installs.map((s) => [s.extension_id, s])))
+        setAutoAt(res.checked_at)
+      }
+    } finally {
+      autoRef.current = false
+      setAutoBusy(false)
+    }
+  }, [ws])
+
+  useEffect(() => {
+    void silentCheck()
+    const timer = setInterval(() => void silentCheck(), 45_000)
+    const onFocus = () => void silentCheck()
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void silentCheck()
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [silentCheck])
+
+  // Re-renderiza a cada 10 s para os textos "há Xs" não congelarem entre consultas.
+  const [, setClock] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => setClock((n) => n + 1), 10_000)
+    return () => clearInterval(timer)
+  }, [])
+
   const allSelected = keys.length > 0 && selected.size === keys.length
   const toggle = (id: string) =>
     setSelected((cur) => {
@@ -267,40 +317,105 @@ export function ExtensionsScreen({
   const showReport = reports.length > 0 || installs.length > 0
   const activeKeys = keys.filter((k) => !k.revoked_at && !(k.expires_at && new Date(k.expires_at).getTime() < Date.now())).length
   const hubAddress = origin && extensionCompatible(origin) ? origin : brand.extensionHubUrl
+  const nav = [
+    { id: 'sec-conexoes', label: 'Conexões' },
+    { id: 'sec-hub', label: 'Hub' },
+    ...(showReport ? [{ id: 'sec-relatorio', label: 'Relatório' }] : []),
+    { id: 'sec-pesquisa', label: 'Pesquisa' },
+    { id: 'sec-chaves', label: 'Chaves' },
+    { id: 'sec-integracoes', label: 'Integrações' },
+    { id: 'sec-manual', label: 'Manual' },
+  ]
 
   return (
     <div className="relative mx-auto w-full max-w-[1400px] px-4 pb-12 pt-5 sm:px-6 md:px-[30px] md:pt-[26px]">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(ellipse_at_top,rgba(215,20,31,0.10),transparent_62%)]" aria-hidden="true" />
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="uc-title text-[32px] text-[#F7F5F1] md:text-[40px]">Extensões</h1>
-          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-[#8E8A86]">
-            Conecte as extensões do Chrome ao Undercut com chaves de acesso por escopo · <span className="text-[#CFCBC4]">{workspaceName}</span>
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <LivePill allLive={allLive} online={onlineCount} total={rows.length} />
-          {canManage && (
-            <Link
-              href={`/a/${ws}/configuracoes`}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-[#DAD6CF] no-underline transition-colors hover:border-[#D7141F]/45 hover:text-white hover:no-underline"
-            >
-              <ShieldCheck size={14} /> Configurações
-            </Link>
-          )}
-        </div>
-      </div>
+      <section
+        aria-labelledby="ext-page-title"
+        className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.012] p-4 sm:p-5 md:p-6"
+      >
+        <div className="uc-telemetry-bar absolute inset-x-0 top-0" aria-hidden="true" />
+        <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-[#D7141F]/15 blur-3xl" aria-hidden="true" />
 
-      {shortUrl && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#85817C]">Link curto</span>
-          <a href={shortUrl} className="min-w-0 flex-1 truncate font-mono text-[11px] text-[#B8B3AC] no-underline hover:text-white hover:no-underline" title={shortUrl}>
-            {shortUrl.replace(/^https?:\/\//, '')}
-          </a>
-          <CopyBtn value={shortUrl} label="Copiar link" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D7141F]/35 bg-[#D7141F]/10 px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#FFD9DB]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#F0333D] shadow-[0_0_8px_rgba(240,51,61,0.9)]" /> Chrome · MV3
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#8E8A86]">
+                {workspaceName}
+              </span>
+            </div>
+            <h1 id="ext-page-title" className="uc-title mt-3 text-[34px] text-[#F7F5F1] md:text-[44px]">Extensões</h1>
+            <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-[#8E8A86]">
+              Conecte as extensões do Chrome ao Undercut com chaves de acesso por escopo. O status é conferido automaticamente enquanto esta tela estiver aberta.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <LivePill allLive={allLive} online={onlineCount} total={rows.length} />
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/[0.08] bg-black/25 px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-[#85817C]"
+                suppressHydrationWarning
+              >
+                <RefreshCw size={12} className={cn(autoBusy && 'animate-spin text-[#F0333D]')} />
+                {autoBusy ? 'verificando…' : autoAt ? `atualizado ${ago(autoAt)}` : 'aguardando'}
+              </span>
+              {canManage && (
+                <Link
+                  href={`/a/${ws}/configuracoes`}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-[#DAD6CF] no-underline transition-colors hover:border-[#D7141F]/45 hover:text-white hover:no-underline"
+                >
+                  <ShieldCheck size={14} /> Configurações
+                </Link>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+
+        <div className="relative mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric label="Conectadas agora" value={`${onlineCount}/${rows.length}`} tone={onlineCount > 0 ? 'ok' : 'muted'} icon={<Zap size={14} />} />
+          <Metric label="Sem contato recente" value={String(idleCount)} tone={idleCount > 0 ? 'warn' : 'muted'} icon={<Activity size={14} />} />
+          <Metric label="Desconectadas" value={String(offCount)} tone={offCount > 0 ? 'bad' : 'muted'} icon={<WifiOff size={14} />} />
+          <Metric label="Chaves ativas" value={canManage ? String(activeKeys) : '—'} tone={canManage && activeKeys ? 'ok' : 'muted'} icon={<KeyRound size={14} />} />
+        </div>
+
+        {shortUrl && (
+          <div className="relative mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.07] bg-black/25 px-3 py-2">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#85817C]">
+              <Link2 size={12} /> Link curto
+            </span>
+            <a href={shortUrl} className="min-w-0 flex-1 truncate font-mono text-[11px] text-[#B8B3AC] no-underline hover:text-white hover:no-underline" title={shortUrl}>
+              {shortUrl.replace(/^https?:\/\//, '')}
+            </a>
+            <CopyBtn value={shortUrl} label="Copiar link" />
+          </div>
+        )}
+      </section>
+
+      <nav
+        aria-label="Seções desta página"
+        className="sticky top-0 z-20 -mx-4 mt-4 border-y border-white/[0.06] bg-[#080809]/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 md:-mx-[30px] md:px-[30px]"
+      >
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {nav.map((item) => (
+            <a
+              key={item.id}
+              href={`#${item.id}`}
+              className="shrink-0 rounded-full border border-transparent px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[#8E8A86] no-underline transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-white hover:no-underline"
+            >
+              {item.label}
+            </a>
+          ))}
+          <span className="ml-auto hidden shrink-0 items-center gap-1.5 pl-3 font-mono text-[9px] uppercase tracking-[0.12em] text-[#55555C] sm:flex">
+            <StatusDot conn={rows.length === 0 ? null : allLive ? 'online' : offCount === rows.length ? 'off' : 'idle'} />
+            {onlineCount}/{rows.length} online · sync auto 45 s
+          </span>
+        </div>
+      </nav>
 
       {sync.kind !== 'idle' && (
         <div
@@ -327,7 +442,7 @@ export function ExtensionsScreen({
         off={offCount}
         activeKeys={canManage ? activeKeys : null}
         allLive={allLive}
-        checkedAt={sync.at ?? null}
+        checkedAt={sync.at ?? autoAt}
         onManage={(id) => {
           setTab(id)
           document.getElementById('ext-conn-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -356,7 +471,7 @@ export function ExtensionsScreen({
       <ManualSetup hubAddress={hubAddress} />
 
       {/* Chaves */}
-      <section className="mt-6 rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5">
+      <section id="sec-chaves" className="mt-6 scroll-mt-24 rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-[16px] font-bold text-[#F7F5F1]">
@@ -481,6 +596,8 @@ export function ExtensionsScreen({
           </>
         )}
       </section>
+
+      <IntegrationsSection partners={PARTNERS} integrations={rows.map((r) => ({ slug: r.ext.slug, id: r.ext.id, connected: r.conn === 'online' }))} canManage={canManage} onToast={setToast} />
 
       {creating && (
         <CreateKeyModal
@@ -608,7 +725,7 @@ function ConnectionsOverview({
   onManage: (id: string) => void
 }) {
   return (
-    <section className="mt-5 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5" aria-labelledby="ext-overview-title">
+    <section id="sec-conexoes" className="mt-5 scroll-mt-24 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5" aria-labelledby="ext-overview-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="ext-overview-title" className="flex items-center gap-2 text-[16px] font-bold text-[#F7F5F1]">
@@ -1097,7 +1214,7 @@ function ConnectionCode({
 
 function ManualSetup({ hubAddress }: { hubAddress: string }) {
   return (
-    <section className="mt-6 rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5">
+    <section id="sec-manual" className="mt-6 scroll-mt-24 rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-[15px] font-bold text-[#F7F5F1]">
@@ -1140,6 +1257,7 @@ function ManualSetup({ hubAddress }: { hubAddress: string }) {
 function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
   const [version, setVersion] = useState<string | null>(null)
   const [state, setState] = useState<PairState>({ kind: 'idle' })
+  const [conn, setConn] = useState<{ configured: boolean; workspace?: string } | null>(null)
 
   useEffect(() => {
     const read = () => setVersion(document.documentElement.dataset.orviaIfood ?? null)
@@ -1147,12 +1265,23 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
     const timer = setTimeout(read, 1000)
     const onMessage = (event: MessageEvent) => {
       if (event.source !== window || event.origin !== window.location.origin) return
-      const data = event.data as { source?: string; type?: string; version?: string; ok?: boolean; error?: string; workspace?: string } | null
+      const data = event.data as
+        | { source?: string; type?: string; version?: string; ok?: boolean; error?: string; workspace?: string; data?: { configured: boolean; workspace?: { name: string } } }
+        | null
       if (!data || data.source !== 'orvia-ext') return
-      if (data.type === 'hello' && data.version) setVersion(data.version)
+      if (data.type === 'hello' && data.version) {
+        setVersion(data.version)
+        // Solicita o status da conexão (chave/endereço salvos no service worker).
+        window.postMessage({ source: 'orvia-hub', type: 'status' }, window.location.origin)
+      }
+      if (data.type === 'status') {
+        setConn(data.ok && data.data ? { configured: data.data.configured, workspace: data.data.workspace?.name } : null)
+        return
+      }
       if (data.type === 'paired') {
         if (data.ok) {
           setState({ kind: 'ok', text: `Extensão conectada${data.workspace ? ` ao workspace “${data.workspace}”` : ''}. Pode abrir o portal do iFood.` })
+          setConn({ configured: true, workspace: data.workspace })
           onDone()
         } else setState({ kind: 'err', text: data.error ?? 'A extensão recusou a conexão.' })
       }
@@ -1196,6 +1325,11 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
           )}
         >
           {state.text}
+        </p>
+      )}
+      {conn && (
+        <p className="mt-2 text-[11px] leading-relaxed text-[#85817C]" suppressHydrationWarning>
+          {conn.configured ? `Sincronização com o Undercut ativa${conn.workspace ? ` · workspace “${conn.workspace}”` : ''}.` : 'A extensão está pronta — falta conectar ao Undercut.'}
         </p>
       )}
     </div>

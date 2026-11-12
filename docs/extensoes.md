@@ -213,6 +213,30 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   HSTS, Referrer-Policy, Permissions-Policy); `.zip` servido como `attachment`; chaves com
   hash, RLS e escopos mínimos inalterados; `audit_log` nunca guarda pergunta/resposta nem
   segredos.
-- **Pendências:** publicar um pacote público para Cardápio Web/Anota AI (hoje “em breve”);
+
+## 16. Segunda onda do hub + integração com parceiro FlyTo (2026-11-12)
+
+- **Status em tempo real:** a tela `/a/{ws}/extensoes` faz *auto-sync* a cada ~45 s (além de
+  ao foco da janela e ao reabrir a aba) via `checkExtensionsAction`, sem `router.refresh`
+  pesado; relógio local de 10 s renova os textos “há Xs”. O botão *Sincronizar* continua
+  manual (via `SYNC_EVENT`).
+- **Hero + navegação:** título Anton com marcador vermelho (`uc-title`), badge
+  “Chrome · MV3”, workspace, pill *Ao vivo · há instantes* (todas online) e KPI strip
+  (Conectadas agora / Sem contato recente / Desconectadas / Chaves ativas) no topo; nav
+  sticky por âncora (`sec-conexoes`, `sec-hub`, `sec-relatorio`, `sec-pesquisa`,
+  `sec-chaves`, `sec-integracoes`, `sec-manual`).
+- **Hub por parceiro:** `lib/extensions/partners.ts` (Undercut + parceiros). Cards do hub
+  agrupados por parceiro, com a paleta da marca do parceiro (FlyTo: `#5FA759` / `#83C365` /
+  `#286444` / `#121229`) — extensões do parceiro nunca usam a vermelha da Undercut. Filtro
+  por parceiro (`all` | `undercut` | slug do parceiro).
+- **Integrações:** `IntegrationsSection` (`#sec-integracoes`) — bloco dedicado de integração
+  sistema ↔ extensão: status por parceiro, paleta, link de integração (configurado via
+  `NEXT_PUBLIC_FLYTO_URL`). Hoje: FlyTo.
+- **Extensão persistida:** ponte “conectar com um clique” aceita os aliases do hub
+  (`orvia-gestao`, `undercuthub`, `orviahub`, `nextjs-cardapio` `.vercel.app`) via
+  `host_permissions`/`content_scripts.matches` atualizados; worker aceita `hub:status` de
+  origem do hub e a ponte responde status (`configured`, `workspace`, `scopes`); `hello`
+  dispara status automático.
+- **Pendências:** publicar pacote público para Cardápio Web/Anota AI (hoje “em breve”);
   aplicar a migration `0009` no banco de produção (catálogo com nomes Undercut) antes de
   anunciar os nomes novos no catálogo global.
