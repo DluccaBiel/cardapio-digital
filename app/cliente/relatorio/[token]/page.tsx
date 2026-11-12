@@ -26,12 +26,12 @@ export default async function ClienteRelatorioPage({ params }: { params: { token
       <p>
         <strong>Status:</strong>{' '}
         {relatorio.status === 'aprovado' ? <span style={{ color: '#059669', fontWeight: '600' }}>✅ Aprovado</span>
-        : relatorio.status === 'rejeitado' ? <span style={{ color: '#dc2626', fontWeight: '600' }}>❌ Rejeitado</span>
+        : relatorio.status === 'rejeitado' ? <span style={{ color: '#E5532D', fontWeight: '600' }}>❌ Rejeitado</span>
         : <span style={{ color: '#d97706', fontWeight: '600' }}>⏳ Pendente</span>}
       </p>
 
       {relatorio.status === 'gerado' || relatorio.status === 'enviado' ? (
-        <div style={{ background: '#f3f4f6', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+        <div style={{ background: '#F2F0EC', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
           <h2>Deseja aprovar ou rejeitar este relatório?</h2>
           <p>Ao aprovar, as alterações sugeridas serão aplicadas ao cardápio.</p>
           <form action={clienteResponder as unknown as (formData: FormData) => void} method="POST" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -80,7 +80,7 @@ export default async function ClienteRelatorioPage({ params }: { params: { token
         </p>
       )}
       {relatorio.status === 'rejeitado' && (
-        <p style={{ marginTop: '1rem', color: '#dc2626', fontWeight: '600' }}>
+        <p style={{ marginTop: '1rem', color: '#E5532D', fontWeight: '600' }}>
           ❌ Este relatório foi rejeitado.
         </p>
       )}

@@ -4,7 +4,7 @@ import { getClients, MOCK_TAGS_LIST } from '../../../../lib/mock'
 import { OverviewScreen } from '../../../../components/hub/overview/OverviewScreen'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Orvia — Visão geral' }
+export const metadata = { title: 'Undercut — Visão geral' }
 
 export default async function VisaoGeralPage({
   params,

@@ -44,7 +44,7 @@ export function HubShell({
   }, [])
 
   return (
-    <div className="hub-root flex h-[100dvh] flex-col bg-[#070B12] text-[#E8EDF7]">
+    <div className="hub-root flex h-[100dvh] flex-col bg-[#080809] text-[#ECE9E3]">
       <Header
         workspace={workspace}
         role={role}

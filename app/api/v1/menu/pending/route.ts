@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export const OPTIONS = preflight
 
 /**
- * Fila "aplicar no iFood": produtos/combos alterados no Orvia e ainda não
+ * Fila "aplicar no iFood": produtos/combos alterados no Undercut e ainda não
  * refletidos no iFood. Cada item traz `etag` para o If-Match do ifood-sync.
  */
 export async function GET(req: Request) {

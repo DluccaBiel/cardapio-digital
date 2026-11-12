@@ -28,9 +28,9 @@ export default async function RelatorioDetailPage({ params }: { params: { id: st
     .order('created_at', { ascending: true })
 
   function statusTexto(ref: number | null, atual: number) {
-    if (!ref) return { texto: '-', cor: '#6b7280' }
+    if (!ref) return { texto: '-', cor: '#6E6A66' }
     if (atual < ref * 0.9) return { texto: 'Abaixo', cor: '#059669' }
-    if (atual > ref * 1.1) return { texto: 'Acima', cor: '#dc2626' }
+    if (atual > ref * 1.1) return { texto: 'Acima', cor: '#E5532D' }
     return { texto: 'Ideal', cor: '#d97706' }
   }
 
@@ -131,7 +131,7 @@ export default async function RelatorioDetailPage({ params }: { params: { id: st
       </table>
 
       {relatorio.status !== 'aprovado' && (
-        <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: '1rem' }}>
+        <p style={{ color: '#6E6A66', fontSize: '0.9rem', marginTop: '1rem' }}>
           O botão de aplicar só aparece depois que o cliente aprovar o relatório pelo link.
         </p>
       )}

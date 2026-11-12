@@ -224,17 +224,17 @@ export function ExtensionsScreen({
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 pb-10 pt-5 sm:px-6 md:px-[30px] md:pt-[26px]">
-      <h1 className="text-[26px] font-extrabold leading-tight tracking-[-0.03em] text-[#F1F5FC] md:text-[28px]">Extensões</h1>
-      <p className="mt-1 text-[13px] text-[#8A97AC]">
-        Conecte as extensões do Chrome ao Orvia com chaves de acesso por escopo · <span className="text-[#C9D3E3]">{workspaceName}</span>
+      <h1 className="uc-title text-[32px] text-[#F7F5F1] md:text-[40px]">Extensões</h1>
+      <p className="mt-1 text-[13px] text-[#8E8A86]">
+        Conecte as extensões do Chrome ao Undercut com chaves de acesso por escopo · <span className="text-[#CFCBC4]">{workspaceName}</span>
       </p>
 
       {sync.kind !== 'idle' && (
         <div
           role="status"
           className={cn(
-            'mt-4 flex items-start gap-2 rounded-xl border px-4 py-3 text-[12px] leading-relaxed',
-            sync.kind === 'busy' && 'border-[#3D8EFF]/40 bg-[#3D8EFF]/10 text-[#CFE0FF]',
+            'mt-4 flex items-start gap-2 rounded-[6px] border px-4 py-3 text-[12px] leading-relaxed',
+            sync.kind === 'busy' && 'border-[#D7141F]/40 bg-[#D7141F]/10 text-[#FFD9DB]',
             sync.kind === 'done' && 'border-[#34D399]/40 bg-[#34D399]/10 text-[#A7F3D0]',
             sync.kind === 'err' && 'border-[#FBBF24]/40 bg-[#FBBF24]/10 text-[#FDE68A]',
           )}
@@ -260,8 +260,8 @@ export function ExtensionsScreen({
       {showReport && <ExtensionReport reports={reports} unavailable={reportsUnavailable} />}
 
       {/* Passo a passo */}
-      <section className="mt-6 rounded-xl border border-[#1E2738] bg-[#0D1320] p-4 text-[13px] leading-relaxed text-[#B4BFD0]">
-        <h2 className="flex items-center gap-2 text-[14px] font-bold text-[#F1F5FC]">
+      <section className="mt-6 rounded-[6px] border border-[#222225] bg-[#111113] p-4 text-[13px] leading-relaxed text-[#B8B3AC]">
+        <h2 className="flex items-center gap-2 text-[14px] font-bold text-[#F7F5F1]">
           <ShieldCheck size={16} className="text-[#34D399]" /> Conexão manual (outro navegador ou sem a ponte)
         </h2>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
@@ -271,7 +271,7 @@ export function ExtensionsScreen({
             <span className="font-mono text-[12px]">apps/extensions/orvia-ifood</span>.
           </li>
           <li>
-            Abra as opções da extensão, cole o endereço do Orvia (<span className="font-mono text-[12px]">{origin && extensionCompatible(origin) ? origin : brand.extensionHubUrl}</span>) e a chave → “Testar conexão”.
+            Abra as opções da extensão, cole o endereço do Undercut (<span className="font-mono text-[12px]">{origin && extensionCompatible(origin) ? origin : brand.extensionHubUrl}</span>) e a chave → “Testar conexão”.
           </li>
         </ol>
       </section>
@@ -279,8 +279,8 @@ export function ExtensionsScreen({
       {/* Chaves */}
       <section className="mt-6">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-[16px] font-bold text-[#F1F5FC]">
-            <KeyRound size={16} className="text-[#6EA8FF]" /> Chaves de API
+          <h2 className="flex items-center gap-2 text-[16px] font-bold text-[#F7F5F1]">
+            <KeyRound size={16} className="text-[#F0333D]" /> Chaves de API
           </h2>
           {canManage && (
             <Btn variant="primary" onClick={() => setCreating(true)}>
@@ -299,7 +299,7 @@ export function ExtensionsScreen({
         ) : (
           <>
             {selected.size > 0 && (
-              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#3D8EFF]/40 bg-[#0C1A31] px-3 py-2 text-[12px] text-[#CFE0FF]">
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[6px] border border-[#D7141F]/40 bg-[#1F0D0F] px-3 py-2 text-[12px] text-[#FFD9DB]">
                 <span className="font-semibold">
                   {selected.size} selecionada{selected.size === 1 ? '' : 's'}
                 </span>
@@ -315,14 +315,14 @@ export function ExtensionsScreen({
                     <Trash2 size={13} /> Excluir ({selected.size})
                   </Btn>
                 ) : (
-                  <span className="text-[11px] text-[#8A97AC]">Excluir: somente o dono</span>
+                  <span className="text-[11px] text-[#8E8A86]">Excluir: somente o dono</span>
                 )}
               </div>
             )}
-            <div className="mt-3 overflow-x-auto rounded-xl border border-[#1E2738]">
+            <div className="mt-3 overflow-x-auto rounded-[6px] border border-[#222225]">
               <table className="w-full min-w-[860px] border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-[#1A2231] bg-[#0B111D] text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC]">
+                  <tr className="border-b border-[#1C1C1F] bg-[#0E0E10] text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86]">
                     <th className="w-10 px-3 py-2.5">
                       <input
                         type="checkbox"
@@ -332,7 +332,7 @@ export function ExtensionsScreen({
                           if (el) el.indeterminate = selected.size > 0 && !allSelected
                         }}
                         onChange={() => setSelected(allSelected ? new Set() : new Set(keys.map((k) => k.id)))}
-                        className="accent-[#3D8EFF]"
+                        className="accent-[#D7141F]"
                       />
                     </th>
                     <th className="px-3 py-2.5">Nome</th>
@@ -349,26 +349,26 @@ export function ExtensionsScreen({
                     const expired = k.expires_at && new Date(k.expires_at).getTime() < Date.now()
                     const isSel = selected.has(k.id)
                     return (
-                      <tr key={k.id} className={cn('border-b border-[#141B28] text-[12px] last:border-b-0', isSel ? 'bg-[#0F1B30]' : 'bg-[#0D1320]')}>
+                      <tr key={k.id} className={cn('border-b border-[#18181B] text-[12px] last:border-b-0', isSel ? 'bg-[#1F0D0F]' : 'bg-[#111113]')}>
                         <td className="px-3 py-2.5">
-                          <input type="checkbox" aria-label={`Selecionar ${k.name}`} checked={isSel} onChange={() => toggle(k.id)} className="accent-[#3D8EFF]" />
+                          <input type="checkbox" aria-label={`Selecionar ${k.name}`} checked={isSel} onChange={() => toggle(k.id)} className="accent-[#D7141F]" />
                         </td>
-                        <td className="px-3 py-2.5 font-semibold text-[#E8EDF7]">{k.name}</td>
-                        <td className="px-3 py-2.5 font-mono text-[#B4BFD0]">{k.key_prefix}…</td>
-                        <td className="px-3 py-2.5 text-[#B4BFD0]">{k.extension_id ? extName.get(k.extension_id) ?? '—' : '—'}</td>
+                        <td className="px-3 py-2.5 font-semibold text-[#ECE9E3]">{k.name}</td>
+                        <td className="px-3 py-2.5 font-mono text-[#B8B3AC]">{k.key_prefix}…</td>
+                        <td className="px-3 py-2.5 text-[#B8B3AC]">{k.extension_id ? extName.get(k.extension_id) ?? '—' : '—'}</td>
                         <td className="px-3 py-2.5">
                           <span className="flex flex-wrap gap-1">
                             {k.scopes.map((s) => (
-                              <span key={s} className="rounded border border-[#26314A] bg-[#080D18] px-1.5 py-px font-mono text-[10px] text-[#B4BFD0]">
+                              <span key={s} className="rounded border border-[#2A2A2E] bg-[#0B0B0C] px-1.5 py-px font-mono text-[10px] text-[#B8B3AC]">
                                 {s}
                               </span>
                             ))}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-[#8A97AC]">{when(k.last_used_at)}</td>
+                        <td className="px-3 py-2.5 text-[#8E8A86]">{when(k.last_used_at)}</td>
                         <td className="px-3 py-2.5">
                           {k.revoked_at ? (
-                            <span className="text-[#F87171]">Revogada</span>
+                            <span className="text-[#FF6A3D]">Revogada</span>
                           ) : expired ? (
                             <span className="text-[#FBBF24]">Expirada</span>
                           ) : (
@@ -388,8 +388,8 @@ export function ExtensionsScreen({
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-[11px] text-[#7C8AA1]">
-              Por segurança o Orvia guarda só o hash das chaves: o valor completo só pode ser copiado no momento em que a chave é gerada.
+            <p className="mt-2 text-[11px] text-[#85817C]">
+              Por segurança o Undercut guarda só o hash das chaves: o valor completo só pode ser copiado no momento em que a chave é gerada.
             </p>
           </>
         )}
@@ -407,10 +407,10 @@ export function ExtensionsScreen({
       )}
       {revoking && (
         <Modal title="Revogar chave" onClose={() => setRevoking(null)}>
-          <p className="text-[13px] text-[#C9D3E3]">
+          <p className="text-[13px] text-[#CFCBC4]">
             Revogar <b>{revoking.name}</b> ({revoking.key_prefix}…)? A extensão que usa essa chave para de funcionar imediatamente.
           </p>
-          <div className="mt-5 flex justify-end gap-2 border-t border-[#1A2231] pt-4">
+          <div className="mt-5 flex justify-end gap-2 border-t border-[#1C1C1F] pt-4">
             <Btn variant="ghost" onClick={() => setRevoking(null)}>
               Cancelar
             </Btn>
@@ -430,22 +430,22 @@ export function ExtensionsScreen({
       )}
       {bulk && (
         <Modal title={bulk.action === 'delete' ? 'Excluir chaves' : 'Revogar chaves'} onClose={() => !bulkBusy && setBulk(null)}>
-          <p className="text-[13px] text-[#C9D3E3]">
+          <p className="text-[13px] text-[#CFCBC4]">
             {bulk.action === 'delete' ? 'Excluir' : 'Revogar'} <b>{bulk.ids.length}</b> chave{bulk.ids.length === 1 ? '' : 's'}?{' '}
             {bulk.action === 'delete'
               ? 'Elas somem da lista e param de funcionar na hora. Extensões que usam essas chaves ficam desconectadas. Não dá para desfazer.'
               : 'As extensões que usam essas chaves param de funcionar imediatamente.'}
           </p>
-          <ul className="mt-3 max-h-40 space-y-0.5 overflow-y-auto rounded-lg border border-[#1A2231] bg-[#080D18] px-3 py-2 text-[12px] text-[#B4BFD0]">
+          <ul className="mt-3 max-h-40 space-y-0.5 overflow-y-auto rounded-[5px] border border-[#1C1C1F] bg-[#0B0B0C] px-3 py-2 text-[12px] text-[#B8B3AC]">
             {keys
               .filter((k) => bulk.ids.includes(k.id))
               .map((k) => (
                 <li key={k.id}>
-                  {k.name} <span className="font-mono text-[#7C8AA1]">({k.key_prefix}…)</span>
+                  {k.name} <span className="font-mono text-[#85817C]">({k.key_prefix}…)</span>
                 </li>
               ))}
           </ul>
-          <div className="mt-5 flex justify-end gap-2 border-t border-[#1A2231] pt-4">
+          <div className="mt-5 flex justify-end gap-2 border-t border-[#1C1C1F] pt-4">
             <Btn variant="ghost" disabled={bulkBusy} onClick={() => setBulk(null)}>
               Cancelar
             </Btn>
@@ -475,9 +475,9 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
     // A chave NUNCA é exibida: só o prefixo + máscara, e um botão que copia o valor completo.
     return (
       <Modal title="Chave criada" description="Copie agora — por segurança ela não pode ser exibida nem copiada depois." onClose={onClose} width="max-w-lg">
-        <div className="flex items-center gap-2 rounded-lg border border-[#3D8EFF]/50 bg-[#0C1A31] p-3">
-          <EyeOff size={15} className="shrink-0 text-[#6EA8FF]" aria-hidden="true" />
-          <span className="min-w-0 flex-1 select-none truncate font-mono text-[12px] text-[#CFE0FF]" aria-label="Chave oculta">
+        <div className="flex items-center gap-2 rounded-[5px] border border-[#D7141F]/50 bg-[#1F0D0F] p-3">
+          <EyeOff size={15} className="shrink-0 text-[#F0333D]" aria-hidden="true" />
+          <span className="min-w-0 flex-1 select-none truncate font-mono text-[12px] text-[#FFD9DB]" aria-label="Chave oculta">
             {created.prefix}
             {'•'.repeat(24)}
           </span>
@@ -497,14 +497,14 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
           </Btn>
         </div>
         {copy === 'fail' && (
-          <p className="mt-2 rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 px-3 py-2 text-[12px] text-[#FCA5A5]">
+          <p className="mt-2 rounded-[5px] border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">
             O navegador bloqueou a área de transferência. Clique de novo em “Copiar chave”; se continuar, revogue esta chave e gere outra.
           </p>
         )}
-        <p className="mt-3 text-[12px] leading-relaxed text-[#8A97AC]">
+        <p className="mt-3 text-[12px] leading-relaxed text-[#8E8A86]">
           Cole nas opções da extensão (campo de senha). Não envie por chat/e-mail. Se perder, revogue e gere outra.
         </p>
-        <div className="mt-5 flex justify-end border-t border-[#1A2231] pt-4">
+        <div className="mt-5 flex justify-end border-t border-[#1C1C1F] pt-4">
           <Btn variant="primary" onClick={onClose}>
             Concluir
           </Btn>
@@ -565,24 +565,24 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
           {SCOPE_INFO.map((s) => {
             const on = scopes.includes(s.value)
             return (
-              <label key={s.value} className="flex cursor-pointer items-start gap-2 rounded-lg border border-[#1E2738] bg-[#080D18] px-3 py-2">
+              <label key={s.value} className="flex cursor-pointer items-start gap-2 rounded-[5px] border border-[#222225] bg-[#0B0B0C] px-3 py-2">
                 <input
                   type="checkbox"
                   checked={on}
                   onChange={() => setScopes((cur) => (on ? cur.filter((x) => x !== s.value) : [...cur, s.value]))}
-                  className="mt-0.5 accent-[#3D8EFF]"
+                  className="mt-0.5 accent-[#D7141F]"
                 />
                 <span>
-                  <span className="block text-[12px] font-semibold text-[#E8EDF7]">{s.label}</span>
-                  <span className="block text-[11px] text-[#7C8AA1]">{s.hint}</span>
+                  <span className="block text-[12px] font-semibold text-[#ECE9E3]">{s.label}</span>
+                  <span className="block text-[11px] text-[#85817C]">{s.hint}</span>
                 </span>
               </label>
             )
           })}
         </div>
       </div>
-      {error && <p className="mt-3 rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 px-3 py-2 text-[12px] text-[#FCA5A5]">{error}</p>}
-      <div className="mt-5 flex justify-end gap-2 border-t border-[#1A2231] pt-4">
+      {error && <p className="mt-3 rounded-[5px] border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">{error}</p>}
+      <div className="mt-5 flex justify-end gap-2 border-t border-[#1C1C1F] pt-4">
         <Btn variant="ghost" onClick={onClose}>
           Cancelar
         </Btn>
@@ -600,7 +600,7 @@ type PairState = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string }
  * Painel de conexão — uma aba por extensão (iFood, Cardápio Web, Anota AI).
  * Mostra se a extensão está conectada a este workspace; se não estiver, gera um
  * CÓDIGO DE CONEXÃO (chave vinculada à extensão, escopos mínimos) para copiar e colar
- * nas opções da extensão, junto com o endereço do Orvia.
+ * nas opções da extensão, junto com o endereço do Undercut.
  */
 function ConnectionPanel({
   ws,
@@ -630,12 +630,12 @@ function ConnectionPanel({
   return (
     <section
       aria-labelledby="ext-conn-title"
-      className={cn('mt-6 rounded-xl border bg-[#0D1320] p-4', highlight ? 'border-[#3D8EFF] shadow-[0_0_0_3px_rgba(61,142,255,0.18)]' : 'border-[#1E2738]')}
+      className={cn('mt-6 rounded-[6px] border bg-[#111113] p-4', highlight ? 'border-[#D7141F] shadow-[0_0_0_3px_rgba(215, 20, 31,0.18)]' : 'border-[#222225]')}
     >
-      <h2 id="ext-conn-title" className="flex items-center gap-2 text-[15px] font-bold text-[#F1F5FC]">
-        <Plug size={16} className="text-[#6EA8FF]" /> Conexão das extensões
+      <h2 id="ext-conn-title" className="flex items-center gap-2 text-[15px] font-bold text-[#F7F5F1]">
+        <Plug size={16} className="text-[#F0333D]" /> Conexão das extensões
       </h2>
-      <div role="tablist" aria-label="Extensão" className="mt-3 flex flex-wrap gap-1 border-b border-[#1A2231]">
+      <div role="tablist" aria-label="Extensão" className="mt-3 flex flex-wrap gap-1 border-b border-[#1C1C1F]">
         {sorted.map((e) => {
           const st = status.get(e.id)
           const cc = st ? connOf(st) : null
@@ -649,13 +649,13 @@ function ConnectionPanel({
               aria-controls="ext-conn-panel"
               onClick={() => setTab(e.id)}
               className={cn(
-                '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3D8EFF]',
-                ext.id === e.id ? 'border-[#3D8EFF] text-[#F1F5FC]' : 'border-transparent text-[#8A97AC] hover:text-[#C9D3E3]',
+                '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D7141F]',
+                ext.id === e.id ? 'border-[#D7141F] text-[#F7F5F1]' : 'border-transparent text-[#8E8A86] hover:text-[#CFCBC4]',
               )}
             >
               <span
                 aria-hidden="true"
-                className={cn('inline-block h-2 w-2 rounded-full', cc === 'online' ? 'bg-[#34D399]' : cc === 'idle' ? 'bg-[#FBBF24]' : cc === 'off' ? 'bg-[#F87171]' : 'bg-[#4B5870]')}
+                className={cn('inline-block h-2 w-2 rounded-full', cc === 'online' ? 'bg-[#34D399]' : cc === 'idle' ? 'bg-[#FBBF24]' : cc === 'off' ? 'bg-[#FF6A3D]' : 'bg-[#55555C]')}
               />
               {SHORT[e.slug] ?? e.name}
             </button>
@@ -664,13 +664,13 @@ function ConnectionPanel({
       </div>
 
       <div role="tabpanel" id="ext-conn-panel" aria-labelledby={`ext-conn-tab-${ext.slug}`} className="pt-4">
-        <p className="text-[12px] leading-relaxed text-[#8A97AC]">{ext.description}</p>
+        <p className="text-[12px] leading-relaxed text-[#8E8A86]">{ext.description}</p>
         <div
           className={cn(
-            'mt-3 rounded-lg border px-3 py-2.5 text-[13px]',
+            'mt-3 rounded-[5px] border px-3 py-2.5 text-[13px]',
             c === 'online' && 'border-[#34D399]/40 bg-[#34D399]/10 text-[#A7F3D0]',
             c === 'idle' && 'border-[#FBBF24]/40 bg-[#FBBF24]/10 text-[#FDE68A]',
-            (c === 'off' || c === null) && 'border-[#F87171]/40 bg-[#F87171]/10 text-[#FCA5A5]',
+            (c === 'off' || c === null) && 'border-[#FF6A3D]/40 bg-[#FF6A3D]/10 text-[#FFB199]',
           )}
           suppressHydrationWarning
         >
@@ -687,7 +687,7 @@ function ConnectionPanel({
         </div>
 
         {!canManage ? (
-          <p className="mt-3 text-[12px] text-[#8A97AC]">Somente dono ou coordenador geram o código de conexão.</p>
+          <p className="mt-3 text-[12px] text-[#8E8A86]">Somente dono ou coordenador geram o código de conexão.</p>
         ) : (
           <>
             {ext.slug === 'orvia-ifood' && <OneClickPair ws={ws} onDone={onDone} />}
@@ -751,16 +751,16 @@ function ConnectionCode({
   }
 
   return (
-    <div className="mt-4 rounded-lg border border-[#1E2738] bg-[#080D18] p-3">
+    <div className="mt-4 rounded-[5px] border border-[#222225] bg-[#0B0B0C] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="flex items-center gap-1.5 text-[13px] font-bold text-[#E8EDF7]">
-            <KeyRound size={14} className="text-[#6EA8FF]" /> Código de conexão · {label}
+          <h3 className="flex items-center gap-1.5 text-[13px] font-bold text-[#ECE9E3]">
+            <KeyRound size={14} className="text-[#F0333D]" /> Código de conexão · {label}
           </h3>
-          <p className="mt-0.5 text-[11px] text-[#7C8AA1]">
+          <p className="mt-0.5 text-[11px] text-[#85817C]">
             {connected
               ? 'Já conectada. Gere um novo código só para conectar outro navegador ou computador.'
-              : 'Cole este código (token) e o endereço do Orvia nas opções da extensão.'}
+              : 'Cole este código (token) e o endereço do Undercut nas opções da extensão.'}
           </p>
         </div>
         {!code && (
@@ -770,13 +770,13 @@ function ConnectionCode({
         )}
       </div>
 
-      {error && <p className="mt-3 rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 px-3 py-2 text-[12px] text-[#FCA5A5]">{error}</p>}
+      {error && <p className="mt-3 rounded-[5px] border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">{error}</p>}
 
       {code && (
         <div className="mt-3 space-y-2">
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#3D8EFF]/50 bg-[#0C1A31] p-2.5">
-            <span className="w-full text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC] sm:w-auto">Código</span>
-            <span className={cn('min-w-0 flex-1 break-all font-mono text-[12px] text-[#CFE0FF]', !show && 'select-none')}>
+          <div className="flex flex-wrap items-center gap-2 rounded-[5px] border border-[#D7141F]/50 bg-[#1F0D0F] p-2.5">
+            <span className="w-full text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86] sm:w-auto">Código</span>
+            <span className={cn('min-w-0 flex-1 break-all font-mono text-[12px] text-[#FFD9DB]', !show && 'select-none')}>
               {show ? code.key : `${code.prefix}${'•'.repeat(24)}`}
             </span>
             <Btn size="sm" variant="ghost" onClick={() => setShow((v) => !v)}>
@@ -784,18 +784,18 @@ function ConnectionCode({
             </Btn>
             <CopyBtn value={code.key} label="Copiar código" />
           </div>
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#1E2738] bg-[#0B111D] p-2.5">
-            <span className="w-full text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC] sm:w-auto">Endereço</span>
-            <span className="min-w-0 flex-1 break-all font-mono text-[12px] text-[#C9D3E3]">{hubAddress}</span>
+          <div className="flex flex-wrap items-center gap-2 rounded-[5px] border border-[#222225] bg-[#0E0E10] p-2.5">
+            <span className="w-full text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86] sm:w-auto">Endereço</span>
+            <span className="min-w-0 flex-1 break-all font-mono text-[12px] text-[#CFCBC4]">{hubAddress}</span>
             <CopyBtn value={hubAddress} label="Copiar endereço" />
           </div>
-          <ol className="list-decimal space-y-0.5 pl-5 text-[12px] leading-relaxed text-[#B4BFD0]">
+          <ol className="list-decimal space-y-0.5 pl-5 text-[12px] leading-relaxed text-[#B8B3AC]">
             <li>Abra a extensão Orvia · {label} → Opções / Conexão.</li>
             <li>Cole o endereço e o código nos campos correspondentes → “Testar conexão” / “Salvar”.</li>
             <li>Volte aqui e clique em “Sincronizar” no topo: o status muda para Conectada.</li>
           </ol>
-          <p className="text-[11px] text-[#7C8AA1]">
-            Por segurança este código só aparece agora (o Orvia guarda só o hash). Não envie por chat ou e-mail; se perder, gere outro e revogue o antigo na lista de chaves.
+          <p className="text-[11px] text-[#85817C]">
+            Por segurança este código só aparece agora (o Undercut guarda só o hash). Não envie por chat ou e-mail; se perder, gere outro e revogue o antigo na lista de chaves.
           </p>
         </div>
       )}
@@ -850,9 +850,9 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
   }
 
   return (
-    <div className="mt-4 rounded-lg border border-[#1E2738] bg-[#080D18] p-3">
+    <div className="mt-4 rounded-[5px] border border-[#222225] bg-[#0B0B0C] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[12px] text-[#B4BFD0]">Extensão iFood detectada neste navegador (v{version}). Conecte com um clique, sem copiar código.</p>
+        <p className="text-[12px] text-[#B8B3AC]">Extensão iFood detectada neste navegador (v{version}). Conecte com um clique, sem copiar código.</p>
         <Btn variant="primary" disabled={state.kind === 'busy'} onClick={connect}>
           {state.kind === 'busy' ? 'Conectando…' : state.kind === 'ok' ? 'Conectar de novo' : 'Conectar com um clique'}
         </Btn>
@@ -861,10 +861,10 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
         <p
           role="status"
           className={cn(
-            'mt-2 rounded-lg px-3 py-2 text-[12px]',
+            'mt-2 rounded-[5px] px-3 py-2 text-[12px]',
             state.kind === 'ok' && 'bg-[#34D399]/10 text-[#6EE7B7]',
-            state.kind === 'err' && 'bg-[#F87171]/10 text-[#FCA5A5]',
-            state.kind === 'busy' && 'bg-[#3D8EFF]/10 text-[#CFE0FF]',
+            state.kind === 'err' && 'bg-[#FF6A3D]/10 text-[#FFB199]',
+            state.kind === 'busy' && 'bg-[#D7141F]/10 text-[#FFD9DB]',
           )}
         >
           {state.text}

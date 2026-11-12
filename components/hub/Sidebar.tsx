@@ -54,18 +54,18 @@ export function Sidebar({
   const nav = (compact: boolean, onNavigate?: () => void) => (
     <aside
       className={[
-        'flex h-full shrink-0 flex-col border-r border-[#1A2231] bg-[#080C14] transition-[width] duration-200',
-        compact ? 'w-[76px]' : 'w-[280px]',
+        'flex h-full shrink-0 flex-col border-r border-[#1C1C1F] bg-[#09090A] transition-[width] duration-200',
+        compact ? 'w-[76px]' : 'w-[264px]',
       ].join(' ')}
       aria-label="Menu lateral"
     >
-      <div className={['flex h-[58px] items-center', compact ? 'justify-center px-2' : 'justify-end px-4'].join(' ')}>
+      <div className={['flex h-[52px] items-center', compact ? 'justify-center px-2' : 'justify-end px-4'].join(' ')}>
         <button
           type="button"
           onClick={toggle}
           aria-label={compact ? 'Expandir menu' : 'Recolher menu'}
           aria-expanded={!compact}
-          className="hidden rounded-lg p-2 text-[#7F8CA3] transition-colors hover:bg-white/[0.04] hover:text-[#E8EDF7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF] md:block"
+          className="hidden rounded-[5px] p-2 text-[#86827D] transition-colors hover:bg-white/[0.04] hover:text-[#ECE9E3] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F] md:block"
         >
           {compact ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
@@ -73,14 +73,17 @@ export function Sidebar({
           type="button"
           onClick={onClose}
           aria-label="Fechar menu"
-          className="rounded-lg p-2 text-[#7F8CA3] hover:text-white md:hidden"
+          className="rounded-[5px] p-2 text-[#86827D] hover:text-white md:hidden"
         >
           <X size={18} />
         </button>
       </div>
 
-      <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-1" aria-label="Navegação principal">
-        {items.map((item) => {
+      {!compact && (
+        <p className="px-5 pb-2 font-mono text-[9px] font-mono uppercase tracking-[0.28em] text-[#55555C]">Painel · setores</p>
+      )}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-1" aria-label="Navegação principal">
+        {items.map((item, index) => {
           const href = `${basePath}/${item.key}`
           const active = pathname === href || pathname.startsWith(`${href}/`)
           const Icon = item.icon
@@ -92,25 +95,56 @@ export function Sidebar({
               aria-current={active ? 'page' : undefined}
               title={compact ? item.label : undefined}
               className={[
-                'group flex h-[54px] items-center rounded-xl border text-[15px] font-medium transition-colors hover:no-underline',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]',
-                compact ? 'justify-center px-0' : 'gap-3 px-4',
+                'group relative flex h-[50px] items-center overflow-hidden rounded-[4px] border text-[14px] font-medium transition-all duration-200 hover:no-underline',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0333D]',
+                compact ? 'justify-center px-0' : 'gap-3 px-3',
                 active
-                  ? 'border-[#3D8EFF]/70 bg-[#3D8EFF]/10 text-[#6EA8FF]'
-                  : 'border-transparent text-[#9AA8BD] hover:border-[#1E2838] hover:bg-white/[0.03] hover:text-[#E8EDF7]',
+                  ? 'border-[#2A2A2E] bg-gradient-to-r from-[#D7141F]/[0.16] via-[#D7141F]/[0.05] to-transparent text-[#F7F5F1]'
+                  : 'border-transparent text-[#9F9A94] hover:border-[#222225] hover:bg-white/[0.025] hover:text-[#ECE9E3]',
               ].join(' ')}
             >
-              <Icon size={20} strokeWidth={1.8} className={active ? 'text-[#6EA8FF]' : 'text-[#8A97AC] group-hover:text-[#E8EDF7]'} />
+              {active && (
+                <span
+                  className="absolute inset-y-[9px] left-0 w-[4px] skew-y-[-14deg] bg-[#D7141F] shadow-[0_0_12px_rgba(215,20,31,0.9)]"
+                  aria-hidden="true"
+                />
+              )}
+              {!compact && (
+                <span
+                  className={[
+                    'w-[22px] shrink-0 font-mono text-[10px] font-semibold tracking-[0.06em]',
+                    active ? 'text-[#F0333D]' : 'text-[#55555C] group-hover:text-[#86827D]',
+                  ].join(' ')}
+                  aria-hidden="true"
+                >
+                  S{index + 1}
+                </span>
+              )}
+              <Icon size={19} strokeWidth={1.7} className={active ? 'text-[#F0333D]' : 'text-[#86827D] group-hover:text-[#ECE9E3]'} />
               {!compact && <span className="whitespace-nowrap">{item.label}</span>}
+              {!compact && active && (
+                <span className="ml-auto h-[6px] w-[6px] rotate-45 bg-[#D7141F]" aria-hidden="true" />
+              )}
             </Link>
           )
         })}
       </nav>
 
-      <div className={['border-t border-[#1A2231] py-4', compact ? 'px-2' : 'px-5'].join(' ')}>
+      <div className={['border-t border-[#1C1C1F] py-4', compact ? 'px-2' : 'px-5'].join(' ')}>
+        {!compact && (
+          <div className="mb-3 flex items-end gap-[3px]" aria-hidden="true">
+            {[38, 52, 44, 68, 57, 80, 64, 92, 74, 100].map((h, i) => (
+              <span key={i} className={['w-full rounded-[1px]', i > 6 ? 'bg-[#D7141F]' : 'bg-[#2A2A2E]'].join(' ')} style={{ height: `${h * 0.18}px` }} />
+            ))}
+          </div>
+        )}
         <div className={['flex items-center', compact ? 'flex-col gap-2' : 'justify-between gap-2'].join(' ')}>
-          {!compact && <span className="text-[12px] font-semibold text-[#8A97AC]">Orvia v{brand.version}</span>}
-          <span className="rounded-md border border-[#34D399]/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#34D399]">
+          {!compact && (
+            <span className="font-mono text-[10px] font-mono uppercase tracking-[0.18em] text-[#86827D]">
+              {brand.name} v{brand.version}
+            </span>
+          )}
+          <span className="rounded-[3px] border border-[#34D399]/50 px-2 py-0.5 font-mono text-[9px] font-semibold font-mono uppercase tracking-[0.14em] text-[#34D399]">
             {envLabel}
           </span>
         </div>

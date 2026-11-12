@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
   const catalog = await loadCatalog(auth.ctx.db, auth.workspaceId, b.client_id)
   if (!catalog) return err(req, 'not_found', 'Cliente não encontrado.')
-  if (catalog.items.length === 0) return err(req, 'validation_failed', 'O cliente ainda não tem produtos no Orvia. Sincronize o cardápio primeiro.')
+  if (catalog.items.length === 0) return err(req, 'validation_failed', 'O cliente ainda não tem produtos no Undercut. Sincronize o cardápio primeiro.')
 
   const notices: string[] = []
   let competitorsStatus: 'ok' | 'indisponivel' | 'desligado' = 'desligado'

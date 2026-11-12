@@ -33,13 +33,13 @@ export function Toggle({
       onClick={() => onChange(!checked)}
       className={cn(
         'relative inline-flex shrink-0 items-center rounded-full border transition-colors duration-200',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0D1320]',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111113]',
         width,
-        checked ? 'border-[#3D8EFF] bg-[#3D8EFF]' : 'border-[#33415C] bg-[#1A2333]',
+        checked ? 'border-[#D7141F] bg-[#D7141F]' : 'border-[#3A3A40] bg-[#1D1D20]',
         disabled && 'cursor-not-allowed opacity-45',
       )}
     >
-      <span className={cn('rounded-full bg-white shadow transition-transform duration-200', knob, shift, !checked && 'bg-[#8A97AC]')} />
+      <span className={cn('rounded-full bg-white shadow transition-transform duration-200', knob, shift, !checked && 'bg-[#8E8A86]')} />
     </button>
   )
 }
@@ -60,13 +60,13 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-black/65 backdrop-blur-[2px]" />
-      <div className={cn('relative w-full overflow-hidden rounded-2xl border border-[#26314A] bg-[#0B1120] shadow-[0_30px_90px_rgba(0,0,0,0.65)]', width)}>
-        <div className="flex items-start justify-between gap-4 border-b border-[#1A2231] px-5 py-4">
+      <div className={cn('relative w-full overflow-hidden rounded-[8px] border border-[#2A2A2E] bg-[#0E0E10] shadow-[0_30px_90px_rgba(0,0,0,0.65)]', width)}>
+        <div className="flex items-start justify-between gap-4 border-b border-[#1C1C1F] px-5 py-4">
           <div>
-            <h2 className="text-[16px] font-bold text-[#F1F5FC]">{title}</h2>
-            {description && <p className="mt-0.5 text-[12px] text-[#8A97AC]">{description}</p>}
+            <h2 className="text-[16px] font-bold text-[#F7F5F1]">{title}</h2>
+            {description && <p className="mt-0.5 text-[12px] text-[#8E8A86]">{description}</p>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-md p-1 text-[#7F8CA3] hover:bg-white/[0.05] hover:text-white">
+          <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-md p-1 text-[#86827D] hover:bg-white/[0.05] hover:text-white">
             <X size={17} />
           </button>
         </div>
@@ -81,7 +81,7 @@ export function Toast({ message }: { message: string | null }) {
   return (
     <div
       role="status"
-      className="fixed bottom-6 right-6 z-[80] max-w-sm rounded-xl border border-[#3D8EFF]/50 bg-[#0C1A31] px-4 py-3 text-[12px] font-medium text-[#CFE0FF] shadow-2xl"
+      className="fixed bottom-6 right-6 z-[80] max-w-sm rounded-[6px] border border-[#D7141F]/50 bg-[#1F0D0F] px-4 py-3 text-[12px] font-medium text-[#FFD9DB] shadow-2xl"
     >
       {message}
     </div>
@@ -89,7 +89,7 @@ export function Toast({ message }: { message: string | null }) {
 }
 
 export function FieldLabel({ children }: { children: ReactNode }) {
-  return <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A97AC]">{children}</span>
+  return <span className="mb-1.5 block text-[10px] font-bold font-mono uppercase tracking-[0.12em] text-[#8E8A86]">{children}</span>
 }
 
 export function TextInput({
@@ -115,7 +115,7 @@ export function TextInput({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       className={cn(
-        'mb-0 h-[42px] w-full rounded-lg border border-[#26314A] bg-[#080D18] px-3 text-[13px] text-[#E8EDF7] outline-none transition-colors placeholder:text-[#7C8AA1] focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20',
+        'mb-0 h-[42px] w-full rounded-[5px] border border-[#2A2A2E] bg-[#0B0B0C] px-3 text-[13px] text-[#ECE9E3] outline-none transition-colors placeholder:text-[#85817C] focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20',
         className,
       )}
     />
@@ -141,7 +141,7 @@ export function TextSelect({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       className={cn(
-        'mb-0 h-[42px] w-full cursor-pointer rounded-lg border border-[#26314A] bg-[#080D18] px-3 text-[13px] text-[#E8EDF7] outline-none transition-colors focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20',
+        'mb-0 h-[42px] w-full cursor-pointer rounded-[5px] border border-[#2A2A2E] bg-[#0B0B0C] px-3 text-[13px] text-[#ECE9E3] outline-none transition-colors focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20',
         className,
       )}
     >

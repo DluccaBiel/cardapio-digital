@@ -1,13 +1,13 @@
 /**
- * Importação iFood → Orvia (chamada pela extensão via POST /api/v1/menu/import).
+ * Importação iFood → Undercut (chamada pela extensão via POST /api/v1/menu/import).
  *
  * Regras de segurança/consistência:
  *  - Trava de loja: se o cliente já tem loja vinculada NO CANAL (ifood_merchant_id ou,
  *    para a extensão Cardápio Web, cardapioweb_store_id) e o snapshot é de outra
  *    loja → merchant_mismatch (nada é gravado).
- *  - Nunca apaga nada: itens do Orvia que não vieram no snapshot só são contados.
+ *  - Nunca apaga nada: itens do Undercut que não vieram no snapshot só são contados.
  *  - Nunca sobrescreve edição local pendente: item com ifood_id e alterado no
- *    Orvia depois da última sincronização fica como está ("kept_local") — a
+ *    Undercut depois da última sincronização fica como está ("kept_local") — a
  *    extensão o mostra em Pendências para aplicar no iFood.
  *  - IDs sintéticos do normalizador (cat_N, synth_, dom_) não viram ifood_id.
  */
@@ -272,7 +272,7 @@ export async function importIfoodSnapshot(ctx: Ctx, input: ImportInput, platform
       itemId = local.id
       toSync.push(local.id)
     } else if ((local = byName.get(norm(si.name)))) {
-      // Produto criado no Orvia com o mesmo nome: vincula, mantém os valores do Orvia.
+      // Produto criado no Undercut com o mesmo nome: vincula, mantém os valores do Undercut.
       byName.delete(norm(si.name))
       const { error } = await db.from('menu_items').update({ ifood_id: ifoodId }).eq('workspace_id', workspaceId).eq('id', local.id)
       if (error) {

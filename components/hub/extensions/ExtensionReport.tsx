@@ -63,8 +63,8 @@ function describeChange(before: unknown, after: unknown): { field: string; from:
 function statusBadge(status: string | undefined) {
   const s = (status ?? '').toLowerCase()
   if (OK.has(s)) return <span className="rounded bg-[#34D399]/12 px-1.5 py-px text-[11px] font-semibold text-[#6EE7B7]">Aplicado</span>
-  if (ERR.has(s)) return <span className="rounded bg-[#F87171]/12 px-1.5 py-px text-[11px] font-semibold text-[#FCA5A5]">Erro</span>
-  return <span className="rounded bg-[#4B5870]/25 px-1.5 py-px text-[11px] font-semibold text-[#B4BFD0]">{status || 'Não executado'}</span>
+  if (ERR.has(s)) return <span className="rounded bg-[#FF6A3D]/12 px-1.5 py-px text-[11px] font-semibold text-[#FFB199]">Erro</span>
+  return <span className="rounded bg-[#55555C]/25 px-1.5 py-px text-[11px] font-semibold text-[#B8B3AC]">{status || 'Não executado'}</span>
 }
 
 /** Baixa o print: a URL assinada traz `download=<nome>` (Content-Disposition: attachment). */
@@ -77,8 +77,8 @@ function DownloadLink({ href, name, compact = false }: { href: string; name: str
       aria-label={`Baixar ${name}`}
       title={`Baixar ${name}`}
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-md font-semibold no-underline transition-colors hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]',
-        compact ? 'p-1 text-[#8A97AC] hover:bg-white/[0.06] hover:text-white' : 'bg-[#3D8EFF] px-3 py-1.5 text-[13px] text-[#06101F] hover:bg-[#6EA8FF]',
+        'inline-flex shrink-0 items-center gap-1.5 rounded-md font-semibold no-underline transition-colors hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]',
+        compact ? 'p-1 text-[#8E8A86] hover:bg-white/[0.06] hover:text-white' : 'bg-[#D7141F] px-3 py-1.5 text-[13px] text-[#FFFFFF] hover:bg-[#F0333D]',
       )}
     >
       <Download size={compact ? 14 : 15} />
@@ -135,8 +135,8 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
   return (
     <section className="mt-6" aria-labelledby="ext-report-title">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="ext-report-title" className="flex items-center gap-2 text-[16px] font-bold text-[#F1F5FC]">
-          <FileText size={16} className="text-[#6EA8FF]" /> Relatório das extensões
+        <h2 id="ext-report-title" className="flex items-center gap-2 text-[16px] font-bold text-[#F7F5F1]">
+          <FileText size={16} className="text-[#F0333D]" /> Relatório das extensões
         </h2>
         {clients.length > 1 && (
           <div className="w-[220px]">
@@ -145,7 +145,7 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
         )}
       </div>
 
-      <div role="tablist" aria-label="Canal" className="mt-3 flex gap-1 border-b border-[#1A2231]">
+      <div role="tablist" aria-label="Canal" className="mt-3 flex gap-1 border-b border-[#1C1C1F]">
         {CHANNELS.map((c) => (
           <button
             key={c.id}
@@ -156,12 +156,12 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
             aria-controls="ext-report-panel"
             onClick={() => switchTab(c.id)}
             className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3D8EFF]',
-              tab === c.id ? 'border-[#3D8EFF] text-[#F1F5FC]' : 'border-transparent text-[#8A97AC] hover:text-[#C9D3E3]',
+              '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D7141F]',
+              tab === c.id ? 'border-[#D7141F] text-[#F7F5F1]' : 'border-transparent text-[#8E8A86] hover:text-[#CFCBC4]',
             )}
           >
             {c.label}
-            <span className={cn('rounded px-1.5 py-px text-[11px]', tab === c.id ? 'bg-[#3D8EFF]/15 text-[#9CC3FF]' : 'bg-white/[0.05] text-[#7C8AA1]')}>{counts[c.id]}</span>
+            <span className={cn('rounded px-1.5 py-px text-[11px]', tab === c.id ? 'bg-[#D7141F]/15 text-[#FF8A90]' : 'bg-white/[0.05] text-[#85817C]')}>{counts[c.id]}</span>
           </button>
         ))}
       </div>
@@ -184,36 +184,36 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
             const resultBy = new Map(r.results.map((x) => [x.action_id, x]))
             const total = r.approved.length || r.results.length
             return (
-              <article key={r.id} className="overflow-hidden rounded-xl border border-[#1E2738] bg-[#0D1320]">
+              <article key={r.id} className="overflow-hidden rounded-[6px] border border-[#222225] bg-[#111113]">
                 <button
                   type="button"
                   onClick={() => setOpen(expanded ? null : r.id)}
                   aria-expanded={expanded}
-                  className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-white/[0.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3D8EFF]"
+                  className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-white/[0.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D7141F]"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] font-bold text-[#F1F5FC]">{r.client_name}</span>
-                    <span className="block text-[11px] text-[#7C8AA1]">
+                    <span className="block truncate text-[14px] font-bold text-[#F7F5F1]">{r.client_name}</span>
+                    <span className="block text-[11px] text-[#85817C]">
                       {when(r.created_at)} · plano v{r.version} · {total} alteraç{total === 1 ? 'ão' : 'ões'} · {r.evidence.length} print{r.evidence.length === 1 ? '' : 's'}
                     </span>
                   </span>
                   <span className="flex items-center gap-1.5 text-[11px] font-semibold">
                     <span className="rounded bg-[#34D399]/12 px-1.5 py-px text-[#6EE7B7]">{r.ok_count} aplicada{r.ok_count === 1 ? '' : 's'}</span>
-                    {r.error_count > 0 && <span className="rounded bg-[#F87171]/12 px-1.5 py-px text-[#FCA5A5]">{r.error_count} com erro</span>}
+                    {r.error_count > 0 && <span className="rounded bg-[#FF6A3D]/12 px-1.5 py-px text-[#FFB199]">{r.error_count} com erro</span>}
                     {r.aborted && <span className="rounded bg-[#FBBF24]/12 px-1.5 py-px text-[#FCD34D]">Interrompida</span>}
                   </span>
-                  <ChevronDown size={16} className={cn('shrink-0 text-[#7F8CA3] transition-transform', expanded && 'rotate-180')} />
+                  <ChevronDown size={16} className={cn('shrink-0 text-[#86827D] transition-transform', expanded && 'rotate-180')} />
                 </button>
 
                 {expanded && (
-                  <div className="border-t border-[#1A2231] px-4 py-3">
-                    {r.summary && <p className="text-[13px] leading-relaxed text-[#C9D3E3]">{r.summary}</p>}
+                  <div className="border-t border-[#1C1C1F] px-4 py-3">
+                    {r.summary && <p className="text-[13px] leading-relaxed text-[#CFCBC4]">{r.summary}</p>}
 
                     {r.approved.length > 0 && (
-                      <div className="mt-3 overflow-x-auto rounded-lg border border-[#1A2231]">
+                      <div className="mt-3 overflow-x-auto rounded-[5px] border border-[#1C1C1F]">
                         <table className="w-full min-w-[640px] border-collapse text-left text-[12px]">
                           <thead>
-                            <tr className="border-b border-[#1A2231] bg-[#0B111D] text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC]">
+                            <tr className="border-b border-[#1C1C1F] bg-[#0E0E10] text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86]">
                               <th className="px-3 py-2">Produto</th>
                               <th className="px-3 py-2">Alteração</th>
                               <th className="px-3 py-2">Resultado</th>
@@ -224,24 +224,24 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
                               const res = a.id ? resultBy.get(a.id) : undefined
                               const lines = describeChange(a.before, a.after)
                               return (
-                                <tr key={a.id ?? i} className="border-b border-[#141B28] align-top last:border-b-0">
+                                <tr key={a.id ?? i} className="border-b border-[#18181B] align-top last:border-b-0">
                                   <td className="px-3 py-2">
-                                    <span className="block font-semibold text-[#E8EDF7]">{a.item_name || '—'}</span>
-                                    {a.kind && <span className="text-[10px] uppercase tracking-wider text-[#7C8AA1]">{a.kind}</span>}
+                                    <span className="block font-semibold text-[#ECE9E3]">{a.item_name || '—'}</span>
+                                    {a.kind && <span className="text-[10px] font-mono uppercase tracking-wider text-[#85817C]">{a.kind}</span>}
                                   </td>
-                                  <td className="px-3 py-2 text-[#B4BFD0]">
+                                  <td className="px-3 py-2 text-[#B8B3AC]">
                                     {lines.map((l, j) => (
                                       <span key={j} className="block">
-                                        {l.field && <span className="text-[#7C8AA1]">{l.field}: </span>}
-                                        <span className="text-[#8A97AC] line-through decoration-[#4B5870]">{l.from}</span> <span className="text-[#7C8AA1]">→</span>{' '}
-                                        <span className="text-[#E8EDF7]">{l.to}</span>
+                                        {l.field && <span className="text-[#85817C]">{l.field}: </span>}
+                                        <span className="text-[#8E8A86] line-through decoration-[#55555C]">{l.from}</span> <span className="text-[#85817C]">→</span>{' '}
+                                        <span className="text-[#ECE9E3]">{l.to}</span>
                                       </span>
                                     ))}
-                                    {a.reason && <span className="mt-0.5 block text-[11px] italic text-[#7C8AA1]">{a.reason}</span>}
+                                    {a.reason && <span className="mt-0.5 block text-[11px] italic text-[#85817C]">{a.reason}</span>}
                                   </td>
                                   <td className="px-3 py-2">
                                     {statusBadge(res?.status)}
-                                    {res?.message && <span className="mt-0.5 block text-[11px] text-[#8A97AC]">{res.message}</span>}
+                                    {res?.message && <span className="mt-0.5 block text-[11px] text-[#8E8A86]">{res.message}</span>}
                                   </td>
                                 </tr>
                               )
@@ -252,7 +252,7 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
                     )}
 
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.08em] text-[#8A97AC]">
+                      <h3 className="flex items-center gap-1.5 text-[12px] font-bold font-mono uppercase tracking-[0.08em] text-[#8E8A86]">
                         <Images size={14} /> Prints enviados pela extensão {channel.label}
                       </h3>
                       {r.evidence.some((e) => e.download_url) && (
@@ -264,35 +264,35 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
                             await downloadAll(r.evidence)
                             setBusyAll(null)
                           }}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-[#26314A] px-2.5 py-1 text-[12px] font-semibold text-[#C9D3E3] transition-colors hover:border-[#3D8EFF] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF] disabled:opacity-60"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-[#2A2A2E] px-2.5 py-1 text-[12px] font-semibold text-[#CFCBC4] transition-colors hover:border-[#D7141F] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F] disabled:opacity-60"
                         >
                           <Download size={14} /> {busyAll === r.id ? 'Baixando…' : `Baixar todos (${r.evidence.filter((e) => e.download_url).length})`}
                         </button>
                       )}
                     </div>
                     {r.evidence.length === 0 ? (
-                      <p className="mt-1 text-[12px] text-[#7C8AA1]">Nenhum print nesta execução.</p>
+                      <p className="mt-1 text-[12px] text-[#85817C]">Nenhum print nesta execução.</p>
                     ) : (
                       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                         {r.evidence.map((e) =>
                           e.url ? (
-                            <div key={e.id} className="overflow-hidden rounded-lg border border-[#1E2738] bg-[#080D18]">
+                            <div key={e.id} className="overflow-hidden rounded-[5px] border border-[#222225] bg-[#0B0B0C]">
                               <button
                                 type="button"
                                 onClick={() => setViewing({ name: e.name, url: e.url!, download: e.download_url })}
                                 aria-label={`Ampliar ${e.name}`}
-                                className="group block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3D8EFF]"
+                                className="group block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D7141F]"
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={e.url} alt={e.name} loading="lazy" className="aspect-video w-full object-cover object-top transition-opacity group-hover:opacity-85" />
                               </button>
                               <div className="flex items-center gap-1 px-2 py-1">
-                                <span className="min-w-0 flex-1 truncate text-[11px] text-[#B4BFD0]">{e.name}</span>
+                                <span className="min-w-0 flex-1 truncate text-[11px] text-[#B8B3AC]">{e.name}</span>
                                 {e.download_url && <DownloadLink href={e.download_url} name={e.name} compact />}
                               </div>
                             </div>
                           ) : (
-                            <div key={e.id} className="flex aspect-video flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[#26314A] text-[11px] text-[#7C8AA1]">
+                            <div key={e.id} className="flex aspect-video flex-col items-center justify-center gap-1 rounded-[5px] border border-dashed border-[#2A2A2E] text-[11px] text-[#85817C]">
                               <ImageOff size={16} /> {e.name}
                             </div>
                           ),
@@ -304,7 +304,7 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
               </article>
             )
           })}
-          <p className="text-[11px] text-[#7C8AA1]">Os links dos prints expiram em 10 min — use “Sincronizar” para renovar.</p>
+          <p className="text-[11px] text-[#85817C]">Os links dos prints expiram em 10 min — use “Sincronizar” para renovar.</p>
         </div>
       )}
       </div>
@@ -312,9 +312,9 @@ export function ExtensionReport({ reports, unavailable }: { reports: Optimizatio
       {viewing && (
         <Modal title={viewing.name} onClose={() => setViewing(null)} width="max-w-5xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={viewing.url} alt={viewing.name} className="max-h-[70vh] w-full rounded-lg object-contain" />
+          <img src={viewing.url} alt={viewing.name} className="max-h-[70vh] w-full rounded-[5px] object-contain" />
           {viewing.download && (
-            <div className="mt-4 flex justify-end border-t border-[#1A2231] pt-3">
+            <div className="mt-4 flex justify-end border-t border-[#1C1C1F] pt-3">
               <DownloadLink href={viewing.download} name={viewing.name} />
             </div>
           )}

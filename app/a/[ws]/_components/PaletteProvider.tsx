@@ -36,12 +36,12 @@ export function SearchButton() {
   return (
     <button
       onClick={palette?.open}
-      className="flex items-center gap-2 rounded-lg border border-[#1C2A47] bg-[#070B14] px-3 py-2 text-sm text-[#8FA0C4] transition-colors hover:border-[#3D8EFF] hover:text-[#E6ECFA] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+      className="flex items-center gap-2 rounded-[5px] border border-[#232326] bg-[#070708] px-3 py-2 text-sm text-[#9A9590] transition-colors hover:border-[#D7141F] hover:text-[#F2F0EC] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
       aria-label="Buscar (Ctrl K)"
     >
       <Icon name="search" className="h-4 w-4" />
       <span className="hidden sm:inline">Buscar cliente…</span>
-      <kbd className="hidden rounded border border-[#1C2A47] bg-[#111A2E] px-1.5 py-0.5 text-[10px] text-[#8FA0C4] md:inline">Ctrl K</kbd>
+      <kbd className="hidden rounded border border-[#232326] bg-[#161618] px-1.5 py-0.5 text-[10px] text-[#9A9590] md:inline">Ctrl K</kbd>
     </button>
   )
 }

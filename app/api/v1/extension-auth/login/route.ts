@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export const OPTIONS = preflight
 
 /**
- * Login de usuário DENTRO da extensão (e-mail + senha do Orvia).
+ * Login de usuário DENTRO da extensão (e-mail + senha do Undercut).
  * O servidor valida no Supabase Auth, confere o papel no workspace e emite uma
  * chave da extensão (escopos mínimos, 365 dias) — a senha nunca é guardada.
  * Re-login do mesmo dispositivo revoga a chave anterior desse dispositivo.
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     .map((m: any) => ({ role: m.role as string, ws: Array.isArray(m.workspaces) ? m.workspaces[0] : m.workspaces }))
     .filter((m) => m.ws && !m.ws.deleted_at && ROLES.has(m.role))
   if (allowed.length === 0) {
-    return err(req, 'forbidden_scope', 'Sua conta não tem workspace com permissão de edição. Crie seu workspace no Orvia primeiro.')
+    return err(req, 'forbidden_scope', 'Sua conta não tem workspace com permissão de edição. Crie seu workspace no Undercut primeiro.')
   }
   const chosen = workspace_slug ? allowed.find((m) => m.ws.slug === workspace_slug) : allowed.length === 1 ? allowed[0] : undefined
   if (!chosen) {

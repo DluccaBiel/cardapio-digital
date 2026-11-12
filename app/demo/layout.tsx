@@ -4,7 +4,7 @@ import { getClients, MOCK_WORKSPACE } from '../../lib/mock'
 import { HubShell } from '../../components/hub/HubShell'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Orvia — Demonstração visual' }
+export const metadata = { title: 'Undercut — Demonstração visual' }
 
 export default function DemoLayout({ children }: { children: React.ReactNode }) {
   if (!isDemoEnabled()) notFound()

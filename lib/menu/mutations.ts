@@ -535,5 +535,5 @@ export async function markSynced(
     .eq('id', id)
     .maybeSingle()
   if (!current) return fail('not_found', 'Produto não encontrado.')
-  return fail('conflict', 'O produto mudou no Orvia depois que a extensão leu. Confira de novo antes de marcar.', current as any)
+  return fail('conflict', 'O produto mudou no Undercut depois que a extensão leu. Confira de novo antes de marcar.', current as any)
 }

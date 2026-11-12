@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   const current = await loadCatalog(auth.ctx.db, auth.workspaceId, parsed.data.client_id)
   if (!current) return err(req, 'not_found', 'Cliente não encontrado.')
   if (current.etag.replace(/"/g, '') !== ifMatch) {
-    return err(req, 'conflict', 'O cardápio mudou no Orvia desde a última leitura. Recarregue e tente de novo.', {
+    return err(req, 'conflict', 'O cardápio mudou no Undercut desde a última leitura. Recarregue e tente de novo.', {
       current: { etag: current.etag },
     })
   }

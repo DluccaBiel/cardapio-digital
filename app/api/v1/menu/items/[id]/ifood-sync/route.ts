@@ -11,7 +11,7 @@ const body = z.object({ ifood_id: z.string().trim().min(1).max(120).nullish() })
 
 /**
  * A extensão confirma que o produto/combo foi aplicado no iFood.
- * If-Match = etag recebido em /menu/pending (se o produto mudou no Orvia
+ * If-Match = etag recebido em /menu/pending (se o produto mudou no Undercut
  * nesse meio-tempo → 409 e continua pendente). `ifood_id` vincula combos/
  * produtos recém-criados no iFood.
  */

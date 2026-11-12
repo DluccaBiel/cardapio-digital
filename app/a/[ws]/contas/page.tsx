@@ -6,7 +6,7 @@ import type { MockAdAccount } from '../../../../lib/mock'
 import { AccountsScreen } from '../../../../components/hub/accounts/AccountsScreen'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Orvia — Contas de anúncio' }
+export const metadata = { title: 'Undercut — Contas de anúncio' }
 
 const STATUS: Record<string, MockAdAccount['status']> = { active: 'Ativa', disabled: 'Desativada', error: 'Pendente', unknown: 'Pendente' }
 

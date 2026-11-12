@@ -5,7 +5,7 @@ import { listMenuClients, loadCatalog } from '../../../../lib/menu/load'
 import { MenuScreen, type ExtensionStatus } from '../../../../components/hub/menu/MenuScreen'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Orvia — Cardápio' }
+export const metadata = { title: 'Undercut — Cardápio' }
 
 export default async function CardapioPage({
   params,

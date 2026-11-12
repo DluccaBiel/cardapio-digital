@@ -26,7 +26,7 @@ async function managerCtx(ws: string) {
 /**
  * "Buscar contas da BM" / Sincronizar: lê o portfólio na Meta (token só no servidor)
  * e faz upsert em ad_accounts (RLS: owner/coordenador). Não apaga contas que sumiram
- * da Meta — só deixam de ser atualizadas. Vincula automaticamente ao cliente do Orvia
+ * da Meta — só deixam de ser atualizadas. Vincula automaticamente ao cliente do Undercut
  * cujo nome bate com o nome da BM dona (ou da conta), se a conta ainda não tem cliente.
  */
 export async function syncMetaAccountsAction(ws: string): Promise<SyncResult> {
@@ -47,7 +47,7 @@ export async function syncMetaAccountsAction(ws: string): Promise<SyncResult> {
     db.from('ad_accounts').select('id, external_account_id, client_id').eq('workspace_id', workspace.id).eq('platform', 'meta'),
     db.from('clients').select('id, name').eq('workspace_id', workspace.id).is('archived_at', null),
   ])
-  if (exErr) return { ok: false, error: 'Não consegui ler as contas do Orvia (migration 0007 aplicada?).' }
+  if (exErr) return { ok: false, error: 'Não consegui ler as contas do Undercut (migration 0007 aplicada?).' }
   const byExt = new Map((existing ?? []).map((r) => [r.external_account_id as string, r]))
   const clientByName = new Map<string, string>()
   for (const cl of clients ?? []) if (!clientByName.has(norm(cl.name))) clientByName.set(norm(cl.name), cl.id)

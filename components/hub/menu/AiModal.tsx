@@ -55,7 +55,7 @@ export function AiModal({ ws, clientId, clientName, onClose, onApplied }: { ws: 
     setBusy(null)
     if (!res.ok) return setError(res.error)
     onApplied(
-      `${res.applied} sugestão(ões) aplicada(s) no Orvia${res.failed.length ? ` · ${res.failed.length} com conflito` : ''}. Os produtos entraram na fila do iFood e a extensão aplica no portal.`,
+      `${res.applied} sugestão(ões) aplicada(s) no Undercut${res.failed.length ? ` · ${res.failed.length} com conflito` : ''}. Os produtos entraram na fila do iFood e a extensão aplica no portal.`,
     )
     onClose()
   }
@@ -91,11 +91,11 @@ export function AiModal({ ws, clientId, clientName, onClose, onApplied }: { ws: 
             <FieldLabel>Observações (opcional)</FieldLabel>
             <Textarea value={notes} onChange={setNotes} rows={3} placeholder="Ex.: o carro-chefe é o X-Bacon; não mexer nas bebidas; público família." />
           </label>
-          <p className="mt-2 text-[11px] text-[#7C8AA1]">Nada é alterado até você aprovar. Leva de 20 a 60 segundos.</p>
+          <p className="mt-2 text-[11px] text-[#85817C]">Nada é alterado até você aprovar. Leva de 20 a 60 segundos.</p>
         </div>
       ) : (
         <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
-          <p className="rounded-lg border border-[#3D8EFF]/30 bg-[#3D8EFF]/10 px-3 py-2 text-[13px] leading-relaxed text-[#CFE0FF]">{data.summary}</p>
+          <p className="rounded-[5px] border border-[#D7141F]/30 bg-[#D7141F]/10 px-3 py-2 text-[13px] leading-relaxed text-[#FFD9DB]">{data.summary}</p>
           {data.updates.length > 0 && (
             <section>
               <FieldLabel>Produtos ({data.updates.length})</FieldLabel>
@@ -103,21 +103,21 @@ export function AiModal({ ws, clientId, clientName, onClose, onApplied }: { ws: 
                 {data.updates.map((u) => {
                   const on = !offUpdates.has(u.item_id)
                   return (
-                    <label key={u.item_id} className={cn('flex cursor-pointer gap-3 rounded-lg border p-3', on ? 'border-[#3D8EFF]/50 bg-[#0C1A31]' : 'border-[#1E2738] bg-[#0A0F1A] opacity-60')}>
+                    <label key={u.item_id} className={cn('flex cursor-pointer gap-3 rounded-[5px] border p-3', on ? 'border-[#D7141F]/50 bg-[#1F0D0F]' : 'border-[#222225] bg-[#0D0D0E] opacity-60')}>
                       <input
                         type="checkbox"
                         checked={on}
                         onChange={() => setOffUpdates((cur) => { const n = new Set(cur); if (n.has(u.item_id)) n.delete(u.item_id); else n.add(u.item_id); return n })}
-                        className="mt-1 accent-[#3D8EFF]"
+                        className="mt-1 accent-[#D7141F]"
                       />
                       <span className="min-w-0 flex-1 text-[12px]">
-                        <b className="text-[13px] text-[#F1F5FC]">{u.item_name}</b>
-                        {u.after.name && <span className="block text-[#C9D3E3]">Nome: <s className="text-[#7C8AA1]">{u.before.name}</s> → {u.after.name}</span>}
+                        <b className="text-[13px] text-[#F7F5F1]">{u.item_name}</b>
+                        {u.after.name && <span className="block text-[#CFCBC4]">Nome: <s className="text-[#85817C]">{u.before.name}</s> → {u.after.name}</span>}
                         {u.after.price !== undefined && (
-                          <span className="block text-[#C9D3E3]">Preço: <s className="text-[#7C8AA1]">{formatBRL(u.before.price)}</s> → <b>{formatBRL(u.after.price)}</b></span>
+                          <span className="block text-[#CFCBC4]">Preço: <s className="text-[#85817C]">{formatBRL(u.before.price)}</s> → <b>{formatBRL(u.after.price)}</b></span>
                         )}
-                        {u.after.description && <span className="mt-1 block text-[#C9D3E3]">Descrição: {u.after.description}</span>}
-                        <span className="mt-1 block text-[11px] text-[#8A97AC]">{u.reason}</span>
+                        {u.after.description && <span className="mt-1 block text-[#CFCBC4]">Descrição: {u.after.description}</span>}
+                        <span className="mt-1 block text-[11px] text-[#8E8A86]">{u.reason}</span>
                       </span>
                     </label>
                   )
@@ -132,18 +132,18 @@ export function AiModal({ ws, clientId, clientName, onClose, onApplied }: { ws: 
                 {data.combos.map((c, i) => {
                   const on = !offCombos.has(i)
                   return (
-                    <label key={i} className={cn('flex cursor-pointer gap-3 rounded-lg border p-3', on ? 'border-[#3D8EFF]/50 bg-[#0C1A31]' : 'border-[#1E2738] bg-[#0A0F1A] opacity-60')}>
+                    <label key={i} className={cn('flex cursor-pointer gap-3 rounded-[5px] border p-3', on ? 'border-[#D7141F]/50 bg-[#1F0D0F]' : 'border-[#222225] bg-[#0D0D0E] opacity-60')}>
                       <input
                         type="checkbox"
                         checked={on}
                         onChange={() => setOffCombos((cur) => { const n = new Set(cur); if (n.has(i)) n.delete(i); else n.add(i); return n })}
-                        className="mt-1 accent-[#3D8EFF]"
+                        className="mt-1 accent-[#D7141F]"
                       />
-                      <span className="min-w-0 flex-1 text-[12px] text-[#C9D3E3]">
-                        <b className="text-[13px] text-[#F1F5FC]">{c.name}</b> · <s className="text-[#7C8AA1]">{formatBRL(c.full_price)}</s> <b>{formatBRL(c.price)}</b>
+                      <span className="min-w-0 flex-1 text-[12px] text-[#CFCBC4]">
+                        <b className="text-[13px] text-[#F7F5F1]">{c.name}</b> · <s className="text-[#85817C]">{formatBRL(c.full_price)}</s> <b>{formatBRL(c.price)}</b>
                         <span className="block">{c.components.map((x) => `${x.quantity}× ${x.name}`).join(' + ')}</span>
                         <span className="block">{c.description}</span>
-                        <span className="mt-1 block text-[11px] text-[#8A97AC]">{c.reason}</span>
+                        <span className="mt-1 block text-[11px] text-[#8E8A86]">{c.reason}</span>
                       </span>
                     </label>
                   )
@@ -151,12 +151,12 @@ export function AiModal({ ws, clientId, clientName, onClose, onApplied }: { ws: 
               </div>
             </section>
           )}
-          {data.updates.length + data.combos.length === 0 && <p className="text-[13px] text-[#8A97AC]">A IA não encontrou mudanças que valham a pena com esse objetivo.</p>}
-          {data.discarded > 0 && <p className="text-[11px] text-[#7C8AA1]">{data.discarded} sugestão(ões) descartada(s) pela validação (fora do limite de preço ou com itens inexistentes).</p>}
+          {data.updates.length + data.combos.length === 0 && <p className="text-[13px] text-[#8E8A86]">A IA não encontrou mudanças que valham a pena com esse objetivo.</p>}
+          {data.discarded > 0 && <p className="text-[11px] text-[#85817C]">{data.discarded} sugestão(ões) descartada(s) pela validação (fora do limite de preço ou com itens inexistentes).</p>}
         </div>
       )}
-      {error && <p className="mt-3 rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 px-3 py-2 text-[12px] text-[#FCA5A5]">{error}</p>}
-      <div className="mt-5 flex justify-end gap-2 border-t border-[#1A2231] pt-4">
+      {error && <p className="mt-3 rounded-[5px] border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">{error}</p>}
+      <div className="mt-5 flex justify-end gap-2 border-t border-[#1C1C1F] pt-4">
         {data && (
           <Btn variant="ghost" onClick={() => setData(null)} disabled={busy !== null}>
             Gerar de novo

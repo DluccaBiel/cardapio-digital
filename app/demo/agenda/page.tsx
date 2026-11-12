@@ -2,7 +2,7 @@ import { MOCK_WORKSPACE } from '../../../lib/mock'
 import { PlaceholderScreen } from '../../../components/hub/PlaceholderScreen'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Orvia — Demonstração · Agenda' }
+export const metadata = { title: 'Undercut — Demonstração · Agenda' }
 
 export default function DemoAgendaPage() {
   return (
