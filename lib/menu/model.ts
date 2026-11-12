@@ -47,7 +47,7 @@ export type MenuItem = {
   group_ids: string[]
   /** Somente combos. */
   components: ComboComponent[]
-  /** Calculado: alterado no Orvia e ainda não refletido no iFood. */
+  /** Calculado: alterado no Undercut e ainda não refletido no iFood. */
   pending: boolean
 }
 

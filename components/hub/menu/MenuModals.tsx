@@ -20,12 +20,12 @@ const STATUS_OPTIONS = (Object.keys(STATUS_LABEL) as MenuStatus[]).map((value) =
 
 function ErrorLine({ error }: { error: string | null }) {
   if (!error) return null
-  return <p className="mt-3 rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 px-3 py-2 text-[12px] text-[#FCA5A5]">{error}</p>
+  return <p className="mt-3 rounded-[5px] border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">{error}</p>
 }
 
 function Footer({ busy, onClose, onSave, label = 'Salvar' }: { busy: boolean; onClose: () => void; onSave: () => void; label?: string }) {
   return (
-    <div className="mt-5 flex justify-end gap-2 border-t border-[#1A2231] pt-4">
+    <div className="mt-5 flex justify-end gap-2 border-t border-[#1C1C1F] pt-4">
       <Btn variant="ghost" onClick={onClose}>
         Cancelar
       </Btn>
@@ -174,7 +174,7 @@ export function ItemModal({
       <label className="mt-3 block">
         <FieldLabel>Descrição</FieldLabel>
         <Textarea value={description} onChange={setDescription} placeholder="Ingredientes, tamanho, serve quantas pessoas…" />
-        <span className="mt-1 block text-right text-[10px] text-[#7C8AA1]">{description.length}/1000</span>
+        <span className="mt-1 block text-right text-[10px] text-[#85817C]">{description.length}/1000</span>
       </label>
       <div className="mt-1 grid gap-3 sm:grid-cols-3">
         <label className="block">
@@ -194,7 +194,7 @@ export function ItemModal({
       <div className="mt-4">
         <FieldLabel>Grupos de complementos</FieldLabel>
         {catalog.groups.length === 0 ? (
-          <p className="text-[12px] text-[#7C8AA1]">Nenhum grupo criado. Crie na aba Complementos.</p>
+          <p className="text-[12px] text-[#85817C]">Nenhum grupo criado. Crie na aba Complementos.</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {catalog.groups.map((g) => {
@@ -207,10 +207,10 @@ export function ItemModal({
                   onClick={() => setGroupIds((cur) => (on ? cur.filter((x) => x !== g.id) : [...cur, g.id]))}
                   className={cn(
                     'rounded-full border px-3 py-1 text-[12px] transition-colors',
-                    on ? 'border-[#3D8EFF] bg-[#3D8EFF]/15 text-white' : 'border-[#26314A] bg-[#080D18] text-[#B4BFD0] hover:border-[#3D8EFF]/50',
+                    on ? 'border-[#D7141F] bg-[#D7141F]/15 text-white' : 'border-[#2A2A2E] bg-[#0B0B0C] text-[#B8B3AC] hover:border-[#D7141F]/50',
                   )}
                 >
-                  {g.name} <span className="text-[#7C8AA1]">· {g.min_qty}–{g.max_qty}</span>
+                  {g.name} <span className="text-[#85817C]">· {g.min_qty}–{g.max_qty}</span>
                 </button>
               )
             })}
@@ -218,7 +218,7 @@ export function ItemModal({
         )}
       </div>
       {item?.ifood_id && (
-        <p className="mt-4 text-[11px] text-[#7C8AA1]">
+        <p className="mt-4 text-[11px] text-[#85817C]">
           Vinculado ao iFood (<span className="font-mono">{item.ifood_id}</span>). Ao salvar, o produto entra na fila de pendências para aplicar no iFood.
         </p>
       )}
@@ -309,12 +309,12 @@ export function ComboModal({
         <div>
           <FieldLabel>Produtos do combo</FieldLabel>
           <div className="relative">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7C8AA1]" />
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#85817C]" />
             <TextInput value={query} onChange={setQuery} placeholder="Buscar produto para adicionar…" className="pl-9" />
           </div>
-          <div className="mt-2 max-h-[180px] overflow-y-auto rounded-lg border border-[#1A2231]">
+          <div className="mt-2 max-h-[180px] overflow-y-auto rounded-[5px] border border-[#1C1C1F]">
             {results.length === 0 ? (
-              <p className="px-3 py-3 text-[12px] text-[#7C8AA1]">{products.length === 0 ? 'Cadastre produtos primeiro.' : 'Nenhum produto encontrado.'}</p>
+              <p className="px-3 py-3 text-[12px] text-[#85817C]">{products.length === 0 ? 'Cadastre produtos primeiro.' : 'Nenhum produto encontrado.'}</p>
             ) : (
               results.map((p) => (
                 <button
@@ -324,14 +324,14 @@ export function ComboModal({
                     setComponents((cur) => [...cur, { component_id: p.id, quantity: 1 }])
                     setQuery('')
                   }}
-                  className="flex w-full items-center justify-between gap-3 border-b border-[#141B28] px-3 py-2 text-left last:border-b-0 hover:bg-[#3D8EFF]/10"
+                  className="flex w-full items-center justify-between gap-3 border-b border-[#18181B] px-3 py-2 text-left last:border-b-0 hover:bg-[#D7141F]/10"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-[13px] text-[#E8EDF7]">{p.name}</span>
-                    <span className="block text-[11px] text-[#7C8AA1]">{catName.get(p.category_id)}</span>
+                    <span className="block truncate text-[13px] text-[#ECE9E3]">{p.name}</span>
+                    <span className="block text-[11px] text-[#85817C]">{catName.get(p.category_id)}</span>
                   </span>
-                  <span className="flex items-center gap-2 font-mono text-[12px] text-[#B4BFD0]">
-                    {formatBRL(p.price)} <Plus size={14} className="text-[#3D8EFF]" />
+                  <span className="flex items-center gap-2 font-mono text-[12px] text-[#B8B3AC]">
+                    {formatBRL(p.price)} <Plus size={14} className="text-[#D7141F]" />
                   </span>
                 </button>
               ))
@@ -339,27 +339,27 @@ export function ComboModal({
           </div>
 
           <div className="mt-3 space-y-1.5">
-            {components.length === 0 && <p className="text-[12px] text-[#7C8AA1]">Nenhum produto adicionado ainda.</p>}
+            {components.length === 0 && <p className="text-[12px] text-[#85817C]">Nenhum produto adicionado ainda.</p>}
             {components.map((c) => {
               const p = byId.get(c.component_id)
               return (
-                <div key={c.component_id} className="flex items-center gap-2 rounded-lg border border-[#1E2738] bg-[#0A0F1A] px-2.5 py-2">
-                  <div className="flex items-center rounded-md border border-[#26314A]">
-                    <button type="button" aria-label="Diminuir" onClick={() => setQty(c.component_id, -1)} className="p-1 text-[#B4BFD0] hover:text-white">
+                <div key={c.component_id} className="flex items-center gap-2 rounded-[5px] border border-[#222225] bg-[#0D0D0E] px-2.5 py-2">
+                  <div className="flex items-center rounded-md border border-[#2A2A2E]">
+                    <button type="button" aria-label="Diminuir" onClick={() => setQty(c.component_id, -1)} className="p-1 text-[#B8B3AC] hover:text-white">
                       <Minus size={12} />
                     </button>
                     <span className="w-6 text-center font-mono text-[12px] text-white">{c.quantity}</span>
-                    <button type="button" aria-label="Aumentar" onClick={() => setQty(c.component_id, 1)} className="p-1 text-[#B4BFD0] hover:text-white">
+                    <button type="button" aria-label="Aumentar" onClick={() => setQty(c.component_id, 1)} className="p-1 text-[#B8B3AC] hover:text-white">
                       <Plus size={12} />
                     </button>
                   </div>
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-[#E8EDF7]">{p?.name ?? 'Produto removido'}</span>
-                  <span className="font-mono text-[12px] text-[#8A97AC]">{formatBRL((p?.price ?? 0) * c.quantity)}</span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-[#ECE9E3]">{p?.name ?? 'Produto removido'}</span>
+                  <span className="font-mono text-[12px] text-[#8E8A86]">{formatBRL((p?.price ?? 0) * c.quantity)}</span>
                   <button
                     type="button"
                     aria-label="Remover do combo"
                     onClick={() => setComponents((cur) => cur.filter((x) => x.component_id !== c.component_id))}
-                    className="rounded p-1 text-[#7F8CA3] hover:bg-white/[0.05] hover:text-[#FCA5A5]"
+                    className="rounded p-1 text-[#86827D] hover:bg-white/[0.05] hover:text-[#FFB199]"
                   >
                     <X size={14} />
                   </button>
@@ -377,17 +377,17 @@ export function ComboModal({
           <div className="mt-3">
             <div className="flex items-center justify-between">
               <FieldLabel>Descrição</FieldLabel>
-              <button type="button" onClick={autoDescription} disabled={components.length === 0} className="mb-1.5 text-[11px] font-semibold text-[#6EA8FF] hover:text-white disabled:opacity-40">
+              <button type="button" onClick={autoDescription} disabled={components.length === 0} className="mb-1.5 text-[11px] font-semibold text-[#F0333D] hover:text-white disabled:opacity-40">
                 Gerar dos itens
               </button>
             </div>
             <Textarea value={description} onChange={setDescription} rows={2} placeholder="Descrição do combo" />
           </div>
 
-          <div className="mt-3 rounded-xl border border-[#1E2738] bg-[#0A0F1A] p-3">
-            <div className="flex justify-between text-[12px] text-[#8A97AC]">
+          <div className="mt-3 rounded-[6px] border border-[#222225] bg-[#0D0D0E] p-3">
+            <div className="flex justify-between text-[12px] text-[#8E8A86]">
               <span>Preço cheio dos itens</span>
-              <span className="font-mono text-[#E8EDF7]">{formatBRL(totals.full)}</span>
+              <span className="font-mono text-[#ECE9E3]">{formatBRL(totals.full)}</span>
             </div>
             <div className="mt-2 flex items-end gap-2">
               <label className="block w-24">
@@ -426,7 +426,7 @@ export function ComboModal({
               />
             </label>
           </div>
-          {!combo && <p className="mt-2 text-[11px] text-[#7C8AA1]">Combos novos nascem pausados por padrão: revise e ative quando estiver pronto.</p>}
+          {!combo && <p className="mt-2 text-[11px] text-[#85817C]">Combos novos nascem pausados por padrão: revise e ative quando estiver pronto.</p>}
         </div>
       </div>
       <ErrorLine error={error} />
@@ -480,7 +480,7 @@ export function GroupModal({
           <TextSelect value={status} onChange={(v) => setStatus(v as MenuStatus)} options={STATUS_OPTIONS} ariaLabel="Status" />
         </label>
       </div>
-      <p className="mt-2 text-[11px] text-[#7C8AA1]">Mínimo 1 = obrigatório. Máximo = quantas opções o cliente pode escolher.</p>
+      <p className="mt-2 text-[11px] text-[#85817C]">Mínimo 1 = obrigatório. Máximo = quantas opções o cliente pode escolher.</p>
       <ErrorLine error={error} />
       <Footer busy={busy} onClose={onClose} onSave={save} />
     </Modal>
@@ -506,9 +506,9 @@ export function ConfirmModal({
   const { busy, error, submit } = useSubmit(onClose)
   return (
     <Modal title={title} onClose={onClose}>
-      <p className="text-[13px] leading-relaxed text-[#C9D3E3]">{message}</p>
+      <p className="text-[13px] leading-relaxed text-[#CFCBC4]">{message}</p>
       <ErrorLine error={error} />
-      <div className="mt-5 flex justify-end gap-2 border-t border-[#1A2231] pt-4">
+      <div className="mt-5 flex justify-end gap-2 border-t border-[#1C1C1F] pt-4">
         <Btn variant="ghost" onClick={onClose}>
           Cancelar
         </Btn>

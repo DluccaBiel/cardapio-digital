@@ -37,16 +37,18 @@ export default function Cadastro() {
 
   return (
     <div className="auth-page">
-      <div className="auth-glow g1" aria-hidden="true" />
-      <div className="auth-glow g2" aria-hidden="true" />
-      <div className="auth-glow g3" aria-hidden="true" />
+      <div className="auth-streaks" aria-hidden="true" />
+      <div className="auth-streaks s2" aria-hidden="true" />
+      <div className="auth-redline" aria-hidden="true" />
       <div className="auth-card">
+        <div className="hud" aria-hidden="true">
+          <span>Box · CADASTRO</span>
+          <span className="live">Pista aberta</span>
+        </div>
         <div className="brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={brand.logos.mark} alt="" width={88} height={88} />
-          <span className="brand-word">{brand.name}</span>
+          <img className="wordmark" src={brand.logos.logoWhite} alt={brand.name} width={248} height={44} />
         </div>
-        <div className="gold-rule" />
         <div className="tagline">{brand.tagline}</div>
         <h2>Cadastro de Cliente</h2>
         {error && <div className="flash error">{error}</div>}
@@ -61,12 +63,12 @@ export default function Cadastro() {
             {loading ? 'Criando...' : 'Criar conta'}
           </button>
         </form>
-        <p style={{ marginTop: '1.25rem', fontSize: '0.9rem', color: '#8FA0C4' }}>
+        <p className="alt">
           Já tem conta?{' '}
-          <a href="/login" className="btn btn-outline" style={{ padding: '0.2rem 0.6rem', fontSize: '0.9rem', display: 'inline-block' }}>Entrar</a>
+          <a href="/login" className="btn btn-outline btn-sm">Entrar</a>
         </p>
         <p className="version">{brand.name} v{brand.version}</p>
-        <p className="micro">Gestão · Dados · IA</p>
+        <p className="micro">Tráfego · Dados · Estratégia</p>
       </div>
     </div>
   )

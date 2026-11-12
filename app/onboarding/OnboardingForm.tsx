@@ -13,7 +13,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="mt-6 w-full rounded-lg bg-[#3D8EFF] px-4 py-2.5 font-bold text-[#070B14] transition-colors hover:bg-[#6EA8FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF] disabled:opacity-60"
+      className="mt-6 w-full rounded-[5px] bg-[#D7141F] px-4 py-2.5 font-bold text-[#070708] transition-colors hover:bg-[#F0333D] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F] disabled:opacity-60"
     >
       {pending ? 'Criando…' : 'Criar workspace'}
     </button>
@@ -31,12 +31,12 @@ export function OnboardingForm() {
     <form action={formAction} className="mt-6 space-y-4">
       <div>
         <label htmlFor="name" className="mb-1.5 block text-sm font-semibold">Nome do workspace</label>
-        <input id="name" name="name" required maxLength={80} placeholder="Ex.: Assessoria Alpha" className="w-full rounded-lg border border-[#1C2A47] bg-[#070B14] px-3 py-2 text-[#E6ECFA] outline-none placeholder:text-[#8FA0C4] focus:border-[#3D8EFF]" />
+        <input id="name" name="name" required maxLength={80} placeholder="Ex.: Assessoria Alpha" className="w-full rounded-[5px] border border-[#232326] bg-[#070708] px-3 py-2 text-[#F2F0EC] outline-none placeholder:text-[#9A9590] focus:border-[#D7141F]" />
       </div>
       <div>
         <label htmlFor="slug" className="mb-1.5 block text-sm font-semibold">Identificador (URL)</label>
-        <div className="flex items-stretch overflow-hidden rounded-lg border border-[#1C2A47] focus-within:border-[#3D8EFF]">
-          <span className="flex items-center bg-[#0B1220] px-3 text-sm text-[#8FA0C4]">/a/</span>
+        <div className="flex items-stretch overflow-hidden rounded-[5px] border border-[#232326] focus-within:border-[#D7141F]">
+          <span className="flex items-center bg-[#0B0B0C] px-3 text-sm text-[#9A9590]">/a/</span>
           <input
             id="slug"
             name="slug"
@@ -46,23 +46,23 @@ export function OnboardingForm() {
             onChange={(event) => setIdentifier(event.target.value)}
             placeholder="alpha ou https://sua-assessoria.com.br"
             aria-describedby="slug-hint"
-            className="w-full bg-[#070B14] px-3 py-2 text-[#E6ECFA] outline-none placeholder:text-[#8FA0C4]"
+            className="w-full bg-[#070708] px-3 py-2 text-[#F2F0EC] outline-none placeholder:text-[#9A9590]"
           />
         </div>
         {identifier.trim() !== '' && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1 text-xs" aria-live="polite">
-            <span className="text-[#8FA0C4]">Endereço:</span>
-            <span className={slugReady ? 'font-semibold text-[#6EA8FF]' : 'font-semibold text-[#FCA5A5]'}>
+            <span className="text-[#9A9590]">Endereço:</span>
+            <span className={slugReady ? 'font-semibold text-[#F0333D]' : 'font-semibold text-[#FFB199]'}>
               /a/{slugReady ? slug : '…'}
             </span>
-            {!slugReady && <span className="text-[#FCA5A5]">— informe letras ou cole um link válido</span>}
+            {!slugReady && <span className="text-[#FFB199]">— informe letras ou cole um link válido</span>}
           </div>
         )}
-        <p id="slug-hint" className="mt-1 text-xs text-[#8FA0C4]">
+        <p id="slug-hint" className="mt-1 text-xs text-[#9A9590]">
           Aceita qualquer link ou texto: convertemos para um endereço válido (letras minúsculas, números e hífens).
         </p>
       </div>
-      {state.error && <p role="alert" className="rounded-lg border border-[#F87171]/40 bg-[#3B0A0A] px-3 py-2 text-sm text-[#FECACA]">{state.error}</p>}
+      {state.error && <p role="alert" className="rounded-[5px] border border-[#FF6A3D]/40 bg-[#3B0A0A] px-3 py-2 text-sm text-[#FFD3C4]">{state.error}</p>}
       <SubmitButton />
     </form>
   )

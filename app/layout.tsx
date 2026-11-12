@@ -1,12 +1,17 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+import { Anton, Archivo, JetBrains_Mono } from 'next/font/google'
 import { brand } from '@orvia/brand'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+// Manual Undercut (S4): Anton = títulos, Archivo = textos, JetBrains Mono = dados/telemetria
+const display = Anton({ subsets: ['latin'], weight: '400', variable: '--font-display', display: 'swap' })
+const text = Archivo({ subsets: ['latin'], variable: '--font-text', display: 'swap' })
+const data = JetBrains_Mono({ subsets: ['latin'], variable: '--font-data', display: 'swap' })
 
 // App autenticado: renderizar sob demanda (evita pré-render no build sem env do Supabase)
 export const dynamic = 'force-dynamic'
+
+export const viewport: Viewport = { themeColor: brand.colors.pista }
 
 export const metadata: Metadata = {
   title: `${brand.name} — ${brand.tagline}`,
@@ -29,8 +34,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body className={inter.className}>{children}</body>
+    <html lang="pt-BR" className={`${display.variable} ${text.variable} ${data.variable}`}>
+      <body>{children}</body>
     </html>
   )
 }

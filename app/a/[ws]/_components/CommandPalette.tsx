@@ -53,34 +53,34 @@ export function CommandPalette({ open, onClose, ws }: { open: boolean; onClose: 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-28" role="dialog" aria-modal="true" aria-label="Paleta de comandos">
       <button aria-label="Fechar" className="absolute inset-0" onClick={onClose} />
-      <div className="relative w-full max-w-lg overflow-hidden rounded-xl border border-[#1C2A47] bg-[#111A2E] shadow-2xl">
-        <div className="flex items-center gap-3 border-b border-[#1C2A47] px-4 py-3">
-          <Icon name="search" className="h-5 w-5 text-[#8FA0C4]" />
+      <div className="relative w-full max-w-lg overflow-hidden rounded-[6px] border border-[#232326] bg-[#161618] shadow-2xl">
+        <div className="flex items-center gap-3 border-b border-[#232326] px-4 py-3">
+          <Icon name="search" className="h-5 w-5 text-[#9A9590]" />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar cliente, tela ou ação…"
             aria-label="Buscar"
-            className="w-full bg-transparent text-base text-[#E6ECFA] outline-none placeholder:text-[#8FA0C4]"
+            className="w-full bg-transparent text-base text-[#F2F0EC] outline-none placeholder:text-[#9A9590]"
           />
-          <button onClick={onClose} aria-label="Fechar" className="rounded p-1 text-[#8FA0C4] hover:text-[#E6ECFA]">
+          <button onClick={onClose} aria-label="Fechar" className="rounded p-1 text-[#9A9590] hover:text-[#F2F0EC]">
             <Icon name="x" className="h-4 w-4" />
           </button>
         </div>
         <ul className="max-h-80 overflow-y-auto py-2">
-          {filtered.length === 0 && <li className="px-4 py-6 text-center text-sm text-[#8FA0C4]">Nada encontrado para “{query}”.</li>}
+          {filtered.length === 0 && <li className="px-4 py-6 text-center text-sm text-[#9A9590]">Nada encontrado para “{query}”.</li>}
           {filtered.map((a) => (
             <li key={a.id}>
               <button
-                className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm text-[#E6ECFA] hover:bg-[#0B1220] focus:bg-[#0B1220] focus:outline-none"
+                className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm text-[#F2F0EC] hover:bg-[#0B0B0C] focus:bg-[#0B0B0C] focus:outline-none"
                 onClick={() => {
                   a.run()
                   onClose()
                 }}
               >
                 <span>{a.label}</span>
-                {a.hint && <span className="text-xs text-[#8FA0C4]">{a.hint}</span>}
+                {a.hint && <span className="text-xs text-[#9A9590]">{a.hint}</span>}
               </button>
             </li>
           ))}

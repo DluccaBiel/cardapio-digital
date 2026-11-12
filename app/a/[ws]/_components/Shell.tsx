@@ -22,7 +22,7 @@ export function Shell({
 
   return (
     <PaletteProvider ws={ws}>
-      <div className="flex h-screen overflow-hidden bg-[#070B14] text-[#E6ECFA]">
+      <div className="flex h-screen overflow-hidden bg-[#070708] text-[#F2F0EC]">
         <Sidebar ws={ws} role={role} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header

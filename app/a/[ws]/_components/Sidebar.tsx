@@ -50,21 +50,21 @@ export function Sidebar({
   const nav = (
     <aside
       className={[
-        'flex h-full flex-col border-r border-[#1C2A47] bg-[#0B1220] transition-all duration-200',
+        'flex h-full flex-col border-r border-[#232326] bg-[#0B0B0C] transition-all duration-200',
         collapsed ? 'w-[72px]' : 'w-[240px]',
       ].join(' ')}
       data-collapsed={collapsed}
     >
-      <div className="flex h-16 items-center justify-between border-b border-[#1C2A47] px-4">
-        <Link href={`/a/${ws.slug}/visao-geral`} className="flex items-center gap-2 overflow-hidden" aria-label="Orvia — início">
+      <div className="flex h-16 items-center justify-between border-b border-[#232326] px-4">
+        <Link href={`/a/${ws.slug}/visao-geral`} className="flex items-center gap-2 overflow-hidden" aria-label="Undercut — início">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/orvia-mark.svg" alt="" width={30} height={30} className="shrink-0" />
-          {!collapsed && <span className="whitespace-nowrap text-lg font-extrabold tracking-tight text-[#E6ECFA]">Orvia</span>}
+          <img src="/brand/undercut-mark.svg" alt="" width={30} height={30} className="shrink-0" />
+          {!collapsed && <span className="whitespace-nowrap text-lg font-extrabold tracking-tight text-[#F2F0EC]">Undercut</span>}
         </Link>
         <button
           onClick={toggle}
           aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          className="rounded-md p-1.5 text-[#8FA0C4] hover:bg-[#111A2E] hover:text-[#E6ECFA] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+          className="rounded-md p-1.5 text-[#9A9590] hover:bg-[#161618] hover:text-[#F2F0EC] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
         >
           <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} />
         </button>
@@ -80,25 +80,25 @@ export function Sidebar({
               onClick={onClose}
               aria-current={active ? 'page' : undefined}
               className={[
-                'group flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm font-medium transition-colors',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]',
+                'group flex items-center gap-3 rounded-[5px] border-l-2 px-3 py-2.5 text-sm font-medium transition-colors',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]',
                 active
-                  ? 'border-[#3D8EFF] bg-[#111A2E] text-[#E6ECFA]'
-                  : 'border-transparent text-[#8FA0C4] hover:bg-[#111A2E] hover:text-[#E6ECFA]',
+                  ? 'border-[#D7141F] bg-[#161618] text-[#F2F0EC]'
+                  : 'border-transparent text-[#9A9590] hover:bg-[#161618] hover:text-[#F2F0EC]',
               ].join(' ')}
               title={collapsed ? item.label : undefined}
             >
-              <Icon name={item.icon} className={active ? 'text-[#3D8EFF]' : 'text-[#8FA0C4] group-hover:text-[#E6ECFA]'} />
+              <Icon name={item.icon} className={active ? 'text-[#D7141F]' : 'text-[#9A9590] group-hover:text-[#F2F0EC]'} />
               {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
             </Link>
           )
         })}
       </nav>
 
-      <div className="border-t border-[#1C2A47] px-3 py-3">
+      <div className="border-t border-[#232326] px-3 py-3">
         <div className="flex items-center justify-between">
-          {!collapsed && <span className="text-[10px] font-semibold uppercase tracking-widest text-[#8FA0C4]">Orvia v{brand.version}</span>}
-          <span className="rounded-full border border-[#1C2A47] bg-[#070B14] px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#34D399]">
+          {!collapsed && <span className="text-[10px] font-semibold font-mono uppercase tracking-widest text-[#9A9590]">Undercut v{brand.version}</span>}
+          <span className="rounded-full border border-[#232326] bg-[#070708] px-2 py-0.5 text-[10px] font-bold font-mono uppercase tracking-widest text-[#34D399]">
             {envLabel}
           </span>
         </div>

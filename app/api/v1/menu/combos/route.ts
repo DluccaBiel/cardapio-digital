@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export const OPTIONS = preflight
 
 /**
- * Cria um combo no Orvia (ex.: sugestão da análise da extensão).
+ * Cria um combo no Undercut (ex.: sugestão da análise da extensão).
  * Sempre nasce PAUSADO (status forçado), para revisão no painel.
  * Edição de combo existente é feita no painel (PATCH genérico em /menu/items/{id} cobre nome/preço/status).
  */

@@ -61,9 +61,9 @@ export default function Produtos() {
   }
 
   function statusMercado(atual: number, ref: number | null) {
-    if (!ref) return { texto: '-', cor: '#6b7280' }
+    if (!ref) return { texto: '-', cor: '#6E6A66' }
     if (atual < ref * 0.9) return { texto: 'Abaixo', cor: '#059669' }
-    if (atual > ref * 1.1) return { texto: 'Acima', cor: '#dc2626' }
+    if (atual > ref * 1.1) return { texto: 'Acima', cor: '#E5532D' }
     return { texto: 'Ideal', cor: '#d97706' }
   }
 

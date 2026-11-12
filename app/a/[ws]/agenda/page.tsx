@@ -3,7 +3,7 @@ import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
 import { PlaceholderScreen } from '../../../../components/hub/PlaceholderScreen'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Orvia — Agenda' }
+export const metadata = { title: 'Undercut — Agenda' }
 
 export default async function AgendaPage({ params }: { params: { ws: string } }) {
   const workspace = await getWorkspaceBySlug(params.ws)

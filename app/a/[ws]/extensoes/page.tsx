@@ -5,7 +5,7 @@ import { createAdminClient } from '../../../../lib/supabaseAdmin'
 import { ExtensionsScreen, type OptimizationReport } from '../../../../components/hub/extensions/ExtensionsScreen'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Orvia — Extensões' }
+export const metadata = { title: 'Undercut — Extensões' }
 
 const EVIDENCE_BUCKET = 'optimization-evidence'
 const SIGNED_URL_TTL = 600 // 10 min — a tela renova ao Sincronizar/recarregar

@@ -1,5 +1,5 @@
 /**
- * Canais de extensão do Orvia: iFood, Cardápio Web e Anota AI (0008).
+ * Canais de extensão do Undercut: iFood, Cardápio Web e Anota AI (0008).
  *
  * Quem decide o canal de uma chamada é a CHAVE (api_keys.extension_id), criada no
  * login feito dentro da extensão. No login, a extensão é identificada por:

@@ -28,10 +28,10 @@ const inDays = (days: number) => {
 export const MOCK_WORKSPACE: MockWorkspace = { name: 'Alpha Demo', slug: 'alpha' }
 
 export const MOCK_TAGS: MockTag[] = [
-  { id: 'tag-prioridade', name: 'Prioridade', color: '#F87171' },
-  { id: 'tag-delivery', name: 'Delivery', color: '#22D3EE' },
-  { id: 'tag-trafego', name: 'Tráfego pago', color: '#3D8EFF' },
-  { id: 'tag-vip', name: 'VIP', color: '#D4AF37' },
+  { id: 'tag-prioridade', name: 'Prioridade', color: '#FF6A3D' },
+  { id: 'tag-delivery', name: 'Delivery', color: '#E8E4DD' },
+  { id: 'tag-trafego', name: 'Tráfego pago', color: '#D7141F' },
+  { id: 'tag-vip', name: 'VIP', color: '#C8C2B8' },
 ]
 
 const T = Object.fromEntries(MOCK_TAGS.map((tag) => [tag.id, tag])) as Record<string, MockTag>
@@ -645,9 +645,9 @@ export const MOCK_ACCOUNTS: MockAdAccount[] = [
 ]
 
 const CREATIVES: MockCreative[] = [
-  { id: 'cr-1', label: 'AD 03/09', purchases: 9, gradient: 'linear-gradient(140deg,#1C3B66,#0E1B2E 55%,#24466F)' },
-  { id: 'cr-2', label: 'AD 27/10', purchases: 7, gradient: 'linear-gradient(140deg,#14243D,#0A1220 60%,#1C3152)' },
-  { id: 'cr-3', label: 'AD 04/09', purchases: 5, gradient: 'linear-gradient(140deg,#2A3550,#111827 55%,#1E2C46)' },
+  { id: 'cr-1', label: 'AD 03/09', purchases: 9, gradient: 'linear-gradient(140deg,#3A1215,#121214 55%,#4A161A)' },
+  { id: 'cr-2', label: 'AD 27/10', purchases: 7, gradient: 'linear-gradient(140deg,#17171A,#0D0D0E 60%,#2A1013)' },
+  { id: 'cr-3', label: 'AD 04/09', purchases: 5, gradient: 'linear-gradient(140deg,#2C2C30,#141416 55%,#222225)' },
 ]
 
 function weekRange(offsetWeeks: number): { start: Date; end: Date; label: string } {

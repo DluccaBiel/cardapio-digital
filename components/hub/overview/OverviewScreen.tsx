@@ -40,16 +40,16 @@ const DAY = 86_400_000
 
 const SITUATION_LABEL: Record<Situation, string> = { ativo: 'Ativo', onboarding: 'Onboarding', stand_by: 'Stand-by', churn: 'Churn' }
 const SITUATION_CHIP: Record<Situation, string> = {
-  ativo: 'border-[#34D399]/60 bg-[#0D1320] text-[#34D399]',
-  onboarding: 'border-[#3D8EFF]/60 bg-[#0D1320] text-[#6EA8FF]',
-  stand_by: 'border-[#2A3549] bg-[#0D1320] text-[#C9D3E3]',
-  churn: 'border-[#2A3549] bg-[#0D1320] text-[#C9D3E3]',
+  ativo: 'border-[#34D399]/60 bg-[#111113] text-[#34D399]',
+  onboarding: 'border-[#D7141F]/60 bg-[#111113] text-[#F0333D]',
+  stand_by: 'border-[#2E2E33] bg-[#111113] text-[#CFCBC4]',
+  churn: 'border-[#2E2E33] bg-[#111113] text-[#CFCBC4]',
 }
 const SITUATION_PILL: Record<Situation, string> = {
-  ativo: 'border-[#2A3549] bg-[#161C26] text-[#34D399]',
-  onboarding: 'border-[#3D8EFF]/50 bg-[#3D8EFF]/10 text-[#6EA8FF]',
-  stand_by: 'border-[#2A3549] bg-[#161C26] text-[#C9D3E3]',
-  churn: 'border-[#F87171]/45 bg-[#F87171]/10 text-[#FCA5A5]',
+  ativo: 'border-[#2E2E33] bg-[#19191C] text-[#34D399]',
+  onboarding: 'border-[#D7141F]/50 bg-[#D7141F]/10 text-[#F0333D]',
+  stand_by: 'border-[#2E2E33] bg-[#19191C] text-[#CFCBC4]',
+  churn: 'border-[#FF6A3D]/45 bg-[#FF6A3D]/10 text-[#FFB199]',
 }
 const CAMPAIGN_LABEL: Record<string, string> = {
   nao_definido: '— Estado —',
@@ -352,24 +352,24 @@ export function OverviewScreen({
       <div className="mt-5 flex flex-col gap-4 xl:mt-6 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-[48px] items-center rounded-xl border border-[#26314A] bg-[#0D1320] px-1.5">
+            <div className="flex h-[48px] items-center rounded-[6px] border border-[#2A2A2E] bg-[#111113] px-1.5">
               <button
                 type="button"
                 onClick={() => setMonth((current) => monthShift(current, -1))}
                 aria-label="Mês anterior"
-                className="rounded-lg p-2 text-[#7F8CA3] transition-colors hover:bg-white/[0.04] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+                className="rounded-[5px] p-2 text-[#86827D] transition-colors hover:bg-white/[0.04] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
               >
                 <ChevronLeft size={17} />
               </button>
-              <span className="mx-2 flex items-center gap-2 text-[14px] font-semibold text-[#E8EDF7]">
-                <CalendarDays size={16} className="text-[#3D8EFF]" />
+              <span className="mx-2 flex items-center gap-2 text-[14px] font-semibold text-[#ECE9E3]">
+                <CalendarDays size={16} className="text-[#D7141F]" />
                 {monthTitle(month)}
               </span>
               <button
                 type="button"
                 onClick={() => setMonth((current) => monthShift(current, 1))}
                 aria-label="Próximo mês"
-                className="rounded-lg p-2 text-[#7F8CA3] transition-colors hover:bg-white/[0.04] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+                className="rounded-[5px] p-2 text-[#86827D] transition-colors hover:bg-white/[0.04] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
               >
                 <ChevronRight size={17} />
               </button>
@@ -388,11 +388,11 @@ export function OverviewScreen({
                     if (item.key === 'custom') setToast('Período personalizado chega na próxima fase.')
                   }}
                   className={cn(
-                    'flex h-[30px] items-center gap-1.5 rounded-lg border px-3 text-[12px] font-medium transition-colors',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]',
+                    'flex h-[30px] items-center gap-1.5 rounded-[5px] border px-3 text-[12px] font-medium transition-colors',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]',
                     active
-                      ? 'border-[#3D8EFF] bg-[#3D8EFF]/10 text-[#6EA8FF]'
-                      : 'border-[#26314A] bg-[#0D1320] text-[#C9D3E3] hover:border-[#3D8EFF]/50 hover:text-white',
+                      ? 'border-[#D7141F] bg-[#D7141F]/10 text-[#F0333D]'
+                      : 'border-[#2A2A2E] bg-[#111113] text-[#CFCBC4] hover:border-[#D7141F]/50 hover:text-white',
                   )}
                 >
                   {item.key === 'last30' && <Clock size={13} />}
@@ -406,7 +406,7 @@ export function OverviewScreen({
           <button
             type="button"
             onClick={() => setNewClientOpen(true)}
-            className="mt-2 flex h-[40px] items-center gap-2 rounded-lg bg-[#3D8EFF] px-4 text-[13px] font-bold text-[#06101F] transition-colors hover:bg-[#6EA8FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6EA8FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#070B12]"
+            className="mt-2 flex h-[40px] items-center gap-2 rounded-[5px] bg-[#D7141F] px-4 text-[13px] font-bold text-[#FFFFFF] transition-colors hover:bg-[#F0333D] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0333D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080809]"
           >
             <Plus size={17} strokeWidth={2.4} />
             Novo cliente
@@ -415,7 +415,7 @@ export function OverviewScreen({
 
         <div className="flex flex-col items-start gap-2 xl:items-end">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 hidden text-[11px] font-bold uppercase tracking-[0.12em] text-[#8A97AC] sm:inline">Situação:</span>
+            <span className="mr-1 hidden text-[11px] font-bold font-mono uppercase tracking-[0.12em] text-[#8E8A86] sm:inline">Situação:</span>
             {(Object.keys(SITUATION_LABEL) as Situation[]).map((key) => {
               const active = situation === key
               return (
@@ -426,13 +426,13 @@ export function OverviewScreen({
                   onClick={() => setSituation(active ? '' : key)}
                   className={cn(
                     'flex h-[36px] items-center gap-2 rounded-full border px-4 text-[13px] font-semibold transition-colors',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]',
                     SITUATION_CHIP[key],
                     active ? 'ring-1 ring-inset ring-current' : 'opacity-90 hover:opacity-100',
                   )}
                 >
                   {SITUATION_LABEL[key]}
-                  <span className="text-[11px] font-bold text-[#C9D3E3]/70">{counts[key]}</span>
+                  <span className="text-[11px] font-bold text-[#CFCBC4]/70">{counts[key]}</span>
                 </button>
               )
             })}
@@ -444,27 +444,27 @@ export function OverviewScreen({
             onClick={() => setWeekPending((value) => !value)}
             className={cn(
               'flex h-[38px] items-center gap-3 rounded-full border px-4 text-[13px] transition-colors',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]',
               weekPending
-                ? 'border-[#3D8EFF] bg-[#3D8EFF]/10 text-[#6EA8FF]'
-                : 'border-[#26314A] bg-[#0D1320] text-[#C9D3E3] hover:border-[#3D8EFF]/50',
+                ? 'border-[#D7141F] bg-[#D7141F]/10 text-[#F0333D]'
+                : 'border-[#2A2A2E] bg-[#111113] text-[#CFCBC4] hover:border-[#D7141F]/50',
             )}
           >
             Só pendências da semana
-            <span className="text-[11px] font-bold text-[#8A97AC]">{pendingCount}</span>
+            <span className="text-[11px] font-bold text-[#8E8A86]">{pendingCount}</span>
           </button>
         </div>
       </div>
 
       <div className={cn('relative mt-5 flex flex-wrap items-center gap-2.5 xl:mt-6', popover === 'filters' && 'z-40')}>
         <div className="relative min-w-[196px] flex-1 xl:max-w-[280px]">
-          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7F8CA3]" />
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#86827D]" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar por cliente ou segmento"
             aria-label="Buscar por cliente ou segmento"
-            className="mb-0 h-[42px] w-full rounded-[10px] border border-[#26314A] bg-[#0D1320] pl-9 pr-3 text-[13px] text-[#E8EDF7] outline-none transition-colors placeholder:text-[#7C8AA1] focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20"
+            className="mb-0 h-[42px] w-full rounded-[6px] border border-[#2A2A2E] bg-[#111113] pl-9 pr-3 text-[13px] text-[#ECE9E3] outline-none transition-colors placeholder:text-[#85817C] focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20"
           />
         </div>
 
@@ -472,7 +472,7 @@ export function OverviewScreen({
           <button
             type="button"
             onClick={() => setPopover((current) => (current === 'filters' ? null : 'filters'))}
-            className="flex h-[42px] items-center gap-2 rounded-[10px] border border-[#26314A] bg-[#0D1320] px-4 text-[13px] font-medium text-[#C9D3E3] transition-colors hover:border-[#3D8EFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+            className="flex h-[42px] items-center gap-2 rounded-[6px] border border-[#2A2A2E] bg-[#111113] px-4 text-[13px] font-medium text-[#CFCBC4] transition-colors hover:border-[#D7141F]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
           >
             <SlidersHorizontal size={15} />
             Filtros
@@ -480,20 +480,20 @@ export function OverviewScreen({
           {popover === 'filters' && (
             <>
               <button type="button" aria-label="Fechar filtros" onClick={() => setPopover(null)} className="fixed inset-0 z-30 cursor-default" />
-              <div className="absolute left-0 top-[52px] z-40 w-[300px] rounded-xl border border-[#26314A] bg-[#0B1120] p-2 shadow-2xl">
-                <p className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7C8AA1]">Filtros rápidos</p>
-                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[13px] text-[#C9D3E3] hover:bg-white/[0.04]">
+              <div className="absolute left-0 top-[52px] z-40 w-[300px] rounded-[6px] border border-[#2A2A2E] bg-[#0E0E10] p-2 shadow-2xl">
+                <p className="px-2 pb-1 pt-1 text-[10px] font-bold font-mono uppercase tracking-[0.14em] text-[#85817C]">Filtros rápidos</p>
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[5px] px-2 py-2 text-[13px] text-[#CFCBC4] hover:bg-white/[0.04]">
                   <span className="flex items-center gap-2"><AlertTriangle size={14} className="text-[#FBBF24]" /> Somente com alerta</span>
                   <Toggle size="sm" label="Somente com alerta" checked={alertFilter === 'com'} onChange={(value) => setAlertFilter(value ? 'com' : '')} />
                 </label>
-                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[13px] text-[#C9D3E3] hover:bg-white/[0.04]">
-                  <span className="flex items-center gap-2"><FileText size={14} className="text-[#3D8EFF]" /> Rotina pendente</span>
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[5px] px-2 py-2 text-[13px] text-[#CFCBC4] hover:bg-white/[0.04]">
+                  <span className="flex items-center gap-2"><FileText size={14} className="text-[#D7141F]" /> Rotina pendente</span>
                   <Toggle size="sm" label="Rotina pendente" checked={weekPending} onChange={setWeekPending} />
                 </label>
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="mt-1 w-full rounded-lg border border-[#26314A] px-3 py-2 text-[12px] font-semibold text-[#C9D3E3] hover:border-[#3D8EFF]/50 hover:text-white"
+                  className="mt-1 w-full rounded-[5px] border border-[#2A2A2E] px-3 py-2 text-[12px] font-semibold text-[#CFCBC4] hover:border-[#D7141F]/50 hover:text-white"
                 >
                   Limpar filtros
                 </button>
@@ -526,7 +526,7 @@ export function OverviewScreen({
             <button
               type="button"
               onClick={() => setPopover((current) => (current === 'columns' ? null : 'columns'))}
-              className="flex h-[42px] items-center gap-2 rounded-[10px] border border-[#26314A] bg-[#0D1320] px-4 text-[13px] font-medium text-[#C9D3E3] transition-colors hover:border-[#3D8EFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+              className="flex h-[42px] items-center gap-2 rounded-[6px] border border-[#2A2A2E] bg-[#111113] px-4 text-[13px] font-medium text-[#CFCBC4] transition-colors hover:border-[#D7141F]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
             >
               <ListFilter size={15} />
               Colunas
@@ -534,12 +534,12 @@ export function OverviewScreen({
             {popover === 'columns' && (
               <>
                 <button type="button" aria-label="Fechar colunas" onClick={() => setPopover(null)} className="fixed inset-0 z-30 cursor-default" />
-                <div className="absolute right-0 top-[52px] z-40 w-[250px] rounded-xl border border-[#26314A] bg-[#0B1120] p-2 shadow-2xl">
-                  <p className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7C8AA1]">Colunas visíveis</p>
+                <div className="absolute right-0 top-[52px] z-40 w-[250px] rounded-[6px] border border-[#2A2A2E] bg-[#0E0E10] p-2 shadow-2xl">
+                  <p className="px-2 pb-1 pt-1 text-[10px] font-bold font-mono uppercase tracking-[0.14em] text-[#85817C]">Colunas visíveis</p>
                   {COLUMNS.map((column) => {
                     const checked = !hidden.includes(column.id)
                     return (
-                      <label key={column.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[12px] text-[#C9D3E3] hover:bg-white/[0.04]">
+                      <label key={column.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-[5px] px-2 py-1.5 text-[12px] text-[#CFCBC4] hover:bg-white/[0.04]">
                         {column.label}
                         <input
                           type="checkbox"
@@ -547,7 +547,7 @@ export function OverviewScreen({
                           onChange={() =>
                             setHidden((current) => (checked ? [...current, column.id] : current.filter((id) => id !== column.id)))
                           }
-                          className="mb-0 h-3.5 w-3.5 accent-[#3D8EFF]"
+                          className="mb-0 h-3.5 w-3.5 accent-[#D7141F]"
                         />
                       </label>
                     )
@@ -560,7 +560,7 @@ export function OverviewScreen({
           <button
             type="button"
             onClick={exportCsv}
-            className="flex h-[42px] items-center gap-2 rounded-[10px] border border-[#26314A] bg-[#0D1320] px-4 text-[13px] font-medium text-[#C9D3E3] transition-colors hover:border-[#3D8EFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+            className="flex h-[42px] items-center gap-2 rounded-[6px] border border-[#2A2A2E] bg-[#111113] px-4 text-[13px] font-medium text-[#CFCBC4] transition-colors hover:border-[#D7141F]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
           >
             <Download size={15} />
             <span className="hidden sm:inline">Exportar CSV</span>
@@ -568,37 +568,37 @@ export function OverviewScreen({
         </div>
       </div>
 
-      <div className="mt-4 flex h-[46px] items-center gap-3 rounded-xl border border-[#1A2231] bg-[#0D1320] px-3.5 xl:mt-5">
-        <ArrowLeftRight size={17} className="shrink-0 text-[#3D8EFF]" />
-        <span className="hidden whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.14em] text-[#8A97AC] sm:inline">
+      <div className="mt-4 flex h-[46px] items-center gap-3 rounded-[6px] border border-[#1C1C1F] bg-[#111113] px-3.5 xl:mt-5">
+        <ArrowLeftRight size={17} className="shrink-0 text-[#D7141F]" />
+        <span className="hidden whitespace-nowrap text-[11px] font-bold font-mono uppercase tracking-[0.14em] text-[#8E8A86] sm:inline">
           Navegação horizontal:
         </span>
         <button
           type="button"
           onClick={() => scrollBy(-520)}
-          className="flex h-[34px] items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[13px] text-[#C9D3E3] hover:bg-white/[0.05] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+          className="flex h-[34px] items-center gap-1.5 whitespace-nowrap rounded-[5px] px-2.5 text-[13px] text-[#CFCBC4] hover:bg-white/[0.05] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
         >
           <ChevronLeft size={16} />
           Esquerda
         </button>
-        <div className="relative h-[10px] min-w-[60px] flex-1 overflow-hidden rounded-full bg-[#1A2333]">
+        <div className="relative h-[10px] min-w-[60px] flex-1 overflow-hidden rounded-full bg-[#1D1D20]">
           <div
-            className="absolute inset-y-0 rounded-full bg-[#3D8EFF]/70 transition-[left,width] duration-150"
+            className="absolute inset-y-0 rounded-full bg-[#D7141F]/70 transition-[left,width] duration-150"
             style={{ width: `${thumb * 100}%`, left: `${progress * (100 - thumb * 100)}%` }}
           />
         </div>
         <button
           type="button"
           onClick={() => scrollBy(520)}
-          className="flex h-[34px] items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[13px] text-[#C9D3E3] hover:bg-white/[0.05] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+          className="flex h-[34px] items-center gap-1.5 whitespace-nowrap rounded-[5px] px-2.5 text-[13px] text-[#CFCBC4] hover:bg-white/[0.05] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
         >
           Direita
           <ChevronRight size={16} />
         </button>
       </div>
 
-      <div className="mt-4 rounded-xl border border-[#1A2231]">
-        <div className="sticky top-0 z-30 overflow-hidden rounded-t-xl border-b border-[#1A2231] bg-[#0D1320]">
+      <div className="mt-4 rounded-[6px] border border-[#1C1C1F]">
+        <div className="sticky top-0 z-30 overflow-hidden rounded-t-xl border-b border-[#1C1C1F] bg-[#111113]">
           <div ref={headerRef} className="overflow-hidden">
             <table className="w-full table-fixed border-0 bg-transparent" style={{ width: tableWidth }} aria-label="Cabeçalhos da lista de clientes">
               <colgroup>
@@ -621,28 +621,28 @@ export function OverviewScreen({
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={() => moveColumn(id)}
                         className={cn(
-                          'group h-[52px] border-b border-[#1A2231] bg-[#0D1320] px-3 py-0 text-left align-middle',
-                          sticky && 'sticky left-0 z-10 border-r border-r-[#141B28]',
+                          'group h-[52px] border-b border-[#1C1C1F] bg-[#111113] px-3 py-0 text-left align-middle',
+                          sticky && 'sticky left-0 z-10 border-r border-r-[#18181B]',
                         )}
                       >
                         <div className="flex items-center gap-1.5">
-                          <GripVertical size={12} className="shrink-0 cursor-grab text-[#3B4659] opacity-0 transition-opacity group-hover:opacity-100" />
+                          <GripVertical size={12} className="shrink-0 cursor-grab text-[#3D3D43] opacity-0 transition-opacity group-hover:opacity-100" />
                           <button
                             type="button"
                             onClick={() => toggleSort(column.sortKey)}
-                            className="flex min-w-0 flex-1 items-center gap-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+                            className="flex min-w-0 flex-1 items-center gap-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
                           >
-                            <span className="text-[10px] font-bold uppercase leading-[1.25] tracking-[0.06em] text-[#8A97AC]">
+                            <span className="text-[10px] font-bold uppercase leading-[1.25] tracking-[0.06em] text-[#8E8A86]">
                               {column.label}
                             </span>
                             {column.sortKey && (
-                              <span className="shrink-0 text-[#7C8AA1]">
+                              <span className="shrink-0 text-[#85817C]">
                                 {!activeSort ? (
                                   <ChevronsUpDown size={12} />
                                 ) : sort?.dir === 'asc' ? (
-                                  <ArrowUp size={12} className="text-[#3D8EFF]" />
+                                  <ArrowUp size={12} className="text-[#D7141F]" />
                                 ) : (
-                                  <ArrowDown size={12} className="text-[#3D8EFF]" />
+                                  <ArrowDown size={12} className="text-[#D7141F]" />
                                 )}
                               </span>
                             )}
@@ -657,7 +657,7 @@ export function OverviewScreen({
           </div>
         </div>
 
-        <div ref={bodyRef} onScroll={syncScroll} className="hub-scrollbar overflow-x-auto rounded-b-xl bg-[#0D1320]">
+        <div ref={bodyRef} onScroll={syncScroll} className="hub-scrollbar overflow-x-auto rounded-b-xl bg-[#111113]">
           <table className="w-full table-fixed border-0 bg-transparent" style={{ width: tableWidth }} aria-label="Lista de clientes">
             <colgroup>
               {visibleColumns.map((id) => (
@@ -667,7 +667,7 @@ export function OverviewScreen({
             <tbody>
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={visibleColumns.length} className="h-[120px] px-6 text-center text-[13px] text-[#8A97AC]">
+                  <td colSpan={visibleColumns.length} className="h-[120px] px-6 text-center text-[13px] text-[#8E8A86]">
                     Nenhum cliente corresponde aos filtros.
                   </td>
                 </tr>
@@ -675,13 +675,13 @@ export function OverviewScreen({
               {sorted.map((client) => {
                 const changeDays = daysSince(client.lastChange)
                 return (
-                  <tr key={client.id} className="group border-b border-[#1A2231] last:border-b-0 hover:bg-[#111A2B]">
+                  <tr key={client.id} className="group border-b border-[#1C1C1F] last:border-b-0 hover:bg-[#151517]">
                     {visibleColumns.map((id) => (
                       <td
                         key={id}
                         className={cn(
-                          'h-[78px] px-3 py-0 align-middle text-[13px] text-[#D7DFEC]',
-                          id === 'client' && 'sticky left-0 z-10 border-r border-r-[#141B28] bg-[#0D1320] group-hover:bg-[#111A2B]',
+                          'h-[78px] px-3 py-0 align-middle text-[13px] text-[#DCD8D1]',
+                          id === 'client' && 'sticky left-0 z-10 border-r border-r-[#18181B] bg-[#111113] group-hover:bg-[#151517]',
                         )}
                       >
                         {id === 'client' && <ClientCell client={client} onOpen={() => setLinksFor(client)} />}
@@ -702,11 +702,11 @@ export function OverviewScreen({
                         )}
                         {id === 'spend' && (
                           <div className="min-w-0">
-                            <p className="truncate text-[14px] font-semibold tabular-nums text-[#F1F5FC]">
+                            <p className="truncate text-[14px] font-semibold tabular-nums text-[#F7F5F1]">
                               {client.balance === null && client.spendMonth === 0 ? '—' : formatBRL(client.spendMonth)}
                             </p>
                             {client.balance !== null && (
-                              <p className="mt-0.5 truncate text-[10px] text-[#7F8CA3]">Ontem: {formatBRL(client.spendYesterday)}</p>
+                              <p className="mt-0.5 truncate text-[10px] text-[#86827D]">Ontem: {formatBRL(client.spendYesterday)}</p>
                             )}
                           </div>
                         )}
@@ -714,33 +714,33 @@ export function OverviewScreen({
                           <div className="min-w-0">
                             {client.balance === null ? (
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-[13px] text-[#8A97AC]">Sem conta</span>
+                                <span className="text-[13px] text-[#8E8A86]">Sem conta</span>
                                 <button
                                   type="button"
                                   onClick={() => setToast('Vínculo de conta disponível na próxima fase.')}
-                                  className="rounded-md border border-[#3D8EFF]/45 bg-[#3D8EFF]/5 px-2 py-0.5 text-[10px] font-semibold text-[#6EA8FF] hover:bg-[#3D8EFF]/15"
+                                  className="rounded-md border border-[#D7141F]/45 bg-[#D7141F]/5 px-2 py-0.5 text-[10px] font-semibold text-[#F0333D] hover:bg-[#D7141F]/15"
                                 >
                                   Vincular conta
                                 </button>
                               </div>
                             ) : client.balance < 0 ? (
                               <div>
-                                <p className="truncate text-[14px] font-bold tabular-nums text-[#F87171]">Devedor {formatBRL(-client.balance)}</p>
-                                <div className="mt-2 h-[5px] w-full rounded-full bg-[#1A2333]">
-                                  <span className="block h-full w-[6%] rounded-full bg-[#F87171]" />
+                                <p className="truncate text-[14px] font-bold tabular-nums text-[#FF6A3D]">Devedor {formatBRL(-client.balance)}</p>
+                                <div className="mt-2 h-[5px] w-full rounded-full bg-[#1D1D20]">
+                                  <span className="block h-full w-[6%] rounded-full bg-[#FF6A3D]" />
                                 </div>
                               </div>
                             ) : (
                               <div>
                                 <div className="flex items-baseline justify-between gap-2">
-                                  <p className="truncate text-[14px] font-bold tabular-nums text-[#F1F5FC]">{formatBRL(client.balance)}</p>
-                                  <span className={cn('shrink-0 text-[11px] tabular-nums', client.daysLeft !== null && client.daysLeft < 2 ? 'text-[#F87171]' : 'text-[#8A97AC]')}>
+                                  <p className="truncate text-[14px] font-bold tabular-nums text-[#F7F5F1]">{formatBRL(client.balance)}</p>
+                                  <span className={cn('shrink-0 text-[11px] tabular-nums', client.daysLeft !== null && client.daysLeft < 2 ? 'text-[#FF6A3D]' : 'text-[#8E8A86]')}>
                                     {Math.max(0, Math.round(client.daysLeft ?? 0))}d
                                   </span>
                                 </div>
-                                <div className="mt-2 h-[5px] w-full overflow-hidden rounded-full bg-[#1A2333]">
+                                <div className="mt-2 h-[5px] w-full overflow-hidden rounded-full bg-[#1D1D20]">
                                   <span
-                                    className={cn('block h-full rounded-full', client.daysLeft !== null && client.daysLeft < 2 ? 'bg-[#F87171]' : 'bg-[#3D8EFF]')}
+                                    className={cn('block h-full rounded-full', client.daysLeft !== null && client.daysLeft < 2 ? 'bg-[#FF6A3D]' : 'bg-[#D7141F]')}
                                     style={{ width: `${Math.min(100, Math.max(4, (client.daysLeft ?? 0) * 8))}%` }}
                                   />
                                 </div>
@@ -748,7 +748,7 @@ export function OverviewScreen({
                             )}
                           </div>
                         )}
-                        {id === 'termination' && <span className="tabular-nums text-[#D7DFEC]">{shortDate(client.termination)}</span>}
+                        {id === 'termination' && <span className="tabular-nums text-[#DCD8D1]">{shortDate(client.termination)}</span>}
                         {id === 'lastChange' && (
                           <div>
                             {changeDays > 14 ? (
@@ -756,11 +756,11 @@ export function OverviewScreen({
                                 <AlertTriangle size={11} /> {relativeLabel(client.lastChange)}
                               </span>
                             ) : changeDays <= 1 ? (
-                              <span className="inline-flex items-center gap-1 rounded-md border border-[#3D8EFF]/45 bg-[#3D8EFF]/10 px-2 py-1 text-[10px] font-semibold text-[#6EA8FF]">
+                              <span className="inline-flex items-center gap-1 rounded-md border border-[#D7141F]/45 bg-[#D7141F]/10 px-2 py-1 text-[10px] font-semibold text-[#F0333D]">
                                 <Sparkles size={11} /> {relativeLabel(client.lastChange)}
                               </span>
                             ) : (
-                              <span className="text-[12px] text-[#8A97AC]">{relativeLabel(client.lastChange)}</span>
+                              <span className="text-[12px] text-[#8E8A86]">{relativeLabel(client.lastChange)}</span>
                             )}
                           </div>
                         )}
@@ -774,7 +774,7 @@ export function OverviewScreen({
                               <button
                                 type="button"
                                 onClick={() => setPixFor(client)}
-                                className="text-[11px] font-medium text-[#8A97AC] transition-colors hover:text-[#E8EDF7]"
+                                className="text-[11px] font-medium text-[#8E8A86] transition-colors hover:text-[#ECE9E3]"
                               >
                                 + Registrar Pix
                               </button>
@@ -808,16 +808,16 @@ export function OverviewScreen({
                                     })
                                   }
                                   className={cn(
-                                    'relative flex h-[34px] w-[34px] items-center justify-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]',
+                                    'relative flex h-[34px] w-[34px] items-center justify-center rounded-[5px] border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]',
                                     done
-                                      ? 'border-[#3D8EFF] bg-[#3D8EFF] text-[#06101F]'
+                                      ? 'border-[#D7141F] bg-[#D7141F] text-[#FFFFFF]'
                                       : noteAlert
-                                        ? 'border-[#F87171]/75 bg-[#F87171]/10 text-[#F87171]'
-                                        : 'border-[#26314A] bg-[#0A0F1A] text-[#8A97AC] hover:border-[#3D8EFF]/60 hover:text-[#E8EDF7]',
+                                        ? 'border-[#FF6A3D]/75 bg-[#FF6A3D]/10 text-[#FF6A3D]'
+                                        : 'border-[#2A2A2E] bg-[#0D0D0E] text-[#8E8A86] hover:border-[#D7141F]/60 hover:text-[#ECE9E3]',
                                   )}
                                 >
                                   <item.Icon size={15} strokeWidth={1.8} />
-                                  {noteAlert && <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-[#F87171]" />}
+                                  {noteAlert && <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-[#FF6A3D]" />}
                                 </button>
                               )
                             })}
@@ -849,7 +849,7 @@ export function OverviewScreen({
                             <button
                               type="button"
                               onClick={() => setLinksFor(client)}
-                              className="flex items-center gap-1 text-[11px] text-[#8A97AC] transition-colors hover:text-[#E8EDF7]"
+                              className="flex items-center gap-1 text-[11px] text-[#8E8A86] transition-colors hover:text-[#ECE9E3]"
                             >
                               <Link2 size={12} />
                               Links
@@ -858,7 +858,7 @@ export function OverviewScreen({
                               type="button"
                               onClick={() => copy(client.name, `Nome de ${client.name} copiado.`)}
                               aria-label={`Copiar nome de ${client.name}`}
-                              className="rounded-md p-1 text-[#7F8CA3] transition-colors hover:bg-white/[0.05] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+                              className="rounded-md p-1 text-[#86827D] transition-colors hover:bg-white/[0.05] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
                             >
                               <Copy size={13} />
                             </button>
@@ -874,7 +874,7 @@ export function OverviewScreen({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-[#7C8AA1]">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-[#85817C]">
         <span>
           {sorted.length} de {clients.length} clientes · dados fictícios de demonstração
         </span>
@@ -917,7 +917,7 @@ export function OverviewScreen({
             setTagFor({ ...tagFor, tags: has ? tagFor.tags.filter((item) => item.id !== tag.id) : [...tagFor.tags, tag] })
           }}
           onCreate={(name) => {
-            const color = '#3D8EFF'
+            const color = '#D7141F'
             const newTag: MockTag = { id: `tag-local-${Date.now()}`, name, color }
             setTags((current) => [...current, newTag])
             update(tagFor.id, { tags: [...tagFor.tags, newTag] })
@@ -972,15 +972,15 @@ function csvValue(client: MockClient, id: ColumnId): string {
 
 function KpiCard({ label, value, sub, icon }: { label: string; value: string; sub: string; icon: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-[#1E2738] bg-[#0D1320] p-6 md:p-7">
+    <section className="rounded-[8px] border border-[#222225] bg-[#111113] p-6 md:p-7">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-[#8A97AC]">{label}</p>
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#1E2738] bg-[#080D18] text-[#3D8EFF]" aria-hidden="true">
+        <p className="text-[11px] font-bold font-mono uppercase tracking-[0.13em] text-[#8E8A86]">{label}</p>
+        <span className="flex h-9 w-9 items-center justify-center rounded-[5px] border border-[#222225] bg-[#0B0B0C] text-[#D7141F]" aria-hidden="true">
           {icon}
         </span>
       </div>
-      <p className="mt-3 text-[36px] font-extrabold leading-none tracking-[-0.045em] text-[#F1F5FC]">{value}</p>
-      <p className="mt-2 text-[12px] text-[#7F8CA3]">{sub}</p>
+      <p className="mt-3 font-display text-[44px] leading-none tracking-[0.01em] text-[#F7F5F1]">{value}</p>
+      <p className="mt-2 text-[12px] text-[#86827D]">{sub}</p>
     </section>
   )
 }
@@ -988,17 +988,17 @@ function KpiCard({ label, value, sub, icon }: { label: string; value: string; su
 function ClientCell({ client, onOpen }: { client: MockClient; onOpen: () => void }) {
   return (
     <div className="flex min-w-0 items-start gap-2">
-      {client.alert && <span className="mt-[7px] h-[7px] w-[7px] shrink-0 rounded-full bg-[#F87171]" title="Pendência no cliente" />}
+      {client.alert && <span className="mt-[7px] h-[7px] w-[7px] shrink-0 rounded-full bg-[#FF6A3D]" title="Pendência no cliente" />}
       <div className="min-w-0">
         <button
           type="button"
           onClick={onOpen}
-          className="block max-w-full truncate text-left text-[15px] font-semibold text-[#F1F5FC] transition-colors hover:text-[#6EA8FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3D8EFF]"
+          className="block max-w-full truncate text-left text-[15px] font-semibold text-[#F7F5F1] transition-colors hover:text-[#F0333D] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
           title="Abrir links do cliente"
         >
           {client.name}
         </button>
-        {client.segment && <p className="mt-0.5 truncate text-[11px] text-[#8A97AC]">{client.segment}</p>}
+        {client.segment && <p className="mt-0.5 truncate text-[11px] text-[#8E8A86]">{client.segment}</p>}
       </div>
     </div>
   )
@@ -1011,7 +1011,7 @@ function TagsCell({ tags, onRemove, onAdd }: { tags: MockTag[]; onRemove: (tagId
         {tags.map((tag) => (
           <span
             key={tag.id}
-            className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.04em]"
+            className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-bold font-mono uppercase tracking-[0.04em]"
             style={{ borderColor: `${tag.color}66`, color: tag.color, background: `${tag.color}16` }}
           >
             {tag.name}
@@ -1030,7 +1030,7 @@ function TagsCell({ tags, onRemove, onAdd }: { tags: MockTag[]; onRemove: (tagId
         type="button"
         onClick={onAdd}
         aria-label="Adicionar tag"
-        className="flex h-[16px] w-[16px] items-center justify-center text-[#7F8CA3] transition-colors hover:text-[#E8EDF7]"
+        className="flex h-[16px] w-[16px] items-center justify-center text-[#86827D] transition-colors hover:text-[#ECE9E3]"
       >
         <Plus size={11} />
       </button>
@@ -1056,12 +1056,12 @@ function PillSelect({
         onChange={(event) => onChange(event.target.value)}
         aria-label="Situação do cliente"
         className={cn(
-          'mb-0 h-[36px] w-full cursor-pointer appearance-none rounded-full border pl-4 pr-7 text-[11px] font-bold uppercase tracking-[0.08em] outline-none transition-colors focus:ring-2 focus:ring-[#3D8EFF]/40',
+          'mb-0 h-[36px] w-full cursor-pointer appearance-none rounded-full border pl-4 pr-7 text-[11px] font-bold font-mono uppercase tracking-[0.08em] outline-none transition-colors focus:ring-2 focus:ring-[#D7141F]/40',
           className,
         )}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value} className="bg-[#0B1120] text-[#E8EDF7]">
+          <option key={option.value} value={option.value} className="bg-[#0E0E10] text-[#ECE9E3]">
             {option.label}
           </option>
         ))}
@@ -1093,17 +1093,17 @@ function MiniSelect({
         onChange={(event) => onChange(event.target.value)}
         aria-label="Selecionar"
         className={cn(
-          'mb-0 h-[36px] w-full cursor-pointer appearance-none truncate rounded-lg border border-[#26314A] bg-[#0A0F1A] pl-2.5 pr-7 text-[11px] outline-none transition-colors focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20',
-          muted ? 'text-[#8A97AC]' : accent ? 'text-[#6EA8FF]' : 'text-[#D7DFEC]',
+          'mb-0 h-[36px] w-full cursor-pointer appearance-none truncate rounded-[5px] border border-[#2A2A2E] bg-[#0D0D0E] pl-2.5 pr-7 text-[11px] outline-none transition-colors focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20',
+          muted ? 'text-[#8E8A86]' : accent ? 'text-[#F0333D]' : 'text-[#DCD8D1]',
         )}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value} className="bg-[#0B1120] text-[#E8EDF7]">
+          <option key={option.value} value={option.value} className="bg-[#0E0E10] text-[#ECE9E3]">
             {option.label}
           </option>
         ))}
       </select>
-      <ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#7F8CA3]" />
+      <ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#86827D]" />
     </div>
   )
 }
@@ -1116,18 +1116,18 @@ function EditorSelect({ value, editors, onChange }: { value: string; editors: st
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-label="Editor responsável"
-        className="mb-0 h-[32px] w-full cursor-pointer appearance-none rounded-full border border-[#D4AF37]/55 bg-[#D4AF37]/15 pl-2.5 pr-5 text-[11px] font-semibold text-[#E7C45A] outline-none focus:ring-2 focus:ring-[#D4AF37]/40"
+        className="mb-0 h-[32px] w-full cursor-pointer appearance-none rounded-full border border-[#C8C2B8]/55 bg-[#C8C2B8]/15 pl-2.5 pr-5 text-[11px] font-semibold text-[#DAD4CA] outline-none focus:ring-2 focus:ring-[#C8C2B8]/40"
       >
-        <option value="" className="bg-[#0B1120] text-[#E8EDF7]">
+        <option value="" className="bg-[#0E0E10] text-[#ECE9E3]">
           Editor…
         </option>
         {options.map((name) => (
-          <option key={name} value={name} className="bg-[#0B1120] text-[#E8EDF7]">
+          <option key={name} value={name} className="bg-[#0E0E10] text-[#ECE9E3]">
             {name}
           </option>
         ))}
       </select>
-      <ChevronDown size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#D4AF37]" />
+      <ChevronDown size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#C8C2B8]" />
     </div>
   )
 }
@@ -1150,8 +1150,8 @@ function FilterSelect({
         onChange={(event) => onChange(event.target.value)}
         aria-label={label}
         className={cn(
-          'mb-0 h-[42px] w-full cursor-pointer appearance-none rounded-[10px] border border-[#26314A] bg-[#0D1320] pl-3.5 pr-8 text-[13px] outline-none transition-colors focus:border-[#3D8EFF] focus:ring-2 focus:ring-[#3D8EFF]/20 sm:w-[158px]',
-          value ? 'text-[#E8EDF7]' : 'text-[#C9D3E3]',
+          'mb-0 h-[42px] w-full cursor-pointer appearance-none rounded-[6px] border border-[#2A2A2E] bg-[#111113] pl-3.5 pr-8 text-[13px] outline-none transition-colors focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20 sm:w-[158px]',
+          value ? 'text-[#ECE9E3]' : 'text-[#CFCBC4]',
         )}
       >
         {options.map((option) => (
@@ -1160,7 +1160,7 @@ function FilterSelect({
           </option>
         ))}
       </select>
-      <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#7F8CA3]" />
+      <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#86827D]" />
     </div>
   )
 }
@@ -1192,7 +1192,7 @@ function NewClientModal({ onClose, onCreate }: { onClose: () => void; onCreate: 
         </div>
       </div>
       <div className="mt-5 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="rounded-lg border border-[#26314A] px-4 py-2 text-[12px] font-semibold text-[#C9D3E3] hover:text-white">
+        <button type="button" onClick={onClose} className="rounded-[5px] border border-[#2A2A2E] px-4 py-2 text-[12px] font-semibold text-[#CFCBC4] hover:text-white">
           Cancelar
         </button>
         <button
@@ -1223,7 +1223,7 @@ function NewClientModal({ onClose, onCreate }: { onClose: () => void; onCreate: 
               notePending: false,
             })
           }}
-          className="rounded-lg bg-[#3D8EFF] px-4 py-2 text-[12px] font-bold text-[#06101F] transition-colors hover:bg-[#6EA8FF] disabled:cursor-not-allowed disabled:opacity-45"
+          className="rounded-[5px] bg-[#D7141F] px-4 py-2 text-[12px] font-bold text-[#FFFFFF] transition-colors hover:bg-[#F0333D] disabled:cursor-not-allowed disabled:opacity-45"
         >
           Criar cliente
         </button>
@@ -1240,14 +1240,14 @@ function PixModal({ client, onClose, onSave }: { client: MockClient; onClose: ()
       <FieldLabel>Valor (R$)</FieldLabel>
       <TextInput value={amount} onChange={setAmount} placeholder="2.400,00" autoFocus />
       <div className="mt-5 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="rounded-lg border border-[#26314A] px-4 py-2 text-[12px] font-semibold text-[#C9D3E3] hover:text-white">
+        <button type="button" onClick={onClose} className="rounded-[5px] border border-[#2A2A2E] px-4 py-2 text-[12px] font-semibold text-[#CFCBC4] hover:text-white">
           Cancelar
         </button>
         <button
           type="button"
           disabled={!Number.isFinite(numeric) || numeric <= 0}
           onClick={() => onSave(numeric)}
-          className="rounded-lg bg-[#3D8EFF] px-4 py-2 text-[12px] font-bold text-[#06101F] hover:bg-[#6EA8FF] disabled:cursor-not-allowed disabled:opacity-45"
+          className="rounded-[5px] bg-[#D7141F] px-4 py-2 text-[12px] font-bold text-[#FFFFFF] hover:bg-[#F0333D] disabled:cursor-not-allowed disabled:opacity-45"
         >
           Registrar
         </button>
@@ -1280,18 +1280,18 @@ function TagsModal({
               key={tag.id}
               type="button"
               onClick={() => onToggle(tag)}
-              className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-[13px] text-[#C9D3E3] hover:bg-white/[0.04]"
+              className="flex w-full items-center justify-between gap-3 rounded-[5px] px-2 py-2 text-left text-[13px] text-[#CFCBC4] hover:bg-white/[0.04]"
             >
               <span className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: tag.color }} />
                 {tag.name}
               </span>
-              {checked && <Check size={14} className="text-[#3D8EFF]" />}
+              {checked && <Check size={14} className="text-[#D7141F]" />}
             </button>
           )
         })}
       </div>
-      <div className="mt-3 border-t border-[#1A2231] pt-3">
+      <div className="mt-3 border-t border-[#1C1C1F] pt-3">
         <FieldLabel>Criar nova tag</FieldLabel>
         <div className="flex gap-2">
           <TextInput value={name} onChange={setName} placeholder="Ex.: Reels" />
@@ -1302,7 +1302,7 @@ function TagsModal({
               onCreate(name.trim())
               setName('')
             }}
-            className="h-[42px] shrink-0 rounded-lg bg-[#3D8EFF] px-3 text-[12px] font-bold text-[#06101F] disabled:opacity-45"
+            className="h-[42px] shrink-0 rounded-[5px] bg-[#D7141F] px-3 text-[12px] font-bold text-[#FFFFFF] disabled:opacity-45"
           >
             Criar
           </button>
@@ -1318,12 +1318,12 @@ function LinksModal({ client, onClose, onCopy }: { client: MockClient; onClose: 
     <Modal title={`Links de ${client.name}`} description="Links fictícios usados apenas na demonstração visual." onClose={onClose} width="max-w-sm">
       <div className="space-y-2">
         {links.map((label) => (
-          <div key={label} className="flex items-center justify-between gap-3 rounded-lg border border-[#1E2738] bg-[#080D18] px-3 py-2">
-            <span className="flex items-center gap-2 text-[12px] text-[#C9D3E3]">
-              <Link2 size={13} className="text-[#3D8EFF]" />
+          <div key={label} className="flex items-center justify-between gap-3 rounded-[5px] border border-[#222225] bg-[#0B0B0C] px-3 py-2">
+            <span className="flex items-center gap-2 text-[12px] text-[#CFCBC4]">
+              <Link2 size={13} className="text-[#D7141F]" />
               {label}
             </span>
-            <button type="button" onClick={() => onCopy(label)} className="flex items-center gap-1 text-[11px] font-semibold text-[#6EA8FF] hover:text-[#9CC4FF]">
+            <button type="button" onClick={() => onCopy(label)} className="flex items-center gap-1 text-[11px] font-semibold text-[#F0333D] hover:text-[#FF8A90]">
               <Copy size={12} /> Copiar
             </button>
           </div>

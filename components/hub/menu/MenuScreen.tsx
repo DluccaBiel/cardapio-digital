@@ -101,9 +101,9 @@ export function MenuScreen({
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-extrabold leading-tight tracking-[-0.03em] text-[#F1F5FC] md:text-[28px]">Cardápio</h1>
-          <p className="mt-1 text-[13px] text-[#8A97AC]">
-            Produtos, combos e complementos — fonte única que a extensão aplica no iFood · <span className="text-[#C9D3E3]">{workspaceName}</span>
+          <h1 className="uc-title text-[32px] text-[#F7F5F1] md:text-[40px]">Cardápio</h1>
+          <p className="mt-1 text-[13px] text-[#8E8A86]">
+            Produtos, combos e complementos — fonte única que a extensão aplica no iFood · <span className="text-[#CFCBC4]">{workspaceName}</span>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -150,7 +150,7 @@ export function MenuScreen({
       ) : (
         <>
           {/* Abas */}
-          <div className="mt-5 flex gap-1 overflow-x-auto border-b border-[#1A2231]" role="tablist">
+          <div className="mt-5 flex gap-1 overflow-x-auto border-b border-[#1C1C1F]" role="tablist">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -160,14 +160,14 @@ export function MenuScreen({
                 onClick={() => setTab(t.key)}
                 className={cn(
                   '-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3.5 py-2.5 text-[13px] font-semibold transition-colors',
-                  tab === t.key ? 'border-[#3D8EFF] text-white' : 'border-transparent text-[#8A97AC] hover:text-[#D5DDEA]',
+                  tab === t.key ? 'border-[#D7141F] text-white' : 'border-transparent text-[#8E8A86] hover:text-[#DAD6CF]',
                 )}
               >
                 {t.label}
                 <span
                   className={cn(
                     'rounded-full px-1.5 py-px text-[10px] font-bold',
-                    t.key === 'ifood' && (t.count ?? 0) > 0 ? 'bg-[#FBBF24]/15 text-[#FBBF24]' : 'bg-[#1A2333] text-[#8A97AC]',
+                    t.key === 'ifood' && (t.count ?? 0) > 0 ? 'bg-[#FBBF24]/15 text-[#FBBF24]' : 'bg-[#1D1D20] text-[#8E8A86]',
                   )}
                 >
                   {t.count}
@@ -291,14 +291,14 @@ function ProductsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
   return (
     <div className="grid gap-5 lg:grid-cols-[250px_1fr]">
       {/* Categorias */}
-      <aside className="rounded-xl border border-[#1E2738] bg-[#0D1320] p-2 lg:self-start">
+      <aside className="rounded-[6px] border border-[#222225] bg-[#111113] p-2 lg:self-start">
         <div className="flex items-center justify-between px-2 pb-2 pt-1">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A97AC]">Categorias</span>
+          <span className="text-[10px] font-bold font-mono uppercase tracking-[0.12em] text-[#8E8A86]">Categorias</span>
           {canEdit && (
             <button
               type="button"
               onClick={() => setDialog({ kind: 'category', category: null })}
-              className="rounded-md p-1 text-[#6EA8FF] hover:bg-[#3D8EFF]/10"
+              className="rounded-md p-1 text-[#F0333D] hover:bg-[#D7141F]/10"
               aria-label="Nova categoria"
               title="Nova categoria"
             >
@@ -310,27 +310,27 @@ function ProductsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
           type="button"
           onClick={() => setCategoryId('all')}
           className={cn(
-            'flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[13px]',
-            categoryId === 'all' ? 'bg-[#3D8EFF]/12 text-white' : 'text-[#B4BFD0] hover:bg-white/[0.03]',
+            'flex w-full items-center justify-between rounded-[5px] px-2.5 py-2 text-left text-[13px]',
+            categoryId === 'all' ? 'bg-[#D7141F]/12 text-white' : 'text-[#B8B3AC] hover:bg-white/[0.03]',
           )}
         >
-          Todas <span className="text-[11px] text-[#7C8AA1]">{products.length}</span>
+          Todas <span className="text-[11px] text-[#85817C]">{products.length}</span>
         </button>
         {catalog.categories.map((c, index) => (
           <div
             key={c.id}
             className={cn(
-              'group flex items-center gap-1 rounded-lg pr-1',
-              categoryId === c.id ? 'bg-[#3D8EFF]/12' : 'hover:bg-white/[0.03]',
+              'group flex items-center gap-1 rounded-[5px] pr-1',
+              categoryId === c.id ? 'bg-[#D7141F]/12' : 'hover:bg-white/[0.03]',
             )}
           >
             <button
               type="button"
               onClick={() => setCategoryId(c.id)}
-              className={cn('flex min-w-0 flex-1 items-center justify-between gap-2 px-2.5 py-2 text-left text-[13px]', categoryId === c.id ? 'text-white' : 'text-[#B4BFD0]')}
+              className={cn('flex min-w-0 flex-1 items-center justify-between gap-2 px-2.5 py-2 text-left text-[13px]', categoryId === c.id ? 'text-white' : 'text-[#B8B3AC]')}
             >
-              <span className={cn('truncate', c.status !== 'active' && 'text-[#7C8AA1] line-through decoration-[#7C8AA1]/40')}>{c.name}</span>
-              <span className="text-[11px] text-[#7C8AA1]">{countByCat.get(c.id) ?? 0}</span>
+              <span className={cn('truncate', c.status !== 'active' && 'text-[#85817C] line-through decoration-[#85817C]/40')}>{c.name}</span>
+              <span className="text-[11px] text-[#85817C]">{countByCat.get(c.id) ?? 0}</span>
             </button>
             {canEdit && (
               <span className="hidden shrink-0 items-center group-focus-within:flex group-hover:flex">
@@ -365,20 +365,20 @@ function ProductsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
             )}
           </div>
         ))}
-        {catalog.categories.length === 0 && <p className="px-2.5 py-2 text-[12px] text-[#7C8AA1]">Nenhuma categoria. Crie uma ou importe do iFood.</p>}
+        {catalog.categories.length === 0 && <p className="px-2.5 py-2 text-[12px] text-[#85817C]">Nenhuma categoria. Crie uma ou importe do iFood.</p>}
       </aside>
 
       {/* Tabela */}
       <section className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[220px] flex-1">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7C8AA1]" />
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#85817C]" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar por nome, descrição ou código…"
               aria-label="Buscar produtos"
-              className="mb-0 h-[38px] w-full rounded-lg border border-[#26314A] bg-[#080D18] pl-9 pr-3 text-[13px] text-[#E8EDF7] outline-none placeholder:text-[#7C8AA1] focus:border-[#3D8EFF]"
+              className="mb-0 h-[38px] w-full rounded-[5px] border border-[#2A2A2E] bg-[#0B0B0C] pl-9 pr-3 text-[13px] text-[#ECE9E3] outline-none placeholder:text-[#85817C] focus:border-[#D7141F]"
             />
           </div>
           <div className="w-[180px]">
@@ -397,10 +397,10 @@ function ProductsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
           )}
         </div>
 
-        <div className="mt-3 overflow-x-auto rounded-xl border border-[#1E2738]">
+        <div className="mt-3 overflow-x-auto rounded-[6px] border border-[#222225]">
           <table className="w-full min-w-[760px] border-collapse text-left">
             <thead>
-              <tr className="border-b border-[#1A2231] bg-[#0B111D] text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC]">
+              <tr className="border-b border-[#1C1C1F] bg-[#0E0E10] text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86]">
                 <th className="px-3 py-2.5">Produto</th>
                 <th className="px-3 py-2.5">Categoria</th>
                 <th className="px-3 py-2.5 text-right">Preço</th>
@@ -411,17 +411,17 @@ function ProductsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
             </thead>
             <tbody>
               {visible.map((item) => (
-                <tr key={item.id} className="border-b border-[#141B28] bg-[#0D1320] last:border-b-0 hover:bg-[#101827]">
+                <tr key={item.id} className="border-b border-[#18181B] bg-[#111113] last:border-b-0 hover:bg-[#131315]">
                   <td className="max-w-[380px] px-3 py-2.5">
                     <button type="button" onClick={() => canEdit && setDialog({ kind: 'item', item })} className="block max-w-full text-left">
-                      <span className="block truncate text-[13px] font-semibold text-[#E8EDF7]">{item.name}</span>
-                      <span className="block truncate text-[11px] text-[#7C8AA1]">
+                      <span className="block truncate text-[13px] font-semibold text-[#ECE9E3]">{item.name}</span>
+                      <span className="block truncate text-[11px] text-[#85817C]">
                         {item.sku && <span className="mr-1.5 whitespace-nowrap font-mono">{item.sku}</span>}
                         {item.description || <em className="not-italic text-[#FBBF24]/80">sem descrição</em>}
                       </span>
                     </button>
                   </td>
-                  <td className="px-3 py-2.5 text-[12px] text-[#B4BFD0]">{catName.get(item.category_id)}</td>
+                  <td className="px-3 py-2.5 text-[12px] text-[#B8B3AC]">{catName.get(item.category_id)}</td>
                   <td className="px-3 py-2.5 text-right">
                     <InlinePrice value={item.price} disabled={!canEdit} onSave={(price) => patch(item, { price }, 'Preço atualizado.')} />
                   </td>
@@ -431,7 +431,7 @@ function ProductsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
                         aria-label={`Status de ${item.name}`}
                         value={item.status}
                         onChange={(e) => patch(item, { status: e.target.value }, 'Status atualizado.')}
-                        className="mb-0 h-8 cursor-pointer rounded-md border border-[#26314A] bg-[#080D18] px-2 text-[12px] text-[#E8EDF7] outline-none focus:border-[#3D8EFF]"
+                        className="mb-0 h-8 cursor-pointer rounded-md border border-[#2A2A2E] bg-[#0B0B0C] px-2 text-[12px] text-[#ECE9E3] outline-none focus:border-[#D7141F]"
                       >
                         {STATUS_OPTIONS.map((o) => (
                           <option key={o.value} value={o.value}>
@@ -458,7 +458,7 @@ function ProductsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
                             setDialog({
                               kind: 'confirm',
                               title: 'Excluir produto',
-                              message: `Excluir “${item.name}” do Orvia? Isso NÃO remove do iFood — pause por lá se precisar.`,
+                              message: `Excluir “${item.name}” do Undercut? Isso NÃO remove do iFood — pause por lá se precisar.`,
                               confirmLabel: 'Excluir',
                               onConfirm: () => run(() => actions.deleteItemAction(ws, item.id, item.updated_at), 'Produto excluído.'),
                             })
@@ -473,7 +473,7 @@ function ProductsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="bg-[#0D1320] px-3 py-10 text-center text-[13px] text-[#7C8AA1]">
+                  <td colSpan={6} className="bg-[#111113] px-3 py-10 text-center text-[13px] text-[#85817C]">
                     {products.length === 0 ? 'Nenhum produto ainda — importe do iFood pela extensão ou clique em “Produto”.' : 'Nenhum produto com esses filtros.'}
                   </td>
                 </tr>
@@ -481,7 +481,7 @@ function ProductsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
             </tbody>
           </table>
         </div>
-        <p className="mt-2 text-[11px] text-[#7C8AA1]">Dica: clique no preço para editar direto na tabela. Toda alteração entra na fila “Sincronização iFood”.</p>
+        <p className="mt-2 text-[11px] text-[#85817C]">Dica: clique no preço para editar direto na tabela. Toda alteração entra na fila “Sincronização iFood”.</p>
       </section>
     </div>
   )
@@ -495,7 +495,7 @@ function IconBtn({ label, onClick, disabled, children }: { label: string; onClic
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="rounded-md p-1.5 text-[#7F8CA3] hover:bg-white/[0.06] hover:text-white disabled:opacity-30"
+      className="rounded-md p-1.5 text-[#86827D] hover:bg-white/[0.06] hover:text-white disabled:opacity-30"
     >
       {children}
     </button>
@@ -513,7 +513,7 @@ function CombosTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-2xl text-[13px] text-[#8A97AC]">
+        <p className="max-w-2xl text-[13px] text-[#8E8A86]">
           Monte combos com produtos do cardápio, veja a economia para o cliente e deixe pausado até revisar. A extensão mostra o passo a passo para criar no iFood.
         </p>
         {canEdit && (
@@ -526,7 +526,7 @@ function CombosTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
       {combos.length === 0 ? (
         <div className="mt-4">
           <Empty title="Nenhum combo ainda">
-            {productCount < 2 ? 'Cadastre ou importe pelo menos 2 produtos para montar um combo.' : 'Crie o primeiro: escolha os itens, defina o desconto e o Orvia sugere o preço.'}
+            {productCount < 2 ? 'Cadastre ou importe pelo menos 2 produtos para montar um combo.' : 'Crie o primeiro: escolha os itens, defina o desconto e o Undercut sugere o preço.'}
           </Empty>
         </div>
       ) : (
@@ -534,11 +534,11 @@ function CombosTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
           {combos.map((combo) => {
             const t = comboTotals(combo, byId)
             return (
-              <article key={combo.id} className="flex flex-col rounded-xl border border-[#1E2738] bg-[#0D1320] p-4">
+              <article key={combo.id} className="flex flex-col rounded-[6px] border border-[#222225] bg-[#111113] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="truncate text-[15px] font-bold text-[#F1F5FC]">{combo.name}</h3>
-                    {combo.description && <p className="mt-0.5 line-clamp-2 text-[12px] text-[#8A97AC]">{combo.description}</p>}
+                    <h3 className="truncate text-[15px] font-bold text-[#F7F5F1]">{combo.name}</h3>
+                    {combo.description && <p className="mt-0.5 line-clamp-2 text-[12px] text-[#8E8A86]">{combo.description}</p>}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <StatusBadge status={combo.status} />
@@ -550,18 +550,18 @@ function CombosTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
                     const p = byId.get(c.component_id)
                     return (
                       <li key={c.component_id} className="flex justify-between gap-3 text-[12px]">
-                        <span className="truncate text-[#C9D3E3]">
-                          <span className="font-mono text-[#6EA8FF]">{c.quantity}×</span> {p?.name ?? 'Produto removido'}
+                        <span className="truncate text-[#CFCBC4]">
+                          <span className="font-mono text-[#F0333D]">{c.quantity}×</span> {p?.name ?? 'Produto removido'}
                         </span>
-                        <span className="font-mono text-[#7C8AA1]">{formatBRL((p?.price ?? 0) * c.quantity)}</span>
+                        <span className="font-mono text-[#85817C]">{formatBRL((p?.price ?? 0) * c.quantity)}</span>
                       </li>
                     )
                   })}
                 </ul>
                 <div className="mt-auto pt-3">
-                  <div className="flex items-end justify-between border-t border-[#1A2231] pt-3">
+                  <div className="flex items-end justify-between border-t border-[#1C1C1F] pt-3">
                     <div>
-                      <span className="block text-[11px] text-[#7C8AA1] line-through">{formatBRL(t.full)}</span>
+                      <span className="block text-[11px] text-[#85817C] line-through">{formatBRL(t.full)}</span>
                       <span className="font-mono text-[18px] font-bold text-white">{formatBRL(combo.price)}</span>
                     </div>
                     <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', t.savings > 0 ? 'bg-[#34D399]/10 text-[#34D399]' : 'bg-[#FBBF24]/10 text-[#FBBF24]')}>
@@ -590,7 +590,7 @@ function CombosTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
                           setDialog({
                             kind: 'confirm',
                             title: 'Excluir combo',
-                            message: `Excluir “${combo.name}” do Orvia? Se já existir no iFood, pause por lá.`,
+                            message: `Excluir “${combo.name}” do Undercut? Se já existir no iFood, pause por lá.`,
                             confirmLabel: 'Excluir',
                             onConfirm: () => run(() => actions.deleteItemAction(ws, combo.id, combo.updated_at), 'Combo excluído.'),
                           })
@@ -623,7 +623,7 @@ function GroupsTab({ ws, catalog, canEdit, run, setDialog }: TabProps) {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-2xl text-[13px] text-[#8A97AC]">Grupos de opções (ponto da carne, adicionais, escolha da bebida). Vincule aos produtos no cadastro de cada produto.</p>
+        <p className="max-w-2xl text-[13px] text-[#8E8A86]">Grupos de opções (ponto da carne, adicionais, escolha da bebida). Vincule aos produtos no cadastro de cada produto.</p>
         {canEdit && (
           <Btn variant="primary" onClick={() => setDialog({ kind: 'group', group: null })}>
             <Plus size={14} /> Grupo
@@ -674,13 +674,13 @@ function GroupCard({
   }
 
   return (
-    <article className="rounded-xl border border-[#1E2738] bg-[#0D1320]">
-      <header className="flex items-start justify-between gap-3 border-b border-[#1A2231] px-4 py-3">
+    <article className="rounded-[6px] border border-[#222225] bg-[#111113]">
+      <header className="flex items-start justify-between gap-3 border-b border-[#1C1C1F] px-4 py-3">
         <div>
-          <h3 className="flex items-center gap-2 text-[14px] font-bold text-[#F1F5FC]">
-            <Layers size={14} className="text-[#6EA8FF]" /> {group.name}
+          <h3 className="flex items-center gap-2 text-[14px] font-bold text-[#F7F5F1]">
+            <Layers size={14} className="text-[#F0333D]" /> {group.name}
           </h3>
-          <p className="mt-0.5 text-[11px] text-[#7C8AA1]">
+          <p className="mt-0.5 text-[11px] text-[#85817C]">
             {group.min_qty > 0 ? 'Obrigatório' : 'Opcional'} · escolhe de {group.min_qty} a {group.max_qty} · em {linked} produto(s)
           </p>
         </div>
@@ -711,10 +711,10 @@ function GroupCard({
       </header>
       <ul>
         {group.subitems.map((s) => (
-          <li key={s.id} className="flex items-center justify-between gap-3 border-b border-[#141B28] px-4 py-2 text-[13px] last:border-b-0">
-            <span className={cn('truncate', s.status === 'active' ? 'text-[#E8EDF7]' : 'text-[#7C8AA1] line-through')}>{s.name}</span>
+          <li key={s.id} className="flex items-center justify-between gap-3 border-b border-[#18181B] px-4 py-2 text-[13px] last:border-b-0">
+            <span className={cn('truncate', s.status === 'active' ? 'text-[#ECE9E3]' : 'text-[#85817C] line-through')}>{s.name}</span>
             <span className="flex items-center gap-2">
-              <span className="font-mono text-[12px] text-[#B4BFD0]">{s.price_delta > 0 ? `+ ${formatBRL(s.price_delta)}` : 'grátis'}</span>
+              <span className="font-mono text-[12px] text-[#B8B3AC]">{s.price_delta > 0 ? `+ ${formatBRL(s.price_delta)}` : 'grátis'}</span>
               {canEdit && (
                 <>
                   <IconBtn
@@ -744,17 +744,17 @@ function GroupCard({
             </span>
           </li>
         ))}
-        {group.subitems.length === 0 && <li className="px-4 py-3 text-[12px] text-[#7C8AA1]">Sem opções ainda.</li>}
+        {group.subitems.length === 0 && <li className="px-4 py-3 text-[12px] text-[#85817C]">Sem opções ainda.</li>}
       </ul>
       {canEdit && (
-        <div className="flex gap-2 border-t border-[#1A2231] px-3 py-2.5">
+        <div className="flex gap-2 border-t border-[#1C1C1F] px-3 py-2.5">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && add()}
             placeholder="Nova opção (ex.: Bacon extra)"
             aria-label="Nome da nova opção"
-            className="mb-0 h-8 min-w-0 flex-1 rounded-md border border-[#26314A] bg-[#080D18] px-2.5 text-[12px] text-[#E8EDF7] outline-none placeholder:text-[#7C8AA1] focus:border-[#3D8EFF]"
+            className="mb-0 h-8 min-w-0 flex-1 rounded-md border border-[#2A2A2E] bg-[#0B0B0C] px-2.5 text-[12px] text-[#ECE9E3] outline-none placeholder:text-[#85817C] focus:border-[#D7141F]"
           />
           <input
             value={price}
@@ -763,7 +763,7 @@ function GroupCard({
             placeholder="+ R$ 0,00"
             aria-label="Preço adicional"
             inputMode="decimal"
-            className="mb-0 h-8 w-24 rounded-md border border-[#26314A] bg-[#080D18] px-2.5 text-right font-mono text-[12px] text-[#E8EDF7] outline-none placeholder:text-[#7C8AA1] focus:border-[#3D8EFF]"
+            className="mb-0 h-8 w-24 rounded-md border border-[#2A2A2E] bg-[#0B0B0C] px-2.5 text-right font-mono text-[12px] text-[#ECE9E3] outline-none placeholder:text-[#85817C] focus:border-[#D7141F]"
           />
           <Btn size="sm" onClick={add} disabled={!name.trim()}>
             <Plus size={13} />
@@ -802,38 +802,38 @@ function SyncTab({
   return (
     <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
       <aside className="space-y-3 xl:self-start">
-        <div className="rounded-xl border border-[#1E2738] bg-[#0D1320] p-4">
+        <div className="rounded-[6px] border border-[#222225] bg-[#111113] p-4">
           <div className="flex items-center gap-2">
-            <Plug size={16} className="text-[#6EA8FF]" />
-            <h3 className="text-[14px] font-bold text-[#F1F5FC]">Extensão Orvia · iFood</h3>
+            <Plug size={16} className="text-[#F0333D]" />
+            <h3 className="text-[14px] font-bold text-[#F7F5F1]">Extensão Orvia · iFood</h3>
           </div>
           {extension ? (
-            <p className="mt-2 text-[12px] text-[#B4BFD0]">
-              <span className={cn('mr-1.5 inline-block h-2 w-2 rounded-full', online ? 'bg-[#34D399]' : 'bg-[#7C8AA1]')} />
+            <p className="mt-2 text-[12px] text-[#B8B3AC]">
+              <span className={cn('mr-1.5 inline-block h-2 w-2 rounded-full', online ? 'bg-[#34D399]' : 'bg-[#85817C]')} />
               {online ? 'Conectada' : 'Instalada'} · versão {extension.version ?? '—'} · visto {ago(extension.last_seen_at, now)}
             </p>
           ) : (
-            <p className="mt-2 text-[12px] text-[#8A97AC]">{canManageKeys ? 'Ainda não conectada a este workspace.' : 'Status visível para dono/coordenador.'}</p>
+            <p className="mt-2 text-[12px] text-[#8E8A86]">{canManageKeys ? 'Ainda não conectada a este workspace.' : 'Status visível para dono/coordenador.'}</p>
           )}
           {canManageKeys && (
-            <Link href={`/a/${ws}/extensoes`} className="mt-3 inline-flex text-[12px] font-semibold text-[#6EA8FF] hover:text-white">
+            <Link href={`/a/${ws}/extensoes`} className="mt-3 inline-flex text-[12px] font-semibold text-[#F0333D] hover:text-white">
               Gerenciar chave da extensão →
             </Link>
           )}
         </div>
 
-        <div className="rounded-xl border border-[#1E2738] bg-[#0D1320] p-4 text-[12px] leading-relaxed text-[#B4BFD0]">
-          <h3 className="text-[13px] font-bold text-[#F1F5FC]">Como funciona</h3>
+        <div className="rounded-[6px] border border-[#222225] bg-[#111113] p-4 text-[12px] leading-relaxed text-[#B8B3AC]">
+          <h3 className="text-[13px] font-bold text-[#F7F5F1]">Como funciona</h3>
           <ol className="mt-2 list-decimal space-y-1.5 pl-4">
             <li>No Portal do Parceiro iFood, abra o cardápio da loja e clique no botão azul da Orvia.</li>
             <li>
-              <b className="text-white">Enviar para o Orvia</b>: a extensão importa categorias, produtos e complementos para <b className="text-white">{catalog.client.name}</b>.
+              <b className="text-white">Enviar para o Undercut</b>: a extensão importa categorias, produtos e complementos para <b className="text-white">{catalog.client.name}</b>.
             </li>
             <li>Edite aqui (preços, descrições, combos). Cada mudança entra nesta fila.</li>
             <li>Na extensão, aba <b className="text-white">Pendências</b>: ela mostra antes → depois e você aplica no iFood. Ao confirmar, sai da fila.</li>
           </ol>
-          <p className="mt-3 text-[11px] text-[#7C8AA1]">
-            Loja iFood vinculada: <span className="font-mono text-[#C9D3E3]">{catalog.client.ifood_merchant_id ?? 'definida na 1ª importação'}</span>
+          <p className="mt-3 text-[11px] text-[#85817C]">
+            Loja iFood vinculada: <span className="font-mono text-[#CFCBC4]">{catalog.client.ifood_merchant_id ?? 'definida na 1ª importação'}</span>
           </p>
         </div>
       </aside>
@@ -845,10 +845,10 @@ function SyncTab({
           <Stat label="Alterar no iFood" value={changed.length} />
         </div>
 
-        <div className="mt-4 overflow-x-auto rounded-xl border border-[#1E2738]">
+        <div className="mt-4 overflow-x-auto rounded-[6px] border border-[#222225]">
           <table className="w-full min-w-[640px] border-collapse text-left">
             <thead>
-              <tr className="border-b border-[#1A2231] bg-[#0B111D] text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A97AC]">
+              <tr className="border-b border-[#1C1C1F] bg-[#0E0E10] text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86]">
                 <th className="px-3 py-2.5">Produto</th>
                 <th className="px-3 py-2.5">O que fazer</th>
                 <th className="px-3 py-2.5 text-right">Preço</th>
@@ -859,20 +859,20 @@ function SyncTab({
             </thead>
             <tbody>
               {pending.map((item) => (
-                <tr key={item.id} className="border-b border-[#141B28] bg-[#0D1320] last:border-b-0">
+                <tr key={item.id} className="border-b border-[#18181B] bg-[#111113] last:border-b-0">
                   <td className="px-3 py-2.5">
-                    <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#E8EDF7]">
+                    <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#ECE9E3]">
                       {item.kind === 'combo' && <UtensilsCrossed size={12} className="text-[#C4B5FD]" />}
                       {item.name}
                     </span>
-                    <span className="text-[11px] text-[#7C8AA1]">{catName.get(item.category_id)}</span>
+                    <span className="text-[11px] text-[#85817C]">{catName.get(item.category_id)}</span>
                   </td>
-                  <td className="px-3 py-2.5 text-[12px] text-[#C9D3E3]">{item.ifood_id ? 'Atualizar no iFood' : item.kind === 'combo' ? 'Criar combo no iFood' : 'Criar produto no iFood'}</td>
-                  <td className="px-3 py-2.5 text-right font-mono text-[13px] text-[#E8EDF7]">{formatBRL(item.price)}</td>
+                  <td className="px-3 py-2.5 text-[12px] text-[#CFCBC4]">{item.ifood_id ? 'Atualizar no iFood' : item.kind === 'combo' ? 'Criar combo no iFood' : 'Criar produto no iFood'}</td>
+                  <td className="px-3 py-2.5 text-right font-mono text-[13px] text-[#ECE9E3]">{formatBRL(item.price)}</td>
                   <td className="px-3 py-2.5">
                     <StatusBadge status={item.status} />
                   </td>
-                  <td className="px-3 py-2.5 text-[12px] text-[#8A97AC]">{ago(item.updated_at, now)}</td>
+                  <td className="px-3 py-2.5 text-[12px] text-[#8E8A86]">{ago(item.updated_at, now)}</td>
                   <td className="px-3 py-2.5 text-right">
                     {canEdit && (
                       <Btn
@@ -888,8 +888,8 @@ function SyncTab({
               ))}
               {pending.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="bg-[#0D1320] px-3 py-10 text-center text-[13px] text-[#34D399]">
-                    Tudo em dia: o Orvia e o iFood estão iguais para este cliente.
+                  <td colSpan={6} className="bg-[#111113] px-3 py-10 text-center text-[13px] text-[#34D399]">
+                    Tudo em dia: o Undercut e o iFood estão iguais para este cliente.
                   </td>
                 </tr>
               )}
@@ -903,8 +903,8 @@ function SyncTab({
 
 function Stat({ label, value, tone }: { label: string; value: number; tone?: 'warn' | 'ok' }) {
   return (
-    <div className="rounded-xl border border-[#1E2738] bg-[#0D1320] px-4 py-3">
-      <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A97AC]">{label}</span>
+    <div className="rounded-[6px] border border-[#222225] bg-[#111113] px-4 py-3">
+      <span className="block text-[10px] font-bold font-mono uppercase tracking-[0.12em] text-[#8E8A86]">{label}</span>
       <span className={cn('mt-1 block font-mono text-[22px] font-bold', tone === 'warn' ? 'text-[#FBBF24]' : tone === 'ok' ? 'text-[#34D399]' : 'text-white')}>{value}</span>
     </div>
   )
