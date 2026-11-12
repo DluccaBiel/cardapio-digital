@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   Megaphone,
   Puzzle,
+  Settings2,
   UtensilsCrossed,
   X,
 } from 'lucide-react'
@@ -25,19 +26,72 @@ const items = [
   { key: 'extensoes', label: 'Extensões', icon: Puzzle },
 ]
 
+/** Itens do ADM: só owner/suporte (coordenador) enxergam. */
+const adminItems = [{ key: 'configuracoes', label: 'Configurações', icon: Settings2 }]
+
+type NavItem = (typeof items)[number]
+
+function renderNavItem(item: NavItem, index: number, compact: boolean, pathname: string, basePath: string, onNavigate?: () => void) {
+  const href = `${basePath}/${item.key}`
+  const active = pathname === href || pathname.startsWith(`${href}/`)
+  const Icon = item.icon
+  const isAdmin = index >= items.length
+  return (
+    <Link
+      key={item.key}
+      href={href}
+      onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
+      title={compact ? item.label : undefined}
+      className={[
+        'group relative flex h-[50px] items-center overflow-hidden rounded-[4px] border text-[14px] font-medium transition-all duration-200 hover:no-underline',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0333D]',
+        compact ? 'justify-center px-0' : 'gap-3 px-3',
+        active
+          ? 'border-[#2A2A2E] bg-gradient-to-r from-[#D7141F]/[0.16] via-[#D7141F]/[0.05] to-transparent text-[#F7F5F1]'
+          : 'border-transparent text-[#9F9A94] hover:border-[#222225] hover:bg-white/[0.025] hover:text-[#ECE9E3]',
+      ].join(' ')}
+    >
+      {active && (
+        <span
+          className="absolute inset-y-[9px] left-0 w-[4px] skew-y-[-14deg] bg-[#D7141F] shadow-[0_0_12px_rgba(215,20,31,0.9)]"
+          aria-hidden="true"
+        />
+      )}
+      {!compact && (
+        <span
+          className={[
+            'w-[22px] shrink-0 font-mono text-[10px] font-semibold tracking-[0.06em]',
+            active ? 'text-[#F0333D]' : 'text-[#55555C] group-hover:text-[#86827D]',
+          ].join(' ')}
+          aria-hidden="true"
+        >
+          {isAdmin ? 'ADM' : `S${index + 1}`}
+        </span>
+      )}
+      <Icon size={19} strokeWidth={1.7} className={active ? 'text-[#F0333D]' : 'text-[#86827D] group-hover:text-[#ECE9E3]'} />
+      {!compact && <span className="whitespace-nowrap">{item.label}</span>}
+      {!compact && active && <span className="ml-auto h-[6px] w-[6px] rotate-45 bg-[#D7141F]" aria-hidden="true" />}
+    </Link>
+  )
+}
+
 export function Sidebar({
   basePath,
   envLabel,
+  role,
   mobileOpen,
   onClose,
 }: {
   basePath: string
   envLabel: string
+  role: string
   mobileOpen: boolean
   onClose: () => void
 }) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const canAdmin = role === 'owner' || role === 'coordenador'
 
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('undercut-sidebar-collapsed') : null
@@ -83,51 +137,17 @@ export function Sidebar({
         <p className="px-5 pb-2 font-mono text-[9px] font-mono uppercase tracking-[0.28em] text-[#55555C]">Painel · setores</p>
       )}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-1" aria-label="Navegação principal">
-        {items.map((item, index) => {
-          const href = `${basePath}/${item.key}`
-          const active = pathname === href || pathname.startsWith(`${href}/`)
-          const Icon = item.icon
-          return (
-            <Link
-              key={item.key}
-              href={href}
-              onClick={onNavigate}
-              aria-current={active ? 'page' : undefined}
-              title={compact ? item.label : undefined}
-              className={[
-                'group relative flex h-[50px] items-center overflow-hidden rounded-[4px] border text-[14px] font-medium transition-all duration-200 hover:no-underline',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0333D]',
-                compact ? 'justify-center px-0' : 'gap-3 px-3',
-                active
-                  ? 'border-[#2A2A2E] bg-gradient-to-r from-[#D7141F]/[0.16] via-[#D7141F]/[0.05] to-transparent text-[#F7F5F1]'
-                  : 'border-transparent text-[#9F9A94] hover:border-[#222225] hover:bg-white/[0.025] hover:text-[#ECE9E3]',
-              ].join(' ')}
-            >
-              {active && (
-                <span
-                  className="absolute inset-y-[9px] left-0 w-[4px] skew-y-[-14deg] bg-[#D7141F] shadow-[0_0_12px_rgba(215,20,31,0.9)]"
-                  aria-hidden="true"
-                />
-              )}
-              {!compact && (
-                <span
-                  className={[
-                    'w-[22px] shrink-0 font-mono text-[10px] font-semibold tracking-[0.06em]',
-                    active ? 'text-[#F0333D]' : 'text-[#55555C] group-hover:text-[#86827D]',
-                  ].join(' ')}
-                  aria-hidden="true"
-                >
-                  S{index + 1}
-                </span>
-              )}
-              <Icon size={19} strokeWidth={1.7} className={active ? 'text-[#F0333D]' : 'text-[#86827D] group-hover:text-[#ECE9E3]'} />
-              {!compact && <span className="whitespace-nowrap">{item.label}</span>}
-              {!compact && active && (
-                <span className="ml-auto h-[6px] w-[6px] rotate-45 bg-[#D7141F]" aria-hidden="true" />
-              )}
-            </Link>
-          )
-        })}
+        {items.map((item, index) => renderNavItem(item, index, compact, pathname, basePath, onNavigate))}
+
+        {canAdmin && (
+          <>
+            {!compact && (
+              <p className="px-2 pb-1 pt-3 font-mono text-[9px] uppercase tracking-[0.24em] text-[#55555C]">ADM</p>
+            )}
+            {compact && <div className="mx-auto my-2 h-px w-8 bg-[#222225]" aria-hidden="true" />}
+            {adminItems.map((item, index) => renderNavItem(item, items.length + index, compact, pathname, basePath, onNavigate))}
+          </>
+        )}
       </nav>
 
       <div className={['border-t border-[#1C1C1F] py-4', compact ? 'px-2' : 'px-5'].join(' ')}>

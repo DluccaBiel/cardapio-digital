@@ -91,7 +91,7 @@ export function Btn({
       type="button"
       {...rest}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-[5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45',
+        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]/60',
         size === 'sm' ? 'h-8 px-2.5 text-[12px]' : 'h-[38px] px-3.5 text-[13px]',
         variant === 'primary' && 'bg-[#D7141F] text-white hover:bg-[#B5121B]',
@@ -180,7 +180,7 @@ export function Textarea({ value, onChange, placeholder, rows = 3 }: { value: st
       rows={rows}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="mb-0 w-full resize-y rounded-[5px] border border-[#2A2A2E] bg-[#0B0B0C] px-3 py-2 text-[13px] text-[#ECE9E3] outline-none placeholder:text-[#85817C] focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20"
+      className="mb-0 w-full resize-y rounded-xl border border-[#2A2A2E] bg-[#0B0B0C] px-3 py-2 text-[13px] text-[#ECE9E3] outline-none placeholder:text-[#85817C] focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20"
     />
   )
 }

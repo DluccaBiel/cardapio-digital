@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
 import { createServerClient } from '../../../../lib/supabaseServer'
 import { createAdminClient } from '../../../../lib/supabaseAdmin'
+import { shortUrlFor } from '../../../../lib/shortlink'
 import { ExtensionsScreen, type OptimizationReport } from '../../../../components/hub/extensions/ExtensionsScreen'
 
 export const dynamic = 'force-dynamic'
@@ -80,7 +81,7 @@ export default async function ExtensoesPage({ params, searchParams }: { params: 
   const canManage = ['owner', 'coordenador'].includes(workspace.role)
   const db = createServerClient()
 
-  const { data: extensions } = await db.from('extensions').select('id, slug, name, description').order('name')
+  const { data: extensions } = await db.from('extensions').select('id, slug, name, description, homepage_url').order('name')
   // RLS: api_keys/extension_installs só aparecem para owner/coordenador
   const [{ data: keys }, { data: installs }, report] = await Promise.all([
     canManage
@@ -103,6 +104,7 @@ export default async function ExtensoesPage({ params, searchParams }: { params: 
       canManage={canManage}
       canDelete={workspace.role === 'owner'}
       hubUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
+      shortUrl={shortUrlFor(workspace.slug)}
       extensions={extensions ?? []}
       keys={(keys ?? []) as any}
       installs={(installs ?? []) as any}
