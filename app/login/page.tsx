@@ -116,7 +116,7 @@ export default function Login() {
             <label>Conta</label>
             <select
               value={accountType}
-              onChange={(e) => handleChange(e)}
+              onChange={(e) => setAccountType(e.target.value as AccountType)}
               className="select-select"
             >
               <option value="usuario">Usuário Comum</option>
