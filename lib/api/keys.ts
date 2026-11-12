@@ -1,11 +1,22 @@
 import { createHash, randomBytes } from 'crypto'
 
 /** Escopos aceitos (docs/api.md §2). */
-export const API_SCOPES = ['clientes:ler', 'clientes:escrever', 'catalogo:ler', 'catalogo:escrever', 'webhooks:gerenciar', 'extensoes:ler'] as const
+export const API_SCOPES = [
+  'clientes:ler',
+  'clientes:escrever',
+  'catalogo:ler',
+  'catalogo:escrever',
+  'pesquisa:ler',
+  'webhooks:gerenciar',
+  'extensoes:ler',
+] as const
 export type ApiScope = (typeof API_SCOPES)[number]
 
-/** Escopos mínimos para a extensão Undercut · iFood. */
-export const IFOOD_EXTENSION_SCOPES: ApiScope[] = ['clientes:ler', 'catalogo:ler', 'catalogo:escrever']
+/**
+ * Escopos mínimos para as extensões Undercut (iFood, Cardápio Web, Anota AI).
+ * `pesquisa:ler` permite pedir pesquisas ao agente do Undercut (somente leitura).
+ */
+export const IFOOD_EXTENSION_SCOPES: ApiScope[] = ['clientes:ler', 'catalogo:ler', 'catalogo:escrever', 'pesquisa:ler']
 
 /**
  * Gera uma chave `ck_live_<43 chars base64url>` (256 bits aleatórios).

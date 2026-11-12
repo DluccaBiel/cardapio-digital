@@ -14,6 +14,7 @@ export function HubShell({
   basePath,
   envLabel,
   demo = false,
+  live = false,
   clients,
   children,
 }: {
@@ -24,6 +25,7 @@ export function HubShell({
   basePath: string
   envLabel: string
   demo?: boolean
+  live?: boolean
   clients: MockClient[]
   children: React.ReactNode
 }) {
@@ -53,10 +55,11 @@ export function HubShell({
         onOpenSidebar={() => setMobileOpen(true)}
         onOpenSearch={() => setSearchOpen(true)}
         demo={demo}
+        live={live}
       />
 
       <div className="flex min-h-0 flex-1">
-        <Sidebar basePath={basePath} envLabel={envLabel} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+        <Sidebar basePath={basePath} envLabel={envLabel} role={role} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
         <main id="hub-main" className="relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
           {children}
         </main>

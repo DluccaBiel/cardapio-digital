@@ -248,6 +248,33 @@ a:hover { text-decoration: underline; }
 /* Evita que o estilo legado de links do app interfira no shell novo */
 .hub-nav-link:hover { text-decoration: none !important; }
 
+/* ── Animações e utilidades neon (extensões / configurações) ───────────── */
+@keyframes uc-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.uc-fade-up { animation: uc-fade-up .28s cubic-bezier(.22,.61,.36,1) both; }
+
+/* Brilho vermelho suave em cartões de destaque (relatório das extensões) */
+.uc-neon {
+  box-shadow:
+    0 0 0 1px rgba(215, 20, 31, 0.14),
+    0 18px 70px -30px rgba(215, 20, 31, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Cartão translúcido com borda fina (painéis "de vidro") */
+.uc-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.5rem;
+  backdrop-filter: blur(10px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uc-fade-up { animation: none; }
+}
+
 /* ============================================================================
    Escopo do hub
    O app legado define estilos globais de elemento (table/th/td/input/select/a).

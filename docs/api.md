@@ -27,6 +27,7 @@ A API **valida a chave contra o hash** (`api_keys.key_hash`), checa `revoked_at`
 | `clientes:escrever` | POST/PATCH/DELETE em `/clients*` |
 | `catalogo:ler` | GET em `/menu/*` |
 | `catalogo:escrever` | POST/PATCH/DELETE em `/menu/*`, imagens, histórico e restore |
+| `pesquisa:ler` | POST em `/research` (agente de pesquisa, somente fontes públicas) |
 | `webhooks:gerenciar` | CRUD em `/webhooks*` |
 | `extensoes:ler` | GET em `/extensions*` (diagnóstico) |
 
@@ -188,6 +189,14 @@ Erros específicos: `415 unsupported_media_type`, `413 payload_too_large`, `409 
 | POST | `/api-keys` | (painel owner/coordenador) | Cria chave `{ "name", "extension_id"?, "scopes": [...], "rate_limit_per_minute"?, "expires_at"? }` — resposta inclui `key` em claro **uma única vez** |
 | POST | `/api-keys/{id}/rotate` | (painel owner/coordenador) | Gera nova chave, revoga a anterior na mesma operação |
 | POST | `/api-keys/{id}/revoke` | (painel owner/coordenador) | Define `revoked_at=now()` |
+
+### 4.8 Pesquisa (agente)
+
+| Método | Rota | Escopo | Descrição |
+|---|---|---|---|
+| POST | `/research` | `pesquisa:ler` | Pergunta `{ "question", "context"?, "max_sources"? }` → `{ answer, sources[], mode, status, notices[], answered_at }` |
+
+Usa Claude + busca quando `ANTHROPIC_API_KEY` existe; senão busca pública gratuita. Só fontes públicas (proteção SSRF), conteúdo não é gravado — apenas `audit_log` com `{ mode, status, sources }`. Detalhes em `docs/pesquisas.md`.
 
 ## 5. Controle de edição concorrente — detalhe
 

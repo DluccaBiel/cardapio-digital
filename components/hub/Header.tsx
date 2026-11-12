@@ -28,6 +28,7 @@ export function Header({
   onOpenSidebar,
   onOpenSearch,
   demo = false,
+  live = false,
 }: {
   workspace: { name: string; slug: string }
   role: string
@@ -36,6 +37,8 @@ export function Header({
   onOpenSidebar: () => void
   onOpenSearch: () => void
   demo?: boolean
+  /** true somente quando TODAS as extensões cadastradas estão conectadas agora. */
+  live?: boolean
 }) {
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const [soon, setSoon] = useState(false)
@@ -141,10 +144,20 @@ export function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-2 xl:gap-3">
-        <div className="hidden items-center gap-2 font-mono text-[10px] font-mono uppercase tracking-[0.16em] text-[#ADA8A1] lg:flex">
-          <span className="h-[7px] w-[7px] animate-uc-pulse rounded-full bg-[#34D399] shadow-[0_0_10px_rgba(52,211,153,0.7)]" aria-hidden="true" />
-          <Clock size={13} strokeWidth={1.8} className="text-[#86827D]" />
-          <span>Ao vivo · há instantes</span>
+        <div className="hidden items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] lg:flex">
+          {live ? (
+            <>
+              <span className="h-[7px] w-[7px] animate-uc-pulse rounded-full bg-[#34D399] shadow-[0_0_10px_rgba(52,211,153,0.7)]" aria-hidden="true" />
+              <Clock size={13} strokeWidth={1.8} className="text-[#86827D]" />
+              <span className="text-[#ADA8A1]">Ao vivo · há instantes</span>
+            </>
+          ) : (
+            <>
+              <span className="h-[7px] w-[7px] rounded-full bg-[#55555C]" aria-hidden="true" />
+              <Clock size={13} strokeWidth={1.8} className="text-[#86827D]" />
+              <span className="text-[#86827D]">Sem contato de todas as extensões</span>
+            </>
+          )}
         </div>
 
         <div className="relative">

@@ -181,3 +181,38 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 - Tela **Extensões** → painel **Conexão das extensões** com uma aba por extensão (iFood / Cardápio Web / Anota AI): mostra Conectada / sem contato recente / Não conectada (`extension_installs.last_seen_at`, renovado pelo `POST /extensions/handshake`).
 - Se não estiver conectada: **Gerar código de conexão** (`pairExtensionAction`) cria uma chave vinculada à extensão da aba (escopos mínimos, 365 dias) e mostra o código **uma vez** (Mostrar/Copiar) + o endereço do Undercut, para colar nas opções da extensão. O banco guarda só o hash.
 - A extensão Anota AI em si (Chrome MV3) ainda não existe no repositório: ela deve seguir o mesmo contrato das outras (`docs/integracao-extensoes-hub.md`), com `host_permissions` só do hub.
+
+## 15. Hub de extensões, link curto e agente de pesquisa (2026-11-12)
+
+- **Hub de extensões** na tela `/a/{ws}/extensoes` e em Configurações → Extensões: catálogo
+  (`lib/extensions/catalog.ts`) com versão, monograma, status por workspace e download do
+  pacote `.zip` em `public/extensoes/undercut-ifood.zip` (carregar em `chrome://extensions`
+  → Modo do desenvolvedor → *Carregar sem compactação*). Extensões sem pacote público
+  aparecem como *em breve*. O botão “Baixar .zip” é servido pelo próprio hub — sem
+  terceiros.
+- **ADM global:** owner e suporte (`coordenador`) cadastram/editam o catálogo pelo painel
+  (`saveExtensionAction`). O catálogo `extensions` é global (vale para todos os
+  workspaces); a escrita exige sessão + papel e usa service role só no servidor, com
+  auditoria (`extension.create` / `extension.update`).
+- **Link curto:** `/c/<8 hex>` (`lib/shortlink.ts`), derivado do slug por SHA-256 — sem
+  tabela nova. O painel mostra o endereço curto com botão de copiar; o código resolve para
+  `/a/{slug}/extensoes` no servidor (workspaces excluídos não resolvem).
+- **“Ao vivo” honesto:** o selo do header e o cartão de visão geral só aparecem quando
+  **todas** as extensões cadastradas têm chave ativa **e** contato nos últimos 10 minutos.
+  O botão *Sincronizar* consulta todas as extensões (inclusive as que nunca conectaram) e
+  mostra o último contato de cada uma. Status possíveis: *Conectada · último contato há
+  Xs*, *Conectada, sem contato recente (último há 5 h)*, *Desconectada — chave
+  revogada/expirada/excluída*.
+- **Código de conexão:** a geração mostra etapas (validando sessão → gerando hash →
+  vinculando à extensão escolhida) e só então revela o código (Mostrar/Copiar) + endereço
+  do hub. O banco guarda apenas o hash; o valor aparece uma única vez.
+- **Agente de pesquisa:** `POST /api/v1/research` (escopo `pesquisa:ler`) e o cartão no
+  painel. Claude + busca quando `ANTHROPIC_API_KEY` existe; senão busca pública gratuita.
+  Detalhes em `docs/pesquisas.md`.
+- **Segurança:** cabeçalhos HTTP em `next.config.js` (`nosniff`, `frame-ancestors 'self'`,
+  HSTS, Referrer-Policy, Permissions-Policy); `.zip` servido como `attachment`; chaves com
+  hash, RLS e escopos mínimos inalterados; `audit_log` nunca guarda pergunta/resposta nem
+  segredos.
+- **Pendências:** publicar um pacote público para Cardápio Web/Anota AI (hoje “em breve”);
+  aplicar a migration `0009` no banco de produção (catálogo com nomes Undercut) antes de
+  anunciar os nomes novos no catálogo global.

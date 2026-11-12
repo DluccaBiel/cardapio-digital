@@ -1,13 +1,35 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Copy, Eye, EyeOff, KeyRound, Plug, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  Activity,
+  ArrowRight,
+  Check,
+  Copy,
+  Download,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  Package,
+  Plug,
+  Plus,
+  Radio,
+  RefreshCw,
+  ShieldCheck,
+  Trash2,
+  WifiOff,
+  Zap,
+} from 'lucide-react'
 import { cn, FieldLabel, Modal, TextInput, TextSelect, Toast } from '@/components/hub/ui'
 import { Btn, Empty } from '@/components/hub/menu/shared'
 import { brand } from '@undercut/brand'
 import { SYNC_EVENT } from '@/components/hub/Header'
 import { ExtensionReport, type OptimizationReport } from '@/components/hub/extensions/ExtensionReport'
+import { ExtensionHub } from '@/components/hub/extensions/ExtensionHub'
+import { ResearchPanel } from '@/components/hub/extensions/ResearchPanel'
 import {
   checkExtensionsAction,
   createApiKeyAction,
@@ -20,7 +42,7 @@ import {
 
 export type { OptimizationReport }
 
-type Extension = { id: string; slug: string; name: string; description: string | null }
+type Extension = { id: string; slug: string; name: string; description: string | null; homepage_url?: string | null }
 type ApiKey = {
   id: string
   name: string
@@ -46,7 +68,9 @@ function liveFromInstall(i: Install): ExtensionLiveStatus {
   return { extension_id: i.extension_id, version: i.version, last_seen_at: i.last_seen_at, key, key_name: k?.name ?? null, key_last_used_at: null }
 }
 
-const ONLINE_MS = 10 * 60_000 // a extensão renova o contato ~1×/min com o portal (iFood / Cardápio Web) aberto
+const MISSING = (id: string): ExtensionLiveStatus => ({ extension_id: id, version: null, last_seen_at: null, key: 'missing', key_name: null, key_last_used_at: null })
+
+const ONLINE_MS = 10 * 60_000 // a extensão renova o contato ~1×/min com o portal aberto
 type Conn = 'online' | 'idle' | 'off'
 function connOf(s: ExtensionLiveStatus): Conn {
   if (s.key !== 'active') return 'off'
@@ -77,20 +101,21 @@ function ago(iso: string | null) {
   return when(iso)
 }
 
-const SCOPE_INFO: { value: string; label: string; hint: string }[] = [
-  { value: 'clientes:ler', label: 'Clientes · ler', hint: 'listar clientes para escolher o destino' },
-  { value: 'catalogo:ler', label: 'Cardápio · ler', hint: 'ler cardápio e pendências' },
-  { value: 'catalogo:escrever', label: 'Cardápio · escrever', hint: 'importar do iFood, confirmar aplicação, criar combo' },
-  { value: 'clientes:escrever', label: 'Clientes · escrever', hint: 'não necessário para a extensão iFood' },
-  { value: 'extensoes:ler', label: 'Extensões · ler', hint: 'diagnóstico' },
-]
-const DEFAULT_SCOPES = ['clientes:ler', 'catalogo:ler', 'catalogo:escrever']
-
 function when(iso: string | null) {
   if (!iso) return '—'
   // fuso fixo: servidor (UTC) e navegador precisam renderizar o mesmo texto (hidratação)
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
 }
+
+const SCOPE_INFO: { value: string; label: string; hint: string }[] = [
+  { value: 'clientes:ler', label: 'Clientes · ler', hint: 'listar clientes para escolher o destino' },
+  { value: 'catalogo:ler', label: 'Cardápio · ler', hint: 'ler cardápio e pendências' },
+  { value: 'catalogo:escrever', label: 'Cardápio · escrever', hint: 'importar do iFood, confirmar aplicação, criar combo' },
+  { value: 'pesquisa:ler', label: 'Pesquisa · ler', hint: 'pedir pesquisas ao agente do Undercut' },
+  { value: 'clientes:escrever', label: 'Clientes · escrever', hint: 'não necessário para as extensões atuais' },
+  { value: 'extensoes:ler', label: 'Extensões · ler', hint: 'diagnóstico' },
+]
+const DEFAULT_SCOPES = ['clientes:ler', 'catalogo:ler', 'catalogo:escrever']
 
 /**
  * A extensão 0.4.x só tem host_permission fixa para brand.extensionHubUrl (previews *.vercel.app
@@ -116,6 +141,7 @@ export function ExtensionsScreen({
   canManage,
   canDelete = false,
   hubUrl,
+  shortUrl = '',
   extensions,
   keys,
   installs,
@@ -129,6 +155,7 @@ export function ExtensionsScreen({
   canManage: boolean
   canDelete?: boolean
   hubUrl: string
+  shortUrl?: string
   extensions: Extension[]
   keys: ApiKey[]
   installs: Install[]
@@ -145,13 +172,30 @@ export function ExtensionsScreen({
   const [bulkBusy, setBulkBusy] = useState(false)
   const [sync, setSync] = useState<SyncState>({ kind: 'idle' })
   const [live, setLive] = useState<Map<string, ExtensionLiveStatus> | null>(null)
+  const [tab, setTab] = useState('')
   const extName = useMemo(() => new Map(extensions.map((e) => [e.id, e.name])), [extensions])
   const extSlug = useMemo(() => new Map(extensions.map((e) => [e.id, e.slug])), [extensions])
+
   const status = useMemo(() => {
     const m = new Map(installs.map((i) => [i.extension_id, liveFromInstall(i)]))
     if (live) live.forEach((s, id) => m.set(id, s))
     return m
   }, [installs, live])
+  const statusOf = useCallback((id: string) => status.get(id) ?? MISSING(id), [status])
+
+  const sorted = useMemo(() => [...extensions].sort((a, b) => rank(a.slug) - rank(b.slug)), [extensions])
+  useEffect(() => {
+    if (!tab && sorted.length) setTab(sorted[0]!.id)
+  }, [tab, sorted])
+  const activeExt = sorted.find((e) => e.id === tab) ?? sorted[0]
+
+  const rows = useMemo(() => sorted.map((ext) => ({ ext, st: statusOf(ext.id), conn: connOf(statusOf(ext.id)) })), [sorted, statusOf])
+  const onlineCount = rows.filter((r) => r.conn === 'online').length
+  const idleCount = rows.filter((r) => r.conn === 'idle').length
+  const offCount = rows.filter((r) => r.conn === 'off').length
+  const allLive = rows.length > 0 && rows.every((r) => r.conn === 'online')
+  const onlineIds = useMemo(() => new Set(rows.filter((r) => r.conn === 'online').map((r) => r.ext.id)), [rows])
+
   const [origin, setOrigin] = useState(hubUrl)
   useEffect(() => {
     if (!hubUrl) setOrigin(window.location.origin)
@@ -172,16 +216,16 @@ export function ExtensionsScreen({
     })
   }, [keys])
 
-  /** "Sincronizar" (header) nesta tela: consulta agora se a extensão segue conectada. */
+  /** "Sincronizar" (header) nesta tela: consulta agora se TODAS as extensões seguem conectadas. */
   const checkConnection = useCallback(async () => {
-    setSync({ kind: 'busy', text: 'Consultando a conexão da extensão…' })
+    setSync({ kind: 'busy', text: 'Consultando todas as extensões cadastradas…' })
     const inBrowser = document.documentElement.dataset.orviaIfood ?? null
     const res = await checkExtensionsAction(ws)
     router.refresh() // relê chaves, instalações e relatório (renova os links dos prints)
     if (!res.ok) return setSync({ kind: 'err', text: res.error })
     setLive(new Map(res.installs.map((s) => [s.extension_id, s])))
     const parts = res.installs.map((s) => `${extName.get(s.extension_id) ?? 'Extensão'}: ${connText(s, extSlug.get(s.extension_id))}`)
-    if (!parts.length) parts.push('Nenhuma extensão conectada a este workspace ainda.')
+    if (!parts.length) parts.push('Nenhuma extensão cadastrada no servidor ainda.')
     parts.push(inBrowser ? `Neste navegador: extensão instalada (v${inBrowser}).` : 'Neste navegador: extensão não detectada.')
     const anyOff = res.installs.some((s) => connOf(s) === 'off') || !res.installs.length
     setSync({ kind: anyOff ? 'err' : 'done', text: parts.join(' · '), at: res.checked_at })
@@ -221,19 +265,48 @@ export function ExtensionsScreen({
   }
 
   const showReport = reports.length > 0 || installs.length > 0
+  const activeKeys = keys.filter((k) => !k.revoked_at && !(k.expires_at && new Date(k.expires_at).getTime() < Date.now())).length
+  const hubAddress = origin && extensionCompatible(origin) ? origin : brand.extensionHubUrl
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-4 pb-10 pt-5 sm:px-6 md:px-[30px] md:pt-[26px]">
-      <h1 className="uc-title text-[32px] text-[#F7F5F1] md:text-[40px]">Extensões</h1>
-      <p className="mt-1 text-[13px] text-[#8E8A86]">
-        Conecte as extensões do Chrome ao Undercut com chaves de acesso por escopo · <span className="text-[#CFCBC4]">{workspaceName}</span>
-      </p>
+    <div className="relative mx-auto w-full max-w-[1400px] px-4 pb-12 pt-5 sm:px-6 md:px-[30px] md:pt-[26px]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(ellipse_at_top,rgba(215,20,31,0.10),transparent_62%)]" aria-hidden="true" />
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="uc-title text-[32px] text-[#F7F5F1] md:text-[40px]">Extensões</h1>
+          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-[#8E8A86]">
+            Conecte as extensões do Chrome ao Undercut com chaves de acesso por escopo · <span className="text-[#CFCBC4]">{workspaceName}</span>
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <LivePill allLive={allLive} online={onlineCount} total={rows.length} />
+          {canManage && (
+            <Link
+              href={`/a/${ws}/configuracoes`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-[#DAD6CF] no-underline transition-colors hover:border-[#D7141F]/45 hover:text-white hover:no-underline"
+            >
+              <ShieldCheck size={14} /> Configurações
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {shortUrl && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
+          <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#85817C]">Link curto</span>
+          <a href={shortUrl} className="min-w-0 flex-1 truncate font-mono text-[11px] text-[#B8B3AC] no-underline hover:text-white hover:no-underline" title={shortUrl}>
+            {shortUrl.replace(/^https?:\/\//, '')}
+          </a>
+          <CopyBtn value={shortUrl} label="Copiar link" />
+        </div>
+      )}
 
       {sync.kind !== 'idle' && (
         <div
           role="status"
           className={cn(
-            'mt-4 flex items-start gap-2 rounded-[6px] border px-4 py-3 text-[12px] leading-relaxed',
+            'mt-4 flex items-start gap-2 rounded-2xl border px-4 py-3 text-[12px] leading-relaxed',
             sync.kind === 'busy' && 'border-[#D7141F]/40 bg-[#D7141F]/10 text-[#FFD9DB]',
             sync.kind === 'done' && 'border-[#34D399]/40 bg-[#34D399]/10 text-[#A7F3D0]',
             sync.kind === 'err' && 'border-[#FBBF24]/40 bg-[#FBBF24]/10 text-[#FDE68A]',
@@ -247,41 +320,53 @@ export function ExtensionsScreen({
         </div>
       )}
 
+      <ConnectionsOverview
+        rows={rows}
+        online={onlineCount}
+        idle={idleCount}
+        off={offCount}
+        activeKeys={canManage ? activeKeys : null}
+        allLive={allLive}
+        checkedAt={sync.at ?? null}
+        onManage={(id) => {
+          setTab(id)
+          document.getElementById('ext-conn-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }}
+      />
+
       <ConnectionPanel
         ws={ws}
-        extensions={extensions}
+        extensions={sorted}
         status={status}
         canManage={canManage}
         highlight={highlightPair}
-        hubAddress={origin && extensionCompatible(origin) ? origin : brand.extensionHubUrl}
+        hubAddress={hubAddress}
+        workspaceName={workspaceName}
+        tab={tab}
+        onTab={setTab}
         onDone={refresh}
       />
 
+      <ExtensionHub ws={ws} extensions={extensions} onlineIds={onlineIds} canManage={canManage} onToast={setToast} />
+
       {showReport && <ExtensionReport reports={reports} unavailable={reportsUnavailable} />}
 
-      {/* Passo a passo */}
-      <section className="mt-6 rounded-[6px] border border-[#222225] bg-[#111113] p-4 text-[13px] leading-relaxed text-[#B8B3AC]">
-        <h2 className="flex items-center gap-2 text-[14px] font-bold text-[#F7F5F1]">
-          <ShieldCheck size={16} className="text-[#34D399]" /> Conexão manual (outro navegador ou sem a ponte)
-        </h2>
-        <ol className="mt-2 list-decimal space-y-1 pl-5">
-          <li>Gere uma chave abaixo (escopos padrão já são os mínimos).</li>
-          <li>
-            No Chrome: <span className="font-mono text-[12px]">chrome://extensions</span> → Modo do desenvolvedor → Carregar sem compactação → pasta{' '}
-            <span className="font-mono text-[12px]">apps/extensions/orvia-ifood</span>.
-          </li>
-          <li>
-            Abra as opções da extensão, cole o endereço do Undercut (<span className="font-mono text-[12px]">{origin && extensionCompatible(origin) ? origin : brand.extensionHubUrl}</span>) e a chave → “Testar conexão”.
-          </li>
-        </ol>
-      </section>
+      <ResearchPanel ws={ws} hubUrl={origin || brand.baseUrl} />
+
+      <ManualSetup hubAddress={hubAddress} />
 
       {/* Chaves */}
-      <section className="mt-6">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-[16px] font-bold text-[#F7F5F1]">
-            <KeyRound size={16} className="text-[#F0333D]" /> Chaves de API
-          </h2>
+      <section className="mt-6 rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-[16px] font-bold text-[#F7F5F1]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#D7141F]/30 bg-[#D7141F]/10 text-[#F0333D]">
+                <KeyRound size={16} />
+              </span>
+              Chaves de API
+            </h2>
+            <p className="mt-1 text-[12px] text-[#85817C]">Escopos mínimos, hash no banco e revogação imediata. O valor completo aparece uma única vez.</p>
+          </div>
           {canManage && (
             <Btn variant="primary" onClick={() => setCreating(true)}>
               <Plus size={14} /> Gerar chave
@@ -289,17 +374,17 @@ export function ExtensionsScreen({
           )}
         </div>
         {!canManage ? (
-          <div className="mt-3">
+          <div className="mt-4">
             <Empty title="Somente dono ou coordenador gerenciam chaves">Peça a um responsável do workspace para gerar a chave da extensão.</Empty>
           </div>
         ) : keys.length === 0 ? (
-          <div className="mt-3">
+          <div className="mt-4">
             <Empty title="Nenhuma chave criada">Gere um código de conexão no painel acima ou uma chave manual aqui.</Empty>
           </div>
         ) : (
           <>
             {selected.size > 0 && (
-              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[6px] border border-[#D7141F]/40 bg-[#1F0D0F] px-3 py-2 text-[12px] text-[#FFD9DB]">
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-[#D7141F]/40 bg-[#1F0D0F] px-3 py-2 text-[12px] text-[#FFD9DB]">
                 <span className="font-semibold">
                   {selected.size} selecionada{selected.size === 1 ? '' : 's'}
                 </span>
@@ -319,10 +404,10 @@ export function ExtensionsScreen({
                 )}
               </div>
             )}
-            <div className="mt-3 overflow-x-auto rounded-[6px] border border-[#222225]">
+            <div className="mt-4 overflow-x-auto rounded-2xl border border-white/[0.07]">
               <table className="w-full min-w-[860px] border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-[#1C1C1F] bg-[#0E0E10] text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86]">
+                  <tr className="border-b border-white/[0.06] bg-black/30 text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86]">
                     <th className="w-10 px-3 py-2.5">
                       <input
                         type="checkbox"
@@ -349,7 +434,7 @@ export function ExtensionsScreen({
                     const expired = k.expires_at && new Date(k.expires_at).getTime() < Date.now()
                     const isSel = selected.has(k.id)
                     return (
-                      <tr key={k.id} className={cn('border-b border-[#18181B] text-[12px] last:border-b-0', isSel ? 'bg-[#1F0D0F]' : 'bg-[#111113]')}>
+                      <tr key={k.id} className={cn('border-b border-white/[0.05] text-[12px] last:border-b-0', isSel ? 'bg-[#1F0D0F]' : 'bg-transparent')}>
                         <td className="px-3 py-2.5">
                           <input type="checkbox" aria-label={`Selecionar ${k.name}`} checked={isSel} onChange={() => toggle(k.id)} className="accent-[#D7141F]" />
                         </td>
@@ -359,7 +444,7 @@ export function ExtensionsScreen({
                         <td className="px-3 py-2.5">
                           <span className="flex flex-wrap gap-1">
                             {k.scopes.map((s) => (
-                              <span key={s} className="rounded border border-[#2A2A2E] bg-[#0B0B0C] px-1.5 py-px font-mono text-[10px] text-[#B8B3AC]">
+                              <span key={s} className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-px font-mono text-[10px] text-[#B8B3AC]">
                                 {s}
                               </span>
                             ))}
@@ -368,11 +453,13 @@ export function ExtensionsScreen({
                         <td className="px-3 py-2.5 text-[#8E8A86]">{when(k.last_used_at)}</td>
                         <td className="px-3 py-2.5">
                           {k.revoked_at ? (
-                            <span className="text-[#FF6A3D]">Revogada</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#FF6A3D]/12 px-2 py-0.5 text-[11px] text-[#FFB199]">Revogada</span>
                           ) : expired ? (
-                            <span className="text-[#FBBF24]">Expirada</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#FBBF24]/12 px-2 py-0.5 text-[11px] text-[#FDE68A]">Expirada</span>
                           ) : (
-                            <span className="text-[#34D399]">Ativa{k.expires_at ? ` até ${when(k.expires_at)}` : ''}</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#34D399]/12 px-2 py-0.5 text-[11px] text-[#6EE7B7]">
+                              Ativa{k.expires_at ? ` até ${when(k.expires_at)}` : ''}
+                            </span>
                           )}
                         </td>
                         <td className="px-3 py-2.5 text-right">
@@ -436,7 +523,7 @@ export function ExtensionsScreen({
               ? 'Elas somem da lista e param de funcionar na hora. Extensões que usam essas chaves ficam desconectadas. Não dá para desfazer.'
               : 'As extensões que usam essas chaves param de funcionar imediatamente.'}
           </p>
-          <ul className="mt-3 max-h-40 space-y-0.5 overflow-y-auto rounded-[5px] border border-[#1C1C1F] bg-[#0B0B0C] px-3 py-2 text-[12px] text-[#B8B3AC]">
+          <ul className="mt-3 max-h-40 space-y-0.5 overflow-y-auto rounded-xl border border-[#1C1C1F] bg-[#0B0B0C] px-3 py-2 text-[12px] text-[#B8B3AC]">
             {keys
               .filter((k) => bulk.ids.includes(k.id))
               .map((k) => (
@@ -460,6 +547,156 @@ export function ExtensionsScreen({
   )
 }
 
+function LivePill({ allLive, online, total }: { allLive: boolean; online: number; total: number }) {
+  if (total === 0) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8E8A86]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#55555C]" /> sem extensões
+      </span>
+    )
+  }
+  if (allLive) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/40 bg-[#34D399]/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#A7F3D0]">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#34D399] opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#34D399] shadow-[0_0_8px_rgba(52,211,153,.9)]" />
+        </span>
+        Ao vivo · há instantes
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-[#FBBF24]/40 bg-[#FBBF24]/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#FDE68A]">
+      <span className="h-1.5 w-1.5 rounded-full bg-[#FBBF24]" /> {online}/{total} conectadas
+    </span>
+  )
+}
+
+function StatusDot({ conn }: { conn: Conn | null }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'inline-block h-2.5 w-2.5 rounded-full',
+        conn === 'online' && 'bg-[#34D399] shadow-[0_0_10px_rgba(52,211,153,0.8)]',
+        conn === 'idle' && 'bg-[#FBBF24] shadow-[0_0_10px_rgba(251,191,36,0.6)]',
+        conn === 'off' && 'bg-[#FF6A3D] shadow-[0_0_10px_rgba(255,106,61,0.6)]',
+        conn === null && 'bg-[#55555C]',
+      )}
+    />
+  )
+}
+
+function ConnectionsOverview({
+  rows,
+  online,
+  idle,
+  off,
+  activeKeys,
+  allLive,
+  checkedAt,
+  onManage,
+}: {
+  rows: { ext: Extension; st: ExtensionLiveStatus; conn: Conn }[]
+  online: number
+  idle: number
+  off: number
+  activeKeys: number | null
+  allLive: boolean
+  checkedAt: string | null
+  onManage: (id: string) => void
+}) {
+  return (
+    <section className="mt-5 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5" aria-labelledby="ext-overview-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="ext-overview-title" className="flex items-center gap-2 text-[16px] font-bold text-[#F7F5F1]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#34D399]/25 bg-[#34D399]/10 text-[#6EE7B7]">
+              <Radio size={16} />
+            </span>
+            Visão geral das conexões
+          </h2>
+          <p className="mt-1 text-[12px] text-[#8E8A86]">
+            {allLive
+              ? 'Todas as extensões cadastradas estão enviando contato agora.'
+              : 'O selo “Ao vivo” só aparece quando todas as extensões cadastradas estão conectadas.'}
+          </p>
+        </div>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#55555C]" suppressHydrationWarning>
+          {checkedAt ? `verificado ${when(checkedAt)}` : 'último contato de cada extensão'}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Conectadas agora" value={`${online}/${rows.length}`} tone={online > 0 ? 'ok' : 'muted'} icon={<Zap size={14} />} />
+        <Metric label="Sem contato recente" value={String(idle)} tone={idle > 0 ? 'warn' : 'muted'} icon={<Activity size={14} />} />
+        <Metric label="Desconectadas" value={String(off)} tone={off > 0 ? 'bad' : 'muted'} icon={<WifiOff size={14} />} />
+        <Metric label="Chaves ativas" value={activeKeys === null ? '—' : String(activeKeys)} tone={activeKeys ? 'ok' : 'muted'} icon={<KeyRound size={14} />} />
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.015] px-4 py-6 text-center text-[12px] text-[#85817C]">
+          Nenhuma extensão cadastrada no servidor. Use “Adicionar extensão” no hub abaixo (ADM) ou aplique a migration do catálogo.
+        </div>
+      ) : (
+        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {rows.map(({ ext, st, conn }) => (
+            <button
+              key={ext.id}
+              type="button"
+              onClick={() => onManage(ext.id)}
+              className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-3.5 text-left transition-all hover:border-[#D7141F]/45 hover:shadow-[0_0_30px_-14px_rgba(215,20,31,0.65)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/30 font-mono text-[11px] font-bold text-[#F0333D]">
+                  {(SHORT[ext.slug] ?? ext.name).slice(0, 2).toUpperCase()}
+                </span>
+                <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-[#9F9A94]">
+                  <StatusDot conn={conn} />
+                  {conn === 'online' ? 'online' : conn === 'idle' ? 'sem contato' : 'offline'}
+                </span>
+              </div>
+              <p className="mt-2.5 text-[13px] font-bold text-[#F7F5F1]">{SHORT[ext.slug] ?? ext.name}</p>
+              <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-[#8E8A86]" suppressHydrationWarning>
+                {connText(st, ext.slug)}
+              </p>
+              <div className="mt-2.5 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.12em] text-[#55555C]">
+                <span>{st.version ? `v${st.version}` : 'sem versão'}</span>
+                <span className="inline-flex items-center gap-1 text-[#F0333D] opacity-0 transition-opacity group-hover:opacity-100">
+                  gerenciar <ArrowRight size={11} />
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function Metric({ label, value, tone, icon }: { label: string; value: string; tone: 'ok' | 'warn' | 'bad' | 'muted'; icon: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5">
+      <span
+        className={cn(
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border',
+          tone === 'ok' && 'border-[#34D399]/25 bg-[#34D399]/10 text-[#6EE7B7]',
+          tone === 'warn' && 'border-[#FBBF24]/25 bg-[#FBBF24]/10 text-[#FDE68A]',
+          tone === 'bad' && 'border-[#FF6A3D]/25 bg-[#FF6A3D]/10 text-[#FFB199]',
+          tone === 'muted' && 'border-white/10 bg-white/[0.03] text-[#85817C]',
+        )}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate font-mono text-[9px] uppercase tracking-[0.14em] text-[#85817C]">{label}</p>
+        <p className="font-display text-[18px] leading-[1.15] text-[#F7F5F1]">{value}</p>
+      </div>
+    </div>
+  )
+}
+
 function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: Extension[]; onClose: () => void }) {
   const ifood = extensions.find((e) => e.slug === 'orvia-ifood')
   const [name, setName] = useState('')
@@ -475,7 +712,7 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
     // A chave NUNCA é exibida: só o prefixo + máscara, e um botão que copia o valor completo.
     return (
       <Modal title="Chave criada" description="Copie agora — por segurança ela não pode ser exibida nem copiada depois." onClose={onClose} width="max-w-lg">
-        <div className="flex items-center gap-2 rounded-[5px] border border-[#D7141F]/50 bg-[#1F0D0F] p-3">
+        <div className="flex items-center gap-2 rounded-2xl border border-[#D7141F]/50 bg-[#1F0D0F] p-3">
           <EyeOff size={15} className="shrink-0 text-[#F0333D]" aria-hidden="true" />
           <span className="min-w-0 flex-1 select-none truncate font-mono text-[12px] text-[#FFD9DB]" aria-label="Chave oculta">
             {created.prefix}
@@ -497,13 +734,11 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
           </Btn>
         </div>
         {copy === 'fail' && (
-          <p className="mt-2 rounded-[5px] border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">
+          <p className="mt-2 rounded-xl border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">
             O navegador bloqueou a área de transferência. Clique de novo em “Copiar chave”; se continuar, revogue esta chave e gere outra.
           </p>
         )}
-        <p className="mt-3 text-[12px] leading-relaxed text-[#8E8A86]">
-          Cole nas opções da extensão (campo de senha). Não envie por chat/e-mail. Se perder, revogue e gere outra.
-        </p>
+        <p className="mt-3 text-[12px] leading-relaxed text-[#8E8A86]">Cole nas opções da extensão (campo de senha). Não envie por chat/e-mail. Se perder, revogue e gere outra.</p>
         <div className="mt-5 flex justify-end border-t border-[#1C1C1F] pt-4">
           <Btn variant="primary" onClick={onClose}>
             Concluir
@@ -565,7 +800,7 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
           {SCOPE_INFO.map((s) => {
             const on = scopes.includes(s.value)
             return (
-              <label key={s.value} className="flex cursor-pointer items-start gap-2 rounded-[5px] border border-[#222225] bg-[#0B0B0C] px-3 py-2">
+              <label key={s.value} className="flex cursor-pointer items-start gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
                 <input
                   type="checkbox"
                   checked={on}
@@ -581,7 +816,7 @@ function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: E
           })}
         </div>
       </div>
-      {error && <p className="mt-3 rounded-[5px] border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">{error}</p>}
+      {error && <p className="mt-3 rounded-xl border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">{error}</p>}
       <div className="mt-5 flex justify-end gap-2 border-t border-[#1C1C1F] pt-4">
         <Btn variant="ghost" onClick={onClose}>
           Cancelar
@@ -609,6 +844,9 @@ function ConnectionPanel({
   canManage,
   highlight,
   hubAddress,
+  workspaceName,
+  tab,
+  onTab,
   onDone,
 }: {
   ws: string
@@ -617,46 +855,62 @@ function ConnectionPanel({
   canManage: boolean
   highlight: boolean
   hubAddress: string
+  workspaceName: string
+  tab: string
+  onTab: (id: string) => void
   onDone: () => void
 }) {
-  const sorted = useMemo(() => [...extensions].sort((a, b) => rank(a.slug) - rank(b.slug)), [extensions])
-  const [tab, setTab] = useState(sorted[0]?.id ?? '')
-  const ext = sorted.find((e) => e.id === tab) ?? sorted[0]
+  const ext = extensions.find((e) => e.id === tab) ?? extensions[0]
   if (!ext) return null
-  const s = status.get(ext.id)
-  const c = s ? connOf(s) : null
+  const s = status.get(ext.id) ?? MISSING(ext.id)
+  const c = connOf(s)
   const short = SHORT[ext.slug] ?? ext.name
 
   return (
     <section
       aria-labelledby="ext-conn-title"
-      className={cn('mt-6 rounded-[6px] border bg-[#111113] p-4', highlight ? 'border-[#D7141F] shadow-[0_0_0_3px_rgba(215, 20, 31,0.18)]' : 'border-[#222225]')}
+      className={cn(
+        'mt-6 overflow-hidden rounded-3xl border bg-[#0C0C0E] p-4 transition-colors sm:p-5',
+        highlight ? 'border-[#D7141F]/70 shadow-[0_0_0_3px_rgba(215,20,31,0.18),0_0_60px_-20px_rgba(215,20,31,0.6)]' : 'border-white/[0.08]',
+      )}
     >
-      <h2 id="ext-conn-title" className="flex items-center gap-2 text-[15px] font-bold text-[#F7F5F1]">
-        <Plug size={16} className="text-[#F0333D]" /> Conexão das extensões
-      </h2>
-      <div role="tablist" aria-label="Extensão" className="mt-3 flex flex-wrap gap-1 border-b border-[#1C1C1F]">
-        {sorted.map((e) => {
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 id="ext-conn-title" className="flex items-center gap-2 text-[16px] font-bold text-[#F7F5F1]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#D7141F]/30 bg-[#D7141F]/10 text-[#F0333D]">
+              <Plug size={16} />
+            </span>
+            Conexão das extensões
+          </h2>
+          <p className="mt-1 text-[12px] text-[#85817C]">Cada extensão tem um código próprio, vinculado ao workspace {workspaceName}.</p>
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-[#8E8A86]">
+          {extensions.length} extensões
+        </span>
+      </div>
+
+      <div role="tablist" aria-label="Extensão" className="mt-4 flex flex-wrap gap-1.5">
+        {extensions.map((e) => {
           const st = status.get(e.id)
           const cc = st ? connOf(st) : null
+          const active = ext.id === e.id
           return (
             <button
               key={e.id}
               type="button"
               role="tab"
               id={`ext-conn-tab-${e.slug}`}
-              aria-selected={ext.id === e.id}
+              aria-selected={active}
               aria-controls="ext-conn-panel"
-              onClick={() => setTab(e.id)}
+              onClick={() => onTab(e.id)}
               className={cn(
-                '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D7141F]',
-                ext.id === e.id ? 'border-[#D7141F] text-[#F7F5F1]' : 'border-transparent text-[#8E8A86] hover:text-[#CFCBC4]',
+                'inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]',
+                active
+                  ? 'border-[#D7141F]/60 bg-[#D7141F]/15 text-[#F7F5F1] shadow-[0_0_22px_-8px_rgba(215,20,31,0.8)]'
+                  : 'border-white/[0.08] bg-white/[0.02] text-[#9F9A94] hover:border-white/20 hover:text-white',
               )}
             >
-              <span
-                aria-hidden="true"
-                className={cn('inline-block h-2 w-2 rounded-full', cc === 'online' ? 'bg-[#34D399]' : cc === 'idle' ? 'bg-[#FBBF24]' : cc === 'off' ? 'bg-[#FF6A3D]' : 'bg-[#55555C]')}
-              />
+              <StatusDot conn={cc} />
               {SHORT[e.slug] ?? e.name}
             </button>
           )
@@ -667,31 +921,39 @@ function ConnectionPanel({
         <p className="text-[12px] leading-relaxed text-[#8E8A86]">{ext.description}</p>
         <div
           className={cn(
-            'mt-3 rounded-[5px] border px-3 py-2.5 text-[13px]',
-            c === 'online' && 'border-[#34D399]/40 bg-[#34D399]/10 text-[#A7F3D0]',
-            c === 'idle' && 'border-[#FBBF24]/40 bg-[#FBBF24]/10 text-[#FDE68A]',
-            (c === 'off' || c === null) && 'border-[#FF6A3D]/40 bg-[#FF6A3D]/10 text-[#FFB199]',
+            'mt-3 rounded-2xl border px-3.5 py-3 text-[13px] leading-relaxed',
+            c === 'online' && 'border-[#34D399]/30 bg-[#34D399]/[0.07] text-[#A7F3D0]',
+            c === 'idle' && 'border-[#FBBF24]/30 bg-[#FBBF24]/[0.07] text-[#FDE68A]',
+            (c === 'off' || c === null) && 'border-[#FF6A3D]/30 bg-[#FF6A3D]/[0.07] text-[#FFB199]',
           )}
           suppressHydrationWarning
         >
-          {s ? (
-            connText(s, ext.slug)
-          ) : (
-            <>
-              <b>Não conectada</b> — a extensão {short} ainda não se conectou a este workspace. Gere o código abaixo e cole na extensão.
-            </>
-          )}
-          {s && (s.key_name || s.version) && (
-            <span className="mt-0.5 block text-[11px] opacity-80">{[s.key_name && `Acesso: ${s.key_name}`, s.version && `v${s.version}`].filter(Boolean).join(' · ')}</span>
-          )}
+          <span className="flex items-start gap-2">
+            <StatusDot conn={c} />
+            <span className="min-w-0 flex-1">
+              {connText(s, ext.slug)}
+              {(s.key_name || s.version) && (
+                <span className="mt-0.5 block text-[11px] opacity-80">{[s.key_name && `Acesso: ${s.key_name}`, s.version && `v${s.version}`].filter(Boolean).join(' · ')}</span>
+              )}
+            </span>
+          </span>
         </div>
 
         {!canManage ? (
-          <p className="mt-3 text-[12px] text-[#8E8A86]">Somente dono ou coordenador geram o código de conexão.</p>
+          <p className="mt-3 text-[12px] text-[#8E8A86]">Somente dono ou suporte (coordenador) geram o código de conexão.</p>
         ) : (
           <>
             {ext.slug === 'orvia-ifood' && <OneClickPair ws={ws} onDone={onDone} />}
-            <ConnectionCode key={ext.id} ws={ws} slug={ext.slug} label={short} connected={c === 'online' || c === 'idle'} hubAddress={hubAddress} onDone={onDone} />
+            <ConnectionCode
+              key={ext.id}
+              ws={ws}
+              slug={ext.slug}
+              label={short}
+              workspaceName={workspaceName}
+              connected={c === 'online' || c === 'idle'}
+              hubAddress={hubAddress}
+              onDone={onDone}
+            />
           </>
         )}
       </div>
@@ -724,6 +986,7 @@ function ConnectionCode({
   ws,
   slug,
   label,
+  workspaceName,
   connected,
   hubAddress,
   onDone,
@@ -731,50 +994,79 @@ function ConnectionCode({
   ws: string
   slug: string
   label: string
+  workspaceName: string
   connected: boolean
   hubAddress: string
   onDone: () => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [step, setStep] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [code, setCode] = useState<{ key: string; prefix: string } | null>(null)
   const [show, setShow] = useState(false)
+  const STEPS = ['Validando a sessão…', 'Gerando chave com hash seguro…', `Vinculando ao cardápio ${label}…`]
 
   const generate = async () => {
     setBusy(true)
+    setStep(0)
     setError(null)
+    setCode(null)
+    const timer = setTimeout(() => setStep(1), 350)
+    const timer2 = setTimeout(() => setStep(2), 900)
     const res = await pairExtensionAction(ws, slug)
+    clearTimeout(timer)
+    clearTimeout(timer2)
     setBusy(false)
+    setStep(0)
     if (!res.ok) return setError(res.error)
     setCode({ key: res.key, prefix: res.prefix })
     onDone() // a nova chave aparece na lista abaixo
   }
 
   return (
-    <div className="mt-4 rounded-[5px] border border-[#222225] bg-[#0B0B0C] p-3">
+    <div className="relative mt-4 overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.03] p-3.5 backdrop-blur-sm">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-[#D7141F]/10 blur-2xl" aria-hidden="true" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="flex items-center gap-1.5 text-[13px] font-bold text-[#ECE9E3]">
             <KeyRound size={14} className="text-[#F0333D]" /> Código de conexão · {label}
           </h3>
-          <p className="mt-0.5 text-[11px] text-[#85817C]">
-            {connected
-              ? 'Já conectada. Gere um novo código só para conectar outro navegador ou computador.'
-              : 'Cole este código (token) e o endereço do Undercut nas opções da extensão.'}
+          <p className="mt-0.5 max-w-xl text-[11px] leading-relaxed text-[#85817C]">
+            {connected ? 'Já conectada. Gere um novo código só para conectar outro navegador ou computador.' : 'Cole este código (token) e o endereço do Undercut nas opções da extensão.'}
           </p>
         </div>
-        {!code && (
-          <Btn variant={connected ? 'secondary' : 'primary'} disabled={busy} onClick={generate}>
-            {busy ? 'Gerando…' : connected ? 'Gerar novo código' : 'Gerar código de conexão'}
+        {!code && !busy && (
+          <Btn variant={connected ? 'secondary' : 'primary'} onClick={generate}>
+            {connected ? 'Gerar novo código' : 'Gerar código de conexão'}
           </Btn>
+        )}
+        {busy && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D7141F]/40 bg-[#D7141F]/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[#FFD9DB]">
+            <Loader2 size={12} className="animate-spin" /> gerando
+          </span>
         )}
       </div>
 
-      {error && <p className="mt-3 rounded-[5px] border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">{error}</p>}
+      {busy && (
+        <div className="uc-fade-up mt-3 rounded-xl border border-[#D7141F]/30 bg-[#D7141F]/[0.06] p-3" aria-live="polite">
+          <p className="flex items-center gap-2 text-[12px] text-[#FFD9DB]">
+            <Loader2 size={14} className="animate-spin" /> {STEPS[step]}
+          </p>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-gradient-to-r from-[#B5121B] to-[#F0333D] transition-all duration-500" style={{ width: `${Math.min(100, (step + 1) * 34)}%` }} />
+          </div>
+          <p className="mt-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-[#85817C]">cardápio selecionado: {label}</p>
+        </div>
+      )}
+
+      {error && <p className="mt-3 rounded-xl border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">{error}</p>}
 
       {code && (
-        <div className="mt-3 space-y-2">
-          <div className="flex flex-wrap items-center gap-2 rounded-[5px] border border-[#D7141F]/50 bg-[#1F0D0F] p-2.5">
+        <div className="uc-fade-up mt-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#34D399]/25 bg-[#34D399]/[0.05] px-3 py-2 text-[11px] text-[#A7F3D0]">
+            <Check size={13} /> Código gerado para <b>{label}</b> · workspace {workspaceName}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#D7141F]/40 bg-[#1F0D0F]/80 p-2.5">
             <span className="w-full text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86] sm:w-auto">Código</span>
             <span className={cn('min-w-0 flex-1 break-all font-mono text-[12px] text-[#FFD9DB]', !show && 'select-none')}>
               {show ? code.key : `${code.prefix}${'•'.repeat(24)}`}
@@ -784,7 +1076,7 @@ function ConnectionCode({
             </Btn>
             <CopyBtn value={code.key} label="Copiar código" />
           </div>
-          <div className="flex flex-wrap items-center gap-2 rounded-[5px] border border-[#222225] bg-[#0E0E10] p-2.5">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-black/25 p-2.5">
             <span className="w-full text-[10px] font-bold font-mono uppercase tracking-[0.1em] text-[#8E8A86] sm:w-auto">Endereço</span>
             <span className="min-w-0 flex-1 break-all font-mono text-[12px] text-[#CFCBC4]">{hubAddress}</span>
             <CopyBtn value={hubAddress} label="Copiar endereço" />
@@ -800,6 +1092,42 @@ function ConnectionCode({
         </div>
       )}
     </div>
+  )
+}
+
+function ManualSetup({ hubAddress }: { hubAddress: string }) {
+  return (
+    <section className="mt-6 rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-[15px] font-bold text-[#F7F5F1]">
+            <ShieldCheck size={16} className="text-[#34D399]" /> Conexão manual (outro navegador ou sem a ponte)
+          </h2>
+          <p className="mt-1 text-[12px] text-[#85817C]">Use quando a extensão não estiver neste navegador ou o “Conectar com um clique” não aparecer.</p>
+        </div>
+        <a
+          href="/extensoes/undercut-ifood.zip"
+          download
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-[#DAD6CF] no-underline hover:border-[#D7141F]/45 hover:text-white hover:no-underline"
+        >
+          <Download size={14} /> Baixar extensão iFood
+        </a>
+      </div>
+      <ol className="mt-3 grid list-decimal gap-2 pl-5 text-[13px] leading-relaxed text-[#B8B3AC] md:grid-cols-3 md:gap-4">
+        <li>
+          Gere um código de conexão no painel acima (escopos padrão já são os mínimos).
+        </li>
+        <li>
+          No Chrome: <span className="font-mono text-[12px]">chrome://extensions</span> → Modo do desenvolvedor → Carregar sem compactação → pasta extraída do .zip.
+        </li>
+        <li>
+          Abra as opções da extensão, cole o endereço do Undercut (<span className="font-mono text-[12px] break-all">{hubAddress}</span>) e a chave → “Testar conexão”.
+        </li>
+      </ol>
+      <p className="mt-3 flex items-center gap-1.5 text-[11px] text-[#85817C]">
+        <Package size={12} /> O pacote e as versões ficam no Hub de extensões acima. Instale somente arquivos publicados pelo ADM.
+      </p>
+    </section>
   )
 }
 
@@ -850,7 +1178,7 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
   }
 
   return (
-    <div className="mt-4 rounded-[5px] border border-[#222225] bg-[#0B0B0C] p-3">
+    <div className="mt-4 rounded-2xl border border-[#34D399]/25 bg-[#34D399]/[0.04] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[12px] text-[#B8B3AC]">Extensão iFood detectada neste navegador (v{version}). Conecte com um clique, sem copiar código.</p>
         <Btn variant="primary" disabled={state.kind === 'busy'} onClick={connect}>
@@ -861,7 +1189,7 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
         <p
           role="status"
           className={cn(
-            'mt-2 rounded-[5px] px-3 py-2 text-[12px]',
+            'mt-2 rounded-xl px-3 py-2 text-[12px]',
             state.kind === 'ok' && 'bg-[#34D399]/10 text-[#6EE7B7]',
             state.kind === 'err' && 'bg-[#FF6A3D]/10 text-[#FFB199]',
             state.kind === 'busy' && 'bg-[#D7141F]/10 text-[#FFD9DB]',

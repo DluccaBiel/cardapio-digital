@@ -60,8 +60,8 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-black/65 backdrop-blur-[2px]" />
-      <div className={cn('relative w-full overflow-hidden rounded-[8px] border border-[#2A2A2E] bg-[#0E0E10] shadow-[0_30px_90px_rgba(0,0,0,0.65)]', width)}>
-        <div className="flex items-start justify-between gap-4 border-b border-[#1C1C1F] px-5 py-4">
+      <div className={cn('relative w-full overflow-hidden rounded-3xl border border-white/[0.09] bg-[#0E0E10]/95 shadow-[0_30px_90px_rgba(0,0,0,0.7)] backdrop-blur-xl', width)}>
+        <div className="flex items-start justify-between gap-4 border-b border-white/[0.06] px-5 py-4">
           <div>
             <h2 className="text-[16px] font-bold text-[#F7F5F1]">{title}</h2>
             {description && <p className="mt-0.5 text-[12px] text-[#8E8A86]">{description}</p>}
@@ -81,7 +81,7 @@ export function Toast({ message }: { message: string | null }) {
   return (
     <div
       role="status"
-      className="fixed bottom-6 right-6 z-[80] max-w-sm rounded-[6px] border border-[#D7141F]/50 bg-[#1F0D0F] px-4 py-3 text-[12px] font-medium text-[#FFD9DB] shadow-2xl"
+      className="uc-fade-up fixed bottom-6 right-6 z-[80] max-w-sm rounded-2xl border border-[#D7141F]/50 bg-[#1F0D0F] px-4 py-3 text-[12px] font-medium text-[#FFD9DB] shadow-2xl"
     >
       {message}
     </div>
@@ -115,7 +115,7 @@ export function TextInput({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       className={cn(
-        'mb-0 h-[42px] w-full rounded-[5px] border border-[#2A2A2E] bg-[#0B0B0C] px-3 text-[13px] text-[#ECE9E3] outline-none transition-colors placeholder:text-[#85817C] focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20',
+        'mb-0 h-[42px] w-full rounded-xl border border-[#2A2A2E] bg-[#0B0B0C] px-3 text-[13px] text-[#ECE9E3] outline-none transition-colors placeholder:text-[#85817C] focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20',
         className,
       )}
     />
@@ -141,7 +141,7 @@ export function TextSelect({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       className={cn(
-        'mb-0 h-[42px] w-full cursor-pointer rounded-[5px] border border-[#2A2A2E] bg-[#0B0B0C] px-3 text-[13px] text-[#ECE9E3] outline-none transition-colors focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20',
+        'mb-0 h-[42px] w-full cursor-pointer rounded-xl border border-[#2A2A2E] bg-[#0B0B0C] px-3 text-[13px] text-[#ECE9E3] outline-none transition-colors focus:border-[#D7141F] focus:ring-2 focus:ring-[#D7141F]/20',
         className,
       )}
     >
