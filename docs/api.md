@@ -1,4 +1,4 @@
-# API pública `/api/v1` — Orvia
+# API pública `/api/v1` — Undercut
 
 > Contrato REST/JSON para o painel e para extensões Chrome. **Base URL:** `{NEXT_PUBLIC_APP_URL}/api/v1`
 > Fonte única da verdade para tipos: `docs/openapi.yaml` (gerar `packages/api-types` a partir dele).
@@ -224,7 +224,7 @@ Endpoints já ativos (Route Handlers em `app/api/v1/`). Os demais da §4 continu
 | POST | `/extensions/handshake` | (chave vinculada a extensão) | `{ version }` → upsert em `extension_installs` (`last_seen_at`) |
 | GET | `/clients` | `clientes:ler` | Lista enxuta `{ id, name, ifood_merchant_id }` (sem PII) |
 | GET | `/menu?client_id=` | `catalogo:ler` | Catálogo completo (categorias, itens/combos, complementos). `ETag` = versão do catálogo |
-| POST | `/menu/import` | `catalogo:escrever` | Snapshot do iFood → Orvia. **If-Match = ETag de `/menu`** (428 sem, 409 divergente). 409 `merchant_mismatch` se a loja não for a vinculada |
+| POST | `/menu/import` | `catalogo:escrever` | Snapshot do iFood → Undercut. **If-Match = ETag de `/menu`** (428 sem, 409 divergente). 409 `merchant_mismatch` se a loja não for a vinculada |
 | GET | `/menu/pending?client_id=` | `catalogo:ler` | Fila "aplicar no iFood": itens/combos com `updated_at > ifood_synced_at` (ou nunca sincronizados), com `etag` por item |
 | GET/PATCH | `/menu/items/{id}` | `catalogo:ler` / `catalogo:escrever` | PATCH de `name, description, price, status, sku, category_id, sort_order` com If-Match = `ETag` do GET |
 | POST | `/menu/items/{id}/ifood-sync` | `catalogo:escrever` | Confirma que foi aplicado no iFood (`{ ifood_id? }`). If-Match = `etag` da pendência |

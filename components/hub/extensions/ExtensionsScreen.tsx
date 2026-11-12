@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, Copy, Eye, EyeOff, KeyRound, Plug, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { cn, FieldLabel, Modal, TextInput, TextSelect, Toast } from '@/components/hub/ui'
 import { Btn, Empty } from '@/components/hub/menu/shared'
-import { brand } from '@orvia/brand'
+import { brand } from '@undercut/brand'
 import { SYNC_EVENT } from '@/components/hub/Header'
 import { ExtensionReport, type OptimizationReport } from '@/components/hub/extensions/ExtensionReport'
 import {
@@ -790,7 +790,7 @@ function ConnectionCode({
             <CopyBtn value={hubAddress} label="Copiar endereço" />
           </div>
           <ol className="list-decimal space-y-0.5 pl-5 text-[12px] leading-relaxed text-[#B8B3AC]">
-            <li>Abra a extensão Orvia · {label} → Opções / Conexão.</li>
+            <li>Abra a extensão Undercut · {label} → Opções / Conexão.</li>
             <li>Cole o endereço e o código nos campos correspondentes → “Testar conexão” / “Salvar”.</li>
             <li>Volte aqui e clique em “Sincronizar” no topo: o status muda para Conectada.</li>
           </ol>

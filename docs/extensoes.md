@@ -79,7 +79,7 @@ Depois (API do hub):
 ```json
 {
   "manifest_version": 3,
-  "name": "Orvia — Troca de Fotos",
+  "name": "Undercut — Troca de Fotos",
   "version": "2.0.0",
   "permissions": ["storage"],
   "host_permissions": [
@@ -179,5 +179,5 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 - Migration `0008_anotaai_channel.sql` (aditiva): registra `orvia-anotaai` no catálogo, cria `clients.anotaai_store_id` (trava de loja própria) e amplia `menu_optimizations.platform` para `ifood | cardapioweb | anotaai`.
 - `lib/api/extensions.ts`: slug `orvia-anotaai` → canal `anotaai` ("Anota AI"). O canal continua vindo da **chave** (`api_keys.extension_id`); a extensão Anota AI pode também mandar `extension: "orvia-anotaai"` no login.
 - Tela **Extensões** → painel **Conexão das extensões** com uma aba por extensão (iFood / Cardápio Web / Anota AI): mostra Conectada / sem contato recente / Não conectada (`extension_installs.last_seen_at`, renovado pelo `POST /extensions/handshake`).
-- Se não estiver conectada: **Gerar código de conexão** (`pairExtensionAction`) cria uma chave vinculada à extensão da aba (escopos mínimos, 365 dias) e mostra o código **uma vez** (Mostrar/Copiar) + o endereço do Orvia, para colar nas opções da extensão. O banco guarda só o hash.
+- Se não estiver conectada: **Gerar código de conexão** (`pairExtensionAction`) cria uma chave vinculada à extensão da aba (escopos mínimos, 365 dias) e mostra o código **uma vez** (Mostrar/Copiar) + o endereço do Undercut, para colar nas opções da extensão. O banco guarda só o hash.
 - A extensão Anota AI em si (Chrome MV3) ainda não existe no repositório: ela deve seguir o mesmo contrato das outras (`docs/integracao-extensoes-hub.md`), com `host_permissions` só do hub.

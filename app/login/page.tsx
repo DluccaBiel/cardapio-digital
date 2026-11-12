@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { brand } from '@orvia/brand'
+import { brand } from '@undercut/brand'
 import { createClient } from '../../lib/supabase'
 
 export default function Login() {

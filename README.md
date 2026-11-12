@@ -1,4 +1,4 @@
-# Orvia
+# Undercut
 
 **Gestão que conecta** — Hub de gestão para assessorias: clientes, cardápio, relatórios e extensões de navegador.
 
@@ -47,8 +47,8 @@ supabase db reset            # aplica 0001_init.sql + 0002_rls.sql do zero (loca
 - [docs/fotos-e-historico.md](docs/fotos-e-historico.md) — pipeline de imagens
 - [docs/roadmap-fase-1.md](docs/roadmap-fase-1.md) — ordem de implementação da Fase 1
 - [docs/decisoes-em-aberto.md](docs/decisoes-em-aberto.md) — riscos e decisões pendentes
-- [docs/rebrand-inventario.md](docs/rebrand-inventario.md) — inventário e decisões do rebrand (Cardápio Web Hub → Orvia)
+- [docs/rebrand-inventario.md](docs/rebrand-inventario.md) — inventário e decisões do rebrand (Cardápio Web Hub → Undercut)
 
 ## Licença
 
-Proprietária — © Orvia. Uso interno da assessoria. Marca **não** registrada (ver `docs/rebrand-inventario.md`).
+Proprietária — © Undercut. Uso interno da assessoria. Marca **não** registrada (ver `docs/rebrand-inventario.md`).

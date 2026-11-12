@@ -4,7 +4,7 @@ import { createHash, randomBytes } from 'crypto'
 export const API_SCOPES = ['clientes:ler', 'clientes:escrever', 'catalogo:ler', 'catalogo:escrever', 'webhooks:gerenciar', 'extensoes:ler'] as const
 export type ApiScope = (typeof API_SCOPES)[number]
 
-/** Escopos mínimos para a extensão Orvia · iFood. */
+/** Escopos mínimos para a extensão Undercut · iFood. */
 export const IFOOD_EXTENSION_SCOPES: ApiScope[] = ['clientes:ler', 'catalogo:ler', 'catalogo:escrever']
 
 /**

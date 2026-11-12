@@ -1,4 +1,4 @@
-# AGENTS.md — Orvia (Fase 1)
+# AGENTS.md — Undercut (Fase 1)
 
 > Este arquivo vale para **toda sessão** de agente neste repositório. Leia antes de agir.
 
@@ -18,7 +18,7 @@
 ├── apps/hub/               # App Next.js (Fase 1)
 ├── apps/extensions/        # Extensões Chrome MV3
 ├── packages/api-types/     # Tipos gerados a partir de docs/openapi.yaml
-├── packages/brand/         # Fonte única da marca Orvia (nome, cores, logos) — ver packages/brand/README.md
+├── packages/brand/         # Fonte única da marca Undercut (nome, cores, logos) — ver packages/brand/README.md
 ├── supabase/migrations/    # 0001_init.sql, 0002_rls.sql, ...
 ├── docs/                   # Arquitetura (ver sumário abaixo)
 ├── AGENTS.md
@@ -133,19 +133,19 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 
 Fluxo padrão (nunca pular o preview):
 
-1. **Branch de release** (`release/orvia-vX.Y`) aponta para a branch mais avançada (`feat/*`).
-2. **Preview**: `git push -u origin release/orvia-vX.Y` → a Vercel cria um deployment de preview (protegido por login Vercel, por design).
-   - Verifique: `/login` renderiza a marca (título "Orvia — ..."), build `Ready`.
+1. **Branch de release** (`release/undercut-vX.Y`) aponta para a branch mais avançada (`feat/*`).
+2. **Preview**: `git push -u origin release/undercut-vX.Y` → a Vercel cria um deployment de preview (protegido por login Vercel, por design).
+   - Verifique: `/login` renderiza a marca (título "Undercut — ..."), build `Ready`.
    - Descobrir URL/status: `npx vercel ls orvia` · detalhes: `npx vercel inspect <url> --wait`.
-3. **Produção** (somente com preview aprovado): `git switch master && git merge --no-ff release/orvia-vX.Y -m "merge: release → master" && git push origin master` → a Vercel gera o deployment de produção (aliás `https://orvia-gestao.vercel.app`).
-4. **Verificação pós-deploy**: `GET /login` → 200 com título "Orvia"; logo/favicon em `/brand/*` e `/icon.svg`; `/dashboard` → 307/redirect para `/login` sem sessão.
+3. **Produção** (somente com preview aprovado): `git switch master && git merge --no-ff release/undercut-vX.Y -m "merge: release → master" && git push origin master` → a Vercel gera o deployment de produção (`https://undercuthub.vercel.app` + aliases legados).
+4. **Verificação pós-deploy**: `GET /login` → 200 com título "Undercut"; logo/favicon em `/brand/*` e `/icon.svg`; `/dashboard` → 307/redirect para `/login` sem sessão.
 
 ### Rollback
 
 - Deployment de produção anterior (registrado em 04/11/2026): `dpl_9Fj52z3X72xZfQ5pFsBLUi5WFm4c` (alias `https://nextjs-cardapio-jxjyn9mto-gabrieldluccaoliveira-4662s-projects.vercel.app`).
 - Para reverter: `npx vercel rollback <url-do-deployment-anterior>` (ou promova o deployment anterior no painel da Vercel → Deployments → Promote). Depois reverta o `master` (`git revert`/`git switch master` e re-push) para manter o histórico de acordo.
 - **NUNCA** `git push --force`, apagar deployments ou renomear o projeto/domínio sem decisão explícita.
-- **Banco remoto**: 0001–0003 (schema Orvia + RLS + FK composta) aplicadas em produção (projeto AnjimBanco/zzdiefephohlyicgexkv) em 05/11/2026, após backup (`db dump --remote`, dump em disco local, fora do repo). **Migrations futuras**: apenas via `supabase db push` com backup prévio + janela; desenvolvimento primeiro (`supabase db reset`).
+- **Banco remoto**: 0001–0003 (schema Undercut + RLS + FK composta) aplicadas em produção (projeto AnjimBanco/zzdiefephohlyicgexkv) em 05/11/2026, após backup (`db dump --remote`, dump em disco local, fora do repo). **Migrations futuras**: apenas via `supabase db push` com backup prévio + janela; desenvolvimento primeiro (`supabase db reset`).
 
 ### Variáveis de ambiente na Vercel (nomes, nunca valores)
 
@@ -174,6 +174,6 @@ Regras:
 - `docs/fotos-e-historico.md` — Pipeline de imagens, `menu_image_history`, restore, retenção
 - `docs/roadmap-fase-1.md` — Roadmap com critérios de pronto
 - `docs/decisoes-em-aberto.md` — Riscos e decisões pendentes (máx. 8)
-- `docs/rebrand-inventario.md` — Inventário e decisões do rebrand para Orvia
+- `docs/rebrand-inventario.md` — Inventário e decisões do rebrand para Undercut
 - `docs/db-validacao.md` — Validação local do schema/RLS: o que passou, falhas e correções
 - `docs/integracao-extensoes-hub.md` — Kit para as extensões (iFood/Cardápio Web): prompt, contrato e cliente pronto
