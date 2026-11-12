@@ -162,7 +162,7 @@ Regras:
 - `NEXT_PUBLIC_*` é embutida no build — se mudar, **refaça o build** (push de novo ou redeploy).
 - Valores do tipo `Secret` não são revelados pela CLI/painel (mascarados); para espelhar de Production para Preview, re-cadastre-os no painel (Settings → Environment Variables) com escopo Preview — nunca cole valores no chat/commit.
 - `.env.local` da máquina fica só com placeholders; valores reais vivem na Vercel.
-- **Endereço público (decidido em 11/11/2026): `https://orviahub.vercel.app`** — não há domínio próprio (`orviahub.com.br` nunca foi registrado; a decisão de 08/11 foi revertida). `brand.baseUrl` em `packages/brand`. As extensões continuam usando `orvia-gestao.vercel.app` (`brand.extensionHubUrl`, fixo em `host_permissions`); os dois aliases servem o mesmo deployment de produção — não remover nenhum.
+- **Endereço público (decidido em 11/11/2026, com o rebrand Undercut): `https://undercuthub.vercel.app`** — não há domínio próprio (`orviahub.com.br` nunca foi registrado; `undercut.hub` não existe, `.hub` não é TLD). `brand.baseUrl` em `packages/brand`. Aliases legados que continuam ativos: `orviahub.vercel.app` e `orvia-gestao.vercel.app` — este último é o das extensões (`brand.extensionHubUrl`, fixo em `host_permissions`). Todos servem o mesmo deployment de produção — não remover nenhum.
 - Projeto Vercel: **`orvia`** (público em `https://orvia-gestao.vercel.app`; `orvia.vercel.app` já estava ocupado; alias legado `nextjs-cardapio.vercel.app` segue ativo) — renomeado em 04/11/2026 por decisão do usuário.
 
 ## 📖 Sumário da documentação
