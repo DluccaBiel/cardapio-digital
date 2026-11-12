@@ -1,9 +1,9 @@
-# @orvia/brand — Fonte única da marca Undercut
+# @undercut/brand — Fonte única da marca Undercut
 
 Identidade visual: manual **"Undercut - Identidade Visual" V1** (pasta `UNDERCUT/`, 09.11.2026).
 Toda tela, metadata (Next.js), e-mail, documento e comunicação deve ler nome, tagline, paleta, fontes e caminhos dos logos **daqui**. Nome e cor nunca devem ficar hardcoded em componentes/docs.
 
-> O pacote continua `@orvia/brand` e o `slug`/domínios continuam os da Vercel (as extensões têm o host fixo em `host_permissions`). Só a identidade visual e o nome exibido mudaram.
+> O pacote continua `@undercut/brand` e o `slug`/domínios continuam os da Vercel (as extensões têm o host fixo em `host_permissions`). Só a identidade visual e o nome exibido mudaram.
 
 ## Conteúdo
 
@@ -46,7 +46,7 @@ Carregadas via `next/font/google` em `app/layout.tsx` (variáveis `--font-displa
 ## Uso no hub (Next.js)
 
 ```ts
-import { brand } from '@orvia/brand'
+import { brand } from '@undercut/brand'
 
 export const metadata = {
   title: `${brand.name} — ${brand.tagline}`,
@@ -62,4 +62,4 @@ Variáveis CSS em `app/globals.css` (`--uc-*`); Tailwind em `tailwind.config.ts`
 2. O vermelho aparece pouco: ação principal, item ativo, um destaque por tela. Não pintar blocos inteiros.
 3. Trocar o vermelho definitivo ("tom do Biel"): altere `red`/`redBright`/`redGlow` aqui, em `globals.css`, `tailwind.config.ts`, rode `scripts/gen-svgs.mjs` (constante `C.red`) e `npm run build:logos`.
 4. Nada de logo, fonte ou nome oficial da Fórmula 1 (manual S8).
-5. Ao mudar qualquer valor: altere aqui, rode `npm run build:logos -w @orvia/brand` e commite tudo junto.
+5. Ao mudar qualquer valor: altere aqui, rode `npm run build:logos -w @undercut/brand` e commite tudo junto.

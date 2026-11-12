@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Anton, Archivo, JetBrains_Mono } from 'next/font/google'
-import { brand } from '@orvia/brand'
+import { brand } from '@undercut/brand'
 import './globals.css'
 
 // Manual Undercut (S4): Anton = títulos, Archivo = textos, JetBrains Mono = dados/telemetria

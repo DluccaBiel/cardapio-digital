@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { brand } from '@orvia/brand'
+import { brand } from '@undercut/brand'
 import {
   Building2,
   Check,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 
 /** Evento global do botão "Sincronizar" do header (cancelable: a tela que tratar chama preventDefault). */
-export const SYNC_EVENT = 'orvia:sync'
+export const SYNC_EVENT = 'undercut:sync'
 
 const roleLabel =(role: string) =>
   ({ owner: 'OWNER', coordenador: 'COORDENADOR', editor: 'EDITOR', visualizador: 'VISUALIZADOR' })[role] ?? role.toUpperCase()

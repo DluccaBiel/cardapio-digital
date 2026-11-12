@@ -51,9 +51,9 @@ coverage/
 .env*
 .vercel
 
-# Referências visuais (contêm nomes reais de clientes — manter só local)
+# Referï¿½ncias visuais (contï¿½m nomes reais de clientes ï¿½ manter sï¿½ local)
 imagens/
 
 
-# Dumps de banco (contÃªm dados reais/PII) â€” guardar FORA do repo: %USERPROFILE%\orvia-backups
+# Dumps de banco (contÃªm dados reais/PII) â€” guardar FORA do repo: %USERPROFILE%\undercut-backups
 backups/

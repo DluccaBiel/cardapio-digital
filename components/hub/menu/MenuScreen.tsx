@@ -805,7 +805,7 @@ function SyncTab({
         <div className="rounded-[6px] border border-[#222225] bg-[#111113] p-4">
           <div className="flex items-center gap-2">
             <Plug size={16} className="text-[#F0333D]" />
-            <h3 className="text-[14px] font-bold text-[#F7F5F1]">Extensão Orvia · iFood</h3>
+            <h3 className="text-[14px] font-bold text-[#F7F5F1]">Extensão Undercut · iFood</h3>
           </div>
           {extension ? (
             <p className="mt-2 text-[12px] text-[#B8B3AC]">
@@ -825,7 +825,7 @@ function SyncTab({
         <div className="rounded-[6px] border border-[#222225] bg-[#111113] p-4 text-[12px] leading-relaxed text-[#B8B3AC]">
           <h3 className="text-[13px] font-bold text-[#F7F5F1]">Como funciona</h3>
           <ol className="mt-2 list-decimal space-y-1.5 pl-4">
-            <li>No Portal do Parceiro iFood, abra o cardápio da loja e clique no botão azul da Orvia.</li>
+            <li>No Portal do Parceiro iFood, abra o cardápio da loja e clique no botão azul da Undercut.</li>
             <li>
               <b className="text-white">Enviar para o Undercut</b>: a extensão importa categorias, produtos e complementos para <b className="text-white">{catalog.client.name}</b>.
             </li>

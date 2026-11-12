@@ -13,7 +13,7 @@ values
 on conflict (id) do nothing;
 
 insert into public.workspaces (id, name, slug, plan)
-values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Orvia Demo', 'orvia-demo', 'pro')
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Undercut Demo', 'orvia-demo', 'pro')
 on conflict (id) do nothing;
 
 insert into public.members (workspace_id, user_id, role)
@@ -74,7 +74,7 @@ values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2', 'ffffffff-ffff-4fff-bfff-fffffffffff1', 10)
 on conflict do nothing;
 
--- Combo fictício (0004): X-Burger + Refrigerante, criado no Orvia e ainda pendente para o iFood
+-- Combo fictício (0004): X-Burger + Refrigerante, criado no Undercut e ainda pendente para o iFood
 insert into public.menu_categories (id, workspace_id, client_id, name, sort_order, status)
 values
   ('dddddddd-dddd-4ddd-8ddd-ddddddddddd3', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', 'Combos', 5, 'active')

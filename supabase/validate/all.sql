@@ -1,5 +1,5 @@
 -- ============================================================================
--- ORVIA — Validação completa de banco (GERADO AUTOMATICAMENTE — não editar à mão)
+-- UNDERCUT — Validação completa de banco (GERADO AUTOMATICAMENTE — não editar à mão)
 -- ATENÇÃO: execute SOMENTE em um projeto Supabase de DESENVOLVIMENTO.
 --          NUNCA em produção. Crie um projeto separado de dev (ex.: free tier).
 --
@@ -1045,7 +1045,7 @@ values
 on conflict (id) do nothing;
 
 insert into public.workspaces (id, name, slug, plan)
-values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Orvia Demo', 'orvia-demo', 'pro')
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Undercut Demo', 'orvia-demo', 'pro')
 on conflict (id) do nothing;
 
 insert into public.members (workspace_id, user_id, role)

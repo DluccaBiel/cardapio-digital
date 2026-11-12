@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { brand } from '@orvia/brand'
+import { brand } from '@undercut/brand'
 import { Icon } from './Icon'
 
 type Item = { href: string; label: string; icon: Parameters<typeof Icon>[0]['name'] }
@@ -32,13 +32,13 @@ export function Sidebar({
   const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
-    const v = typeof window !== 'undefined' ? localStorage.getItem('orvia-sidebar-collapsed') : null
+    const v = typeof window !== 'undefined' ? localStorage.getItem('undercut-sidebar-collapsed') : null
     setCollapsed(v === '1')
   }, [])
 
   const toggle = () => {
     setCollapsed((c) => {
-      localStorage.setItem('orvia-sidebar-collapsed', c ? '0' : '1')
+      localStorage.setItem('undercut-sidebar-collapsed', c ? '0' : '1')
       return !c
     })
   }

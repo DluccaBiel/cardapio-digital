@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { brand } from '@orvia/brand'
+import { brand } from '@undercut/brand'
 import {
   CalendarDays,
   ChevronLeft,
@@ -40,13 +40,13 @@ export function Sidebar({
   const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('orvia-sidebar-collapsed') : null
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('undercut-sidebar-collapsed') : null
     setCollapsed(stored === '1')
   }, [])
 
   const toggle = () => {
     setCollapsed((current) => {
-      localStorage.setItem('orvia-sidebar-collapsed', current ? '0' : '1')
+      localStorage.setItem('undercut-sidebar-collapsed', current ? '0' : '1')
       return !current
     })
   }

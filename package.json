@@ -1,8 +1,8 @@
 {
-  "name": "@orvia/hub",
+  "name": "@undercut/hub",
   "version": "0.2.0",
   "private": true,
-  "description": "Orvia — Hub de gestão para assessorias: clientes, cardápio, relatórios e extensões.",
+  "description": "Undercut — Hub de gestão para assessorias: clientes, cardápio, relatórios e extensões.",
   "workspaces": [
     "packages/*"
   ],
@@ -18,7 +18,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@orvia/brand": "*",
+    "@undercut/brand": "*",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "@tanstack/react-table": "^9.3.1",

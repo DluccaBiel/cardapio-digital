@@ -1,7 +1,7 @@
-# Kit de integração — Extensões ↔ Orvia Hub (iFood e Cardápio Web)
+# Kit de integração — Extensões ↔ Undercut Hub (iFood e Cardápio Web)
 
 > **Para o Claude que mantém as extensões:** este arquivo é a especificação oficial do servidor
-> (hub Orvia, versão de 2026-11-09). Siga o **prompt** abaixo, use o **contrato** como fonte da
+> (hub Undercut, versão de 2026-11-09). Siga o **prompt** abaixo, use o **contrato** como fonte da
 > verdade e cole o **cliente** (seção 4) no projeto da extensão. Não invente rotas nem campos.
 
 ---
@@ -10,7 +10,7 @@
 
 ```text
 Adapte a extensão "<NOME DA EXTENSÃO>" (slug: <orvia-cardapioweb | orvia-ifood>) para ficar
-sempre sincronizada com o servidor Orvia, seguindo o arquivo docs/integracao-extensoes-hub.md
+sempre sincronizada com o servidor Undercut, seguindo o arquivo docs/integracao-extensoes-hub.md
 (contrato + cliente prontos). Requisitos:
 
 1. Substitua o cliente HTTP atual pelo `OrviaHub` da seção 4 do arquivo (service worker).
@@ -20,7 +20,7 @@ sempre sincronizada com o servidor Orvia, seguindo o arquivo docs/integracao-ext
    se vier diferente (chave antiga criada para outra extensão), apague a chave local e peça
    novo login.
 3. Handshake: mande `manifest_name` = nome real desta extensão (hoje a de Cardápio Web manda
-   "Orvia · Otimizador iFood" por engano).
+   "Undercut · Otimizador iFood" por engano).
 4. Sincronização contínua: use chrome.alarms (permissão "alarms") a cada 1 min para
    (a) heartbeat (POST /extensions/handshake) e (b) reenviar a fila offline de otimizações.
    O painel considera a extensão "online" se o último contato tiver < 10 min.
@@ -98,7 +98,7 @@ Como o servidor identifica a extensão (ordem): campo `extension` do login → `
 
 ```ts
 /**
- * Cliente Orvia Hub para extensões MV3 (service worker).
+ * Cliente Undercut Hub para extensões MV3 (service worker).
  * Requer no manifest: "permissions": ["storage", "alarms"] e host_permissions do hub.
  */
 
@@ -160,7 +160,7 @@ async function call<T>(base: string, method: string, path: string, opts: { key?:
   }
   const json = (await res.json().catch(() => null)) as any
   if (!res.ok) {
-    return { ok: false, status: res.status, code: json?.error?.code ?? `http_${res.status}`, message: json?.error?.message ?? `Erro ${res.status} no Orvia.`, details: json?.error?.details }
+    return { ok: false, status: res.status, code: json?.error?.code ?? `http_${res.status}`, message: json?.error?.message ?? `Erro ${res.status} no Undercut.`, details: json?.error?.details }
   }
   return { ok: true, data: json?.data as T, etag: res.headers.get('etag') }
 }
@@ -168,7 +168,7 @@ async function call<T>(base: string, method: string, path: string, opts: { key?:
 /** Chamada autenticada; 401 → limpa a chave (a UI pede novo login). */
 async function authed<T>(method: string, path: string, opts: { body?: unknown; ifMatch?: string } = {}): Promise<HubResult<T>> {
   const cfg = await getCfg()
-  if (!cfg) return { ok: false, status: 401, code: 'not_logged_in', message: 'Faça login no Orvia pela extensão.' }
+  if (!cfg) return { ok: false, status: 401, code: 'not_logged_in', message: 'Faça login no Undercut pela extensão.' }
   const r = await call<T>(cfg.hubUrl, method, path, { ...opts, key: cfg.apiKey })
   if (!r.ok && r.status === 401) await clearKey()
   return r
@@ -189,7 +189,7 @@ export async function login(email: string, password: string, workspaceSlug?: str
     device_label: navigator.userAgent.includes('Edg/') ? 'Edge' : 'Chrome',
     extension: EXTENSION_SLUG,
   }
-  let last: HubResult<any> = { ok: false, status: 0, code: 'network', message: 'Sem conexão com o Orvia.' }
+  let last: HubResult<any> = { ok: false, status: 0, code: 'network', message: 'Sem conexão com o Undercut.' }
   for (const base of candidates) {
     const r = await call<any>(base, 'POST', '/extension-auth/login', { body })
     if (!r.ok && r.code === 'network') {
@@ -204,7 +204,7 @@ export async function login(email: string, password: string, workspaceSlug?: str
     if (!me.ok) return me
     if (me.data.extension !== EXTENSION_SLUG) {
       await clearKey()
-      return { ok: false, status: 409, code: 'wrong_extension', message: 'O servidor ainda não reconhece esta extensão (atualização pendente no Orvia). Tente de novo em instantes.' }
+      return { ok: false, status: 409, code: 'wrong_extension', message: 'O servidor ainda não reconhece esta extensão (atualização pendente no Undercut). Tente de novo em instantes.' }
     }
     await handshake()
     return { ok: true, data: { workspace: r.data.workspace, user: r.data.user }, etag: null }
@@ -227,11 +227,11 @@ export async function importSnapshot(clientId: string, snapshot: Record<string, 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const cur = await menu(clientId)
     if (!cur.ok) return cur
-    if (!cur.etag) return { ok: false, status: 0, code: 'no_etag', message: 'O Orvia não devolveu ETag.' }
+    if (!cur.etag) return { ok: false, status: 0, code: 'no_etag', message: 'O Undercut não devolveu ETag.' }
     const r = await authed<any>('POST', '/menu/import', { body: { ...snapshot, client_id: clientId }, ifMatch: cur.etag })
     if (r.ok || (r.code !== 'conflict' && r.status !== 412)) return r
   }
-  return { ok: false, status: 409, code: 'conflict', message: 'O cardápio mudou no Orvia durante a importação. Tente de novo.' }
+  return { ok: false, status: 409, code: 'conflict', message: 'O cardápio mudou no Undercut durante a importação. Tente de novo.' }
 }
 
 export type Optimization = {
@@ -314,7 +314,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 
 ## 5. Checklist de aceite (o que o painel deve mostrar)
 
-- [ ] Após login na extensão Cardápio Web, em **Extensões** o card "Orvia · Otimizador Cardápio Web" fica **verde** (contato < 10 min) e o do iFood não muda.
+- [ ] Após login na extensão Cardápio Web, em **Extensões** o card "Undercut · Otimizador Cardápio Web" fica **verde** (contato < 10 min) e o do iFood não muda.
 - [ ] A chave aparece como `Extensão Cardápio Web · e-mail · Chrome · xxxxxxxx`.
 - [ ] Uma otimização enviada aparece na aba **Cardápio Web** do relatório, com prints que abrem e baixam (individual e "Baixar todos").
 - [ ] Cliente que vende nos dois canais **não** é duplicado (cada canal tem sua trava de loja).
@@ -329,7 +329,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 | Id no Chrome (`key` do manifest) | `onolpcebolaabfapfnmemokkinncppok` (fixo, igual à 0.3.x) | `abenodfggldfldoobiiknlagebipaedl` (fixo, novo) |
 | Hubs (`host_permissions`) | `nextjs-cardapio.vercel.app`, `orvia-gestao.vercel.app` | idem |
 | Manda `extension` no login? | **não** → o servidor reconhece pelo Origin (id acima) ✅ | não → padrão iFood ✅ |
-| `manifest_name` no handshake | "Orvia · Otimizador iFood" (errado, inofensivo) | correto |
+| `manifest_name` no handshake | "Undercut · Otimizador iFood" (errado, inofensivo) | correto |
 | Usa `variant` na análise | sim | sim |
 | Espera modo gratuito na análise (`ai_status: "regras"`) | sim | sim |
 

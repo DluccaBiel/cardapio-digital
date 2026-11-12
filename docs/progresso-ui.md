@@ -1,4 +1,4 @@
-# Orvia — Progresso da UI (Hub)
+# Undercut — Progresso da UI (Hub)
 
 > Regra de retomada: leia `AGENTS.md` e este arquivo. `Continue do Marco N` retoma exatamente daí.
 > Atualizado por sessão de trabalho. Cada marco termina com: typecheck + build + testes de banco + commit + push da branch `feat/ui-hub` + URL do preview.
@@ -7,14 +7,14 @@
 - Branch ativa da fase visual: `feat/ui-visual` (não mergeada, não deployada em produção). A branch de backend anterior é `feat/ui-hub` (checkpoint `548e9a9`).
 - **Fase visual concluída** — ver seção própria abaixo; `NEXT_PUBLIC_DEMO_UI=1` no escopo Preview abre `/demo/*`.
 - Ambiente de execução: OpenCode nesta pasta; `npm run dev|build|typecheck`, `npx supabase` (CLI local, link ao projeto novo).
-- **Banco novo e exclusivo do Orvia:** projeto `admpython` ref `xazfnddnwggrbomjwzlg` (us-east-2, ACTIVE_HEALTHY). Nunca usar `zzdiefephohlyicgexkv` (AnjimBanco) nem outros.
+- **Banco novo e exclusivo do Undercut:** projeto `admpython` ref `xazfnddnwggrbomjwzlg` (us-east-2, ACTIVE_HEALTHY). Nunca usar `zzdiefephohlyicgexkv` (AnjimBanco) nem outros.
 - Projeto anterior teve a fase 1 aplicada (0001–0003). Este projeto novo tem 0001–0003 aplicados (em 05/11/2026). **Remote estava vazio** (REST 404 em `clients`; dump `pre-push-new-orvia-20261105.sql` em Local Temp, fora do repo).
 - `.env.local` (fora do git) aponta para o projeto novo: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWKS_URL`.
 
 ## Marco 0 — Fundação ✅ (05/11/2026)
 Preview: https://orvia-49q2mfl5d-gabrieldluccaoliveira-4662s-projects.vercel.app (dpl_5bpvheVZ58U5BHaq3Rg8SpZv3ChU)
 Commit: `2b8b76b` (+ `d0ad092`). Feito:
-- Tailwind (tokens Orvia, preflight desligado p/ conviver com globals.css) + `@tanstack/react-table`, `@dnd-kit/*`, `zod` (avisado à parte, conforme pedido) + `@types/react-dom` (18).
+- Tailwind (tokens Undercut, preflight desligado p/ conviver com globals.css) + `@tanstack/react-table`, `@dnd-kit/*`, `zod` (avisado à parte, conforme pedido) + `@types/react-dom` (18).
 - Shell autenticado: layout `/a/[ws]` com sidebar recolhível (desktop) + drawer (mobile), header com wordmark + workspace switcher + "Atualizado agora" + Sincronizar + busca "Buscar cliente… Ctrl K" + selo de papel + avatar.
 - Paleta Ctrl K (`Ctrl`/`Cmd`+K), ações de navegação + atalhos (Novo cliente, Exportar CSV).
 - Rotas: `/a/[ws]/{visao-geral,agenda,contas,relatorios,cardapio,extensoes}` com estados vazios estilizados; `/a/[ws]` → `visao-geral`; `/` → primeiro workspace ou `/onboarding`; login/cadastro mantidos com a marca.
@@ -56,7 +56,7 @@ O que foi feito (somente visual, dados fictícios, sem backend novo):
 - `npm run typecheck` ✅ · `npm run build` ✅.
 
 Divergências conscientes (visual-only):
-- Verdes da referência viraram azul Orvia; verde só em status ok/ativo/online.
+- Verdes da referência viraram azul Undercut; verde só em status ok/ativo/online.
 - Métricas do relatório são fictícias e propositalmente diferentes das imagens (R$ 2.480,15; 21.936; 26 compras; ROAS 5,77x etc.).
 - Coluna fixa pode exibir fragmento de coluna vizinha em rolagem horizontal livre (comportamento nativo do sticky; referência “pula” colunas inteiras).
 - Card do relatório sem as caixas internas com borda da referência; tipografia e proporção 4:5 mantidas.
@@ -77,7 +77,7 @@ Branch: `feat/cardapio` (a partir de `feat/ui-visual`). **Ainda não aplicado no
 - Para usar em produção: (1) backup + `supabase db push` da 0004 no projeto do ambiente, (2) preview → produção, (3) gerar a chave no painel e carregar a extensão.
 
 ## Marco 4.1 — Extensão 0.3: login, conectada, automático e IA ✅ (06/11/2026)
-- Login com e-mail e senha do Orvia na extensão (`/api/v1/extension-auth/login`). Heartbeat a cada 2 minutos; o painel mostra "Conectada agora" e quem conectou.
+- Login com e-mail e senha do Undercut na extensão (`/api/v1/extension-auth/login`). Heartbeat a cada 2 minutos; o painel mostra "Conectada agora" e quem conectou.
 - Aplicação automática no iFood por aprendizado. A extensão observa 1 edição no portal (`src/lib/learn.ts`) e depois executa com conferência e verificação (`src/lib/executor.ts`), com simulação e desfazer. Tokens ficam só na memória da aba.
 - **Otimizar com IA** no Cardápio (`lib/ai/optimize.ts`, Claude `claude-opus-5-5`, saída estruturada e fallback de recusa). O servidor revalida IDs, o teto de variação de preço e os combos. Precisa de `ANTHROPIC_API_KEY` na Vercel.
 - Testes: API 34/34 · painel 9/9 · extensão vitest 36/36 + E2E Chromium 29/29, contra o portal simulado com API protegida por token.

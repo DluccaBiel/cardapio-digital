@@ -930,7 +930,7 @@ export function OverviewScreen({
         <LinksModal
           client={linksFor}
           onClose={() => setLinksFor(null)}
-          onCopy={(label) => copy(`https://orvia.example/demo/${linksFor.id}/${label.toLowerCase()}`, 'Link fictício copiado.')}
+          onCopy={(label) => copy(`https://undercut.example/demo/${linksFor.id}/${label.toLowerCase()}`, 'Link fictício copiado.')}
         />
       )}
 

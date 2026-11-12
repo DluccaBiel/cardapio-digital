@@ -1,6 +1,6 @@
 {
-  "name": "@orvia/api-types",
+  "name": "@undercut/api-types",
   "version": "0.2.0",
   "private": true,
-  "description": "Tipos TypeScript compartilhados da API Orvia — gerados a partir de docs/openapi.yaml."
+  "description": "Tipos TypeScript compartilhados da API Undercut — gerados a partir de docs/openapi.yaml."
 }

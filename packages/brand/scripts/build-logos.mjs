@@ -1,6 +1,6 @@
 /**
  * Gera os PNGs da marca Undercut a partir dos SVGs em ../logo/ e copia tudo para public/brand.
- * Uso: npm run build:logos -w @orvia/brand
+ * Uso: npm run build:logos -w @undercut/brand
  * Requer devDependency `sharp`.
  *
  * Os SVGs (logo A "corte diagonal", símbolo C "U" e og-image) já trazem os glifos da Anton

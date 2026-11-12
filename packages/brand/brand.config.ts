@@ -3,13 +3,13 @@
  * Toda tela, metadata, e-mail, docs e extensão DEVEM ler daqui o nome,
  * as cores e os caminhos dos logos. Nada de nome/cor hardcoded.
  *
- * O pacote continua `@orvia/brand` e os domínios/slug continuam os da Vercel
+ * O pacote continua `@undercut/brand` e os domínios/slug continuam os da Vercel
  * (as extensões têm o host fixo em host_permissions) — só a identidade mudou.
  */
 
 export const brand = {
   name: 'Undercut',
-  slug: 'orvia', // slug técnico (chaves de storage/eventos); não exibir ao usuário
+  slug: 'undercut', // slug técnico (chaves de storage/eventos); não exibir ao usuário
   tagline: 'Ultrapasse pela estratégia',
   description: 'Tráfego pago e estratégia para negócios que querem passar na frente: clientes, contas de anúncio, cardápio, relatórios e extensões.',
   pronunciation: 'ân-der-cât',
@@ -20,7 +20,7 @@ export const brand = {
   domain: 'undercuthub.vercel.app',
   baseUrl: 'https://undercuthub.vercel.app',
   extensionHubUrl: 'https://orvia-gestao.vercel.app',
-  supportEmail: 'suporte@orviahub.com.br', // placeholder: domínio e caixa ainda não existem
+  supportEmail: 'suporte@undercut.example', // placeholder: ainda não há caixa de e-mail própria
 
   version: '0.3.0',
 

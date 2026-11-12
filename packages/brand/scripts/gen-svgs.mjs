@@ -1,5 +1,5 @@
 // Uso: baixe Anton-Regular.ttf (Google Fonts, OFL) e rode, numa pasta com opentype.js@1.3.4 instalado:
-//   node gen-svgs.mjs <caminho/Anton-Regular.ttf> packages/brand/logo   →   depois: npm run build:logos -w @orvia/brand
+//   node gen-svgs.mjs <caminho/Anton-Regular.ttf> packages/brand/logo   →   depois: npm run build:logos -w @undercut/brand
 // Gera os SVGs da marca Undercut (glifos Anton convertidos em paths — não dependem de fonte instalada)
 import opentype from 'opentype.js'
 import { writeFileSync } from 'node:fs'
