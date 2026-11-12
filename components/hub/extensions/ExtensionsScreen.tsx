@@ -322,9 +322,9 @@ export function ExtensionsScreen({
     { id: 'sec-hub', label: 'Hub' },
     ...(showReport ? [{ id: 'sec-relatorio', label: 'Relatório' }] : []),
     { id: 'sec-pesquisa', label: 'Pesquisa' },
+    { id: 'sec-manual', label: 'Manual' },
     { id: 'sec-chaves', label: 'Chaves' },
     { id: 'sec-integracoes', label: 'Integrações' },
-    { id: 'sec-manual', label: 'Manual' },
   ]
 
   return (
