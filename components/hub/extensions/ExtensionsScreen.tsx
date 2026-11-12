@@ -32,7 +32,7 @@ import { ExtensionReport, type OptimizationReport } from '@/components/hub/exten
 import { ExtensionHub } from '@/components/hub/extensions/ExtensionHub'
 import { IntegrationsSection } from '@/components/hub/extensions/IntegrationsSection'
 import { ResearchPanel } from '@/components/hub/extensions/ResearchPanel'
-import { PARTNERS } from '@/lib/extensions/partners'
+import { PARTNERS, partnerOf } from '@/lib/extensions/partners'
 import {
   checkExtensionsAction,
   createApiKeyAction,
@@ -597,7 +597,13 @@ export function ExtensionsScreen({
         )}
       </section>
 
-      <IntegrationsSection partners={PARTNERS} integrations={rows.map((r) => ({ slug: r.ext.slug, id: r.ext.id, connected: r.conn === 'online' }))} canManage={canManage} onToast={setToast} />
+      <IntegrationsSection
+        ws={ws}
+        partners={PARTNERS}
+        integrations={rows.map((r) => ({ slug: r.ext.slug, id: r.ext.id, connected: r.conn === 'online' }))}
+        canManage={canManage}
+        onToast={setToast}
+      />
 
       {creating && (
         <CreateKeyModal

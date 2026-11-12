@@ -43,7 +43,7 @@ export const PARTNERS: PartnerBrand[] = [
 
 export const UNDERCUT_PARTNER_SLUG = 'undercut'
 
-const UNDERCUT_PARTNER: PartnerBrand = {
+export const UNDERCUT_PARTNER: PartnerBrand = {
   slug: UNDERCUT_PARTNER_SLUG,
   name: 'Undercut',
   short: 'Undercut',
