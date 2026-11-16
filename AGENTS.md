@@ -108,6 +108,13 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 - Trabalhe **somente** dentro da pasta raiz do projeto.
 - Se um comando falhar: leia o erro, corrija, tente de novo.
 
+### Lições de 16/11/2026 (não repetir)
+
+1. **Nunca rode `next build` (nem apague `.next`) com `npm run dev` ativo.** Os dois usam a mesma pasta `.next`; o dev server do usuário passa a responder 404. Antes: `netstat -ano | findstr :3001`. Se o dev estiver rodando, valide com `npx tsc --noEmit` + `npm test` e deixe o build para o preview da Vercel.
+2. **Não deixe servidor em segundo plano na porta 3001** ao terminar: o `npm run dev` do usuário falha com `EADDRINUSE`. Teste e encerre (confira a linha de comando do processo antes de encerrar).
+3. **Nada de credenciais no código do login** (nem “contas de atalho”). Tudo que está em componente `'use client'` vai para o JavaScript público. As contas `*@undercut.com` do seletor antigo nunca existiram no Supabase — login só com contas reais criadas em Authentication → Users.
+4. **Código gerado por outra ferramenta (ex.: OpenCode) precisa passar em `npx tsc --noEmit` antes do commit.** Página do App Router exige `export default` e rota em `pasta/page.tsx` (não `[id].tsx`). Telas do painel leem dados com sessão/RLS (server component), nunca chamando `/api/v1/*` sem `X-API-Key`.
+
 ### Regras de segurança para operar no PC
 
 1. **Apagar:** liste primeiro o que será apagado (`git status`/`ls`), depois apague. Nunca `rm -rf` fora da pasta do projeto, nem com caminho montado por variável sem verificar.
