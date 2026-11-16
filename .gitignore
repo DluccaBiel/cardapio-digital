@@ -57,3 +57,6 @@ imagens/
 
 # Dumps de banco (contêm dados reais/PII) — guardar FORA do repo: %USERPROFILE%\undercut-backups
 backups/
+
+# Scripts locais descartáveis (podem conter chaves reais) — nunca commitar
+.local-scripts/

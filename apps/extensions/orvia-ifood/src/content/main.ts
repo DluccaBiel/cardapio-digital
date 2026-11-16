@@ -11,7 +11,7 @@
 import type { AnalysisContext, MenuSnapshot } from '../core/schema'
 import { finalizeSnapshot, normalizeFromDom, normalizeMenuPayload } from '../core/normalize'
 import { NICHES, runRules, suggestCombos } from '../core/rules'
-import { comboComponentsFromIfood, findInSnapshot, guessClient, pendingChanges } from '../lib/bridge'
+import { comboComponentsFromIfood, filterSnapshot, findInSnapshot, guessClient, pendingChanges } from '../lib/bridge'
 import type { HubCatalog, HubClientRow, HubPendingItem, ImportSummary } from '../lib/hub'
 import { SELECTED_CLIENT_KEY, send } from '../lib/messages'
 import { applyPending, applyRaw, coverage, desiredFromPending } from '../lib/executor'
@@ -113,12 +113,17 @@ window.addEventListener('message', (event: MessageEvent) => {
 
 /** Requisição feita pela PRÓPRIA aba do portal (sessão do portal; nada sai da página). */
 function portalRequest(method: string, url: string, body?: unknown): Promise<{ status: number; json: unknown }> {
+  return pageExec({ method, url, body })
+}
+
+/** Pede algo ao script da página (mesma aba) e espera a resposta. */
+function pageExec(payload: Record<string, unknown>, timeoutMs = 30_000): Promise<{ status: number; json: unknown }> {
   const id = `x${Date.now()}${Math.random().toString(16).slice(2)}`
   return new Promise((resolve) => {
     const timer = window.setTimeout(() => {
       window.removeEventListener('message', onReply)
       resolve({ status: 0, json: { error: 'tempo esgotado' } })
-    }, 20_000)
+    }, timeoutMs)
     function onReply(event: MessageEvent) {
       const d = event.data as { source?: string; id?: string; status?: number; json?: unknown } | null
       if (event.source !== window || !d || d.source !== 'orvia-exec-result' || d.id !== id) return
@@ -127,7 +132,7 @@ function portalRequest(method: string, url: string, body?: unknown): Promise<{ s
       resolve({ status: d.status ?? 0, json: d.json })
     }
     window.addEventListener('message', onReply)
-    window.postMessage({ source: 'orvia-exec', id, method, url, body }, window.location.origin)
+    window.postMessage({ source: 'orvia-exec', id, ...payload }, window.location.origin)
   })
 }
 
@@ -246,6 +251,7 @@ async function connect() {
       const saved = (await chrome.storage.local.get(SELECTED_CLIENT_KEY))[SELECTED_CLIENT_KEY] as string | undefined
       const guess = guessClient(clients.data, state.snapshot)
       state.clientId = (saved && clients.data.some((c) => c.id === saved) ? saved : guess?.id) ?? clients.data[0]?.id ?? ''
+      await loadOrviaIds()
     }
   }
   render()
@@ -257,6 +263,7 @@ async function selectClient(id: string) {
   state.pendingLoaded = false
   state.importResult = null
   await chrome.storage.local.set({ [SELECTED_CLIENT_KEY]: id })
+  await loadOrviaIds()
   render()
 }
 
@@ -273,17 +280,69 @@ async function run<T>(fn: () => Promise<T>) {
   }
 }
 
+/** Ids selecionados para envio; null = todos (padrão até o usuário mexer). */
+let selected: Set<string> | null = null
+let listFilter = ''
+let orviaIfoodIds = new Set<string>()
+let lastSync: { at: number; read: number } | null = null
+
+function isSelected(id: string) {
+  return selected === null || selected.has(id)
+}
+function toggle(ids: string[], on: boolean) {
+  if (!state.snapshot) return
+  if (selected === null) selected = new Set(state.snapshot.items.map((i) => i.id))
+  for (const id of ids) on ? selected.add(id) : selected.delete(id)
+  render()
+}
+function selectedIds(): Set<string> {
+  return selected ?? new Set(state.snapshot?.items.map((i) => i.id) ?? [])
+}
+
+/** Quais produtos do iFood já existem no Orvia (para marcar "no Orvia" / "novo"). */
+async function loadOrviaIds() {
+  if (!state.clientId || !state.connected || 'error' in state.connected) return
+  const menu = await send<HubCatalog>({ type: 'hub:menu', clientId: state.clientId })
+  if (menu.ok) orviaIfoodIds = new Set(menu.data.items.map((i) => i.ifood_id).filter((x): x is string => Boolean(x)))
+}
+
+/** "Sincronizar": relê todo o cardápio da loja aberta no portal e lista os produtos. */
+function syncMenu() {
+  return run(async () => {
+    const before = state.snapshot?.items.length ?? 0
+    const res = await pageExec({ action: 'refetch-menu' })
+    const info = (res.json ?? {}) as { known?: number; read?: number }
+    await sleep(800) // dá tempo de as respostas serem normalizadas
+    if (!info.known) {
+      // portal ainda não carregou o cardápio nesta aba: tenta a tela (modo limitado)
+      if (!state.snapshot) {
+        const dom = normalizeFromDom(document, { domUrl: location.href, merchantName: null })
+        if (dom) state.snapshot = finalizeSnapshot(dom)
+      }
+      if (!state.snapshot) return notify('erro', 'Abra a página Cardápio do portal (Menu → Cardápio) e clique em Sincronizar de novo.')
+    }
+    await loadOrviaIds()
+    lastSync = { at: Date.now(), read: info.read ?? 0 }
+    const total = state.snapshot?.items.length ?? 0
+    notify('ok', `Cardápio sincronizado: ${total} produto(s)${total > before && before > 0 ? ` (+${total - before} novos)` : ''}. Selecione e envie para o Orvia.`)
+  })
+}
+
 function importToOrvia() {
   return run(async () => {
     if (!state.snapshot || !state.clientId) return
+    const ids = selectedIds()
+    if (ids.size === 0) return notify('erro', 'Selecione pelo menos um produto.')
     const client = state.clients.find((c) => c.id === state.clientId)
-    const res = await send<ImportSummary>({ type: 'hub:import', clientId: state.clientId, snapshot: state.snapshot })
+    const payload = ids.size === state.snapshot.items.length ? state.snapshot : filterSnapshot(state.snapshot, ids)
+    const res = await send<ImportSummary>({ type: 'hub:import', clientId: state.clientId, snapshot: payload })
     if (!res.ok) {
       notify('erro', res.code === 'merchant_mismatch' ? `Loja diferente da vinculada a “${client?.name}”. Confira o cliente selecionado.` : res.error)
       return
     }
     state.importResult = res.data
-    notify('ok', `Cardápio enviado para ${client?.name ?? 'o Orvia'}.`)
+    await loadOrviaIds()
+    notify('ok', `${ids.size} produto(s) enviados para ${client?.name ?? 'o Orvia'}.`)
   })
 }
 
@@ -359,44 +418,98 @@ function clientSelect() {
 function tabCardapio() {
   const s = state.snapshot
   const box = h('div', {})
-  if (!s) {
-    box.append(
-      h('div', { class: 'card' },
-        h('b', {}, 'Nenhum cardápio lido ainda'),
-        h('p', { class: 'muted' }, 'Abra a página Cardápio do portal e role pelas categorias — a leitura é automática.'),
-        h('button', {
-          class: 'btn',
-          onclick: () => {
-            const dom = normalizeFromDom(document, { domUrl: location.href, merchantName: null })
-            if (dom) {
-              state.snapshot = finalizeSnapshot(dom)
-              notify('info', 'Lido da tela (modo limitado: sem categorias/complementos e sem IDs do iFood).')
-            } else notify('erro', 'Não encontrei produtos na tela.')
-          },
-        }, 'Ler da tela (modo limitado)'),
-      ),
-    )
-  } else {
-    const withPrice = s.items.filter((i) => i.price !== null).length
-    box.append(
-      h('div', { class: 'card' },
-        h('div', { class: 'row' }, h('b', {}, s.merchant.name ?? 'Loja sem nome'), h('span', { class: 'pill' }, s.origin === 'dom' ? 'tela' : 'portal')),
-        h('p', { class: 'muted' }, `${s.categories.length} categorias · ${s.items.length} produtos (${withPrice} com preço) · ${s.items.filter((i) => i.status === 'paused').length} pausados`),
-        s.merchant.id ? h('p', { class: 'muted mono' }, `Loja iFood: ${s.merchant.id}`) : null,
-      ),
-    )
-  }
+  const connected = Boolean(state.connected && !('error' in state.connected))
 
-  box.append(h('h3', {}, 'Enviar para o Orvia'))
-  if (!state.connected || 'error' in state.connected) {
-    box.append(h('p', { class: 'muted' }, state.connected && 'error' in state.connected ? state.connected.error : 'Conectando…'))
-  } else {
-    box.append(clientSelect())
-    box.append(
-      h('button', { class: 'btn primary', disabled: !s || !state.clientId || state.busy, onclick: importToOrvia }, state.busy ? 'Enviando…' : 'Enviar cardápio para o Orvia'),
-      h('p', { class: 'hint' }, 'Nada é apagado no Orvia. Itens editados no Orvia e ainda não aplicados no iFood são mantidos.'),
-    )
+  // Cabeçalho: loja + Sincronizar
+  box.append(
+    h('div', { class: 'card' },
+      h('div', { class: 'row' },
+        h('div', {},
+          h('b', {}, s?.merchant.name ?? 'Cardápio do iFood'),
+          h('p', { class: 'muted' }, s
+            ? `${s.categories.length} categorias · ${s.items.length} produtos · ${s.items.filter((i) => i.status === 'paused').length} pausados`
+            : 'Abra a página Cardápio do portal e clique em Sincronizar.'),
+          lastSync ? h('p', { class: 'hint' }, `Sincronizado às ${new Date(lastSync.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`) : null,
+        ),
+        s ? h('span', { class: 'pill' }, s.origin === 'dom' ? 'tela' : 'portal') : null,
+      ),
+      h('button', { class: 'btn primary', disabled: state.busy, onclick: syncMenu }, state.busy ? 'Sincronizando…' : '⟳ Sincronizar'),
+    ),
+  )
+  if (!s) return box
+
+  // Cliente destino
+  if (connected) box.append(clientSelect())
+  else box.append(h('p', { class: 'warn' }, state.connected && 'error' in state.connected ? state.connected.error : 'Conectando ao Orvia…'))
+
+  // Controles da lista
+  const ids = selectedIds()
+  const term = listFilter.trim().toLowerCase()
+  const visible = s.items.filter((i) => !term || `${i.name} ${i.categoryName ?? ''}`.toLowerCase().includes(term))
+  const search = h('input', {
+    class: 'input',
+    id: 'orvia-search',
+    placeholder: 'Buscar produto…',
+    value: listFilter,
+    'aria-label': 'Buscar produto',
+    oninput: (e: Event) => {
+      listFilter = (e.target as HTMLInputElement).value
+      render()
+      const el = shadow.getElementById('orvia-search') as HTMLInputElement | null
+      el?.focus()
+      el?.setSelectionRange(listFilter.length, listFilter.length)
+    },
+  })
+  const allVisibleOn = visible.length > 0 && visible.every((i) => ids.has(i.id))
+  box.append(
+    search,
+    h('div', { class: 'row listbar' },
+      h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: allVisibleOn, 'aria-label': 'Selecionar todos', onchange: (e: Event) => toggle(visible.map((i) => i.id), (e.target as HTMLInputElement).checked) }),
+        ` Selecionar todos${term ? ' (filtrados)' : ''}`,
+      ),
+      h('span', { class: 'muted' }, `${ids.size} de ${s.items.length} selecionados`),
+    ),
+  )
+
+  // Lista por categoria
+  const list = h('div', { class: 'plist' })
+  const byCat = new Map<string, typeof visible>()
+  for (const item of visible) {
+    const key = item.categoryName ?? 'Sem categoria'
+    byCat.set(key, [...(byCat.get(key) ?? []), item])
   }
+  for (const [cat, items] of byCat) {
+    const catOn = items.every((i) => ids.has(i.id))
+    list.append(
+      h('label', { class: 'pcat' },
+        h('input', { type: 'checkbox', checked: catOn, 'aria-label': `Selecionar categoria ${cat}`, onchange: (e: Event) => toggle(items.map((i) => i.id), (e.target as HTMLInputElement).checked) }),
+        h('b', {}, cat),
+        h('span', { class: 'muted' }, ` ${items.filter((i) => ids.has(i.id)).length}/${items.length}`),
+      ),
+    )
+    for (const item of items) {
+      const inOrvia = orviaIfoodIds.has(item.id)
+      list.append(
+        h('label', { class: isSelected(item.id) ? 'prow on' : 'prow' },
+          h('input', { type: 'checkbox', checked: isSelected(item.id), 'aria-label': `Selecionar ${item.name}`, onchange: (e: Event) => toggle([item.id], (e.target as HTMLInputElement).checked) }),
+          h('span', { class: 'pname' }, item.name, item.status === 'paused' ? h('span', { class: 'tag' }, 'pausado') : null),
+          h('span', { class: inOrvia ? 'tag ok' : 'tag new' }, inOrvia ? 'no Orvia' : 'novo'),
+          h('span', { class: 'pprice' }, brl(item.price)),
+        ),
+      )
+    }
+  }
+  if (visible.length === 0) list.append(h('p', { class: 'muted' }, 'Nenhum produto com esse filtro.'))
+  box.append(list)
+
+  // Enviar
+  box.append(
+    h('button', { class: 'btn primary', disabled: !connected || !state.clientId || state.busy || ids.size === 0, onclick: importToOrvia },
+      state.busy ? 'Enviando…' : `Enviar selecionados (${ids.size}) para o Orvia`),
+    h('p', { class: 'hint' }, 'Nada é apagado no Orvia. Produtos editados no Orvia e ainda não aplicados no iFood são mantidos.'),
+  )
+
   const r = state.importResult
   if (r) {
     box.append(
@@ -406,7 +519,6 @@ function tabCardapio() {
         h('p', {}, `Categorias: ${r.categories.created} novas · Complementos: ${r.groups.created} grupos, ${r.groups.options_created} opções`),
         r.kept_local.length ? h('p', { class: 'warn' }, `${r.kept_local.length} mantidos com a versão do Orvia (veja Pendências).`) : null,
         r.skipped.length ? h('p', { class: 'warn' }, `${r.skipped.length} ignorados: ${r.skipped.slice(0, 4).map((x) => `${x.name} (${x.reason})`).join(', ')}`) : null,
-        r.missing_in_ifood ? h('p', { class: 'muted' }, `${r.missing_in_ifood} produto(s) do Orvia não apareceram nesta leitura.`) : null,
       ),
     )
   }

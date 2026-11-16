@@ -116,3 +116,19 @@ describe('comboComponentsFromIfood', () => {
     expect(comboComponentsFromIfood(['IF-COMBO', 'IF-ITEM-1'], [1, 1], catalog)).toBeNull()
   })
 })
+
+describe('filterSnapshot', () => {
+  it('mantém só os selecionados e as categorias deles', async () => {
+    const { filterSnapshot } = await import('../src/lib/bridge')
+    const s = snapshot()
+    const f = filterSnapshot(s, new Set(['IF-ITEM-3']))
+    expect(f.items.map((i) => i.id)).toEqual(['IF-ITEM-3'])
+    expect(f.categories.map((c) => c.name)).toEqual(['Bebidas'])
+    expect(f.categories[0]!.itemIds).toEqual(['IF-ITEM-3'])
+    expect(f.merchant).toEqual(s.merchant)
+  })
+  it('seleção vazia → nada', async () => {
+    const { filterSnapshot } = await import('../src/lib/bridge')
+    expect(filterSnapshot(snapshot(), new Set()).items).toHaveLength(0)
+  })
+})

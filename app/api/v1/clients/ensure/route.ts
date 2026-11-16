@@ -12,7 +12,7 @@ const bodySchema = z.object({
   ifood_merchant_id: z.string().trim().min(1).max(80).nullable().optional(),
 })
 
-type ClientRow = { id: string; name: string; ifood_merchant_id: string | null; cardapioweb_store_id?: string | null; anotaai_store_id?: string | null }
+type ClientRow = { id: string; name: string; ifood_merchant_id: string | null; cardapioweb_store_id?: string | null; anotaai_store_id?: string | null; flyto_store_id?: string | null }
 
 /** Escapa curingas do ILIKE: o nome vira comparação exata, só sem diferenciar maiúsculas. */
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (m) => `\\${m}`)

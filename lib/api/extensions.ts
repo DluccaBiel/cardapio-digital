@@ -1,5 +1,6 @@
 /**
- * Canais de extensão do Undercut: iFood, Cardápio Web e Anota AI (0008).
+ * Canais de extensão do Undercut: iFood, Cardápio Web, Anota AI e parceiros
+ * (FlyTo — integração de sistema parceiro, ver migrations 0008/0010). (0008, FlyTo em 0010.)
  *
  * Quem decide o canal de uma chamada é a CHAVE (api_keys.extension_id), criada no
  * login feito dentro da extensão. No login, a extensão é identificada por:
@@ -10,16 +11,17 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export const EXTENSION_SLUGS = ['orvia-ifood', 'orvia-cardapioweb', 'orvia-anotaai'] as const
+export const EXTENSION_SLUGS = ['orvia-ifood', 'orvia-cardapioweb', 'orvia-anotaai', 'orvia-flyto'] as const
 export type ExtensionSlug = (typeof EXTENSION_SLUGS)[number]
-export type Platform = 'ifood' | 'cardapioweb' | 'anotaai'
+export type Platform = 'ifood' | 'cardapioweb' | 'anotaai' | 'flyto'
 
 export const PLATFORM_OF: Record<ExtensionSlug, Platform> = {
   'orvia-ifood': 'ifood',
   'orvia-cardapioweb': 'cardapioweb',
   'orvia-anotaai': 'anotaai',
+  'orvia-flyto': 'flyto',
 }
-export const PLATFORM_LABEL: Record<Platform, string> = { ifood: 'iFood', cardapioweb: 'Cardápio Web', anotaai: 'Anota AI' }
+export const PLATFORM_LABEL: Record<Platform, string> = { ifood: 'iFood', cardapioweb: 'Cardápio Web', anotaai: 'Anota AI', flyto: 'FlyTo' }
 
 /** Id do Chrome da extensão Cardápio Web 0.3.x (derivado do `key` do manifest). */
 const DEFAULT_CARDAPIOWEB_IDS = ['onolpcebolaabfapfnmemokkinncppok']
@@ -52,8 +54,9 @@ export async function platformOfExtensionId(db: SupabaseClient, extensionId: str
 }
 
 /** Coluna da trava de loja de cada canal em `clients`. */
-export const STORE_COLUMN: Record<Platform, 'ifood_merchant_id' | 'cardapioweb_store_id' | 'anotaai_store_id'> = {
+export const STORE_COLUMN: Record<Platform, 'ifood_merchant_id' | 'cardapioweb_store_id' | 'anotaai_store_id' | 'flyto_store_id'> = {
   ifood: 'ifood_merchant_id',
   cardapioweb: 'cardapioweb_store_id',
   anotaai: 'anotaai_store_id',
+  flyto: 'flyto_store_id',
 }
