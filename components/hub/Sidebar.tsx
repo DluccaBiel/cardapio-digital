@@ -12,7 +12,10 @@ import {
   LayoutGrid,
   Megaphone,
   Puzzle,
+  Send,
   Settings2,
+  Target,
+  UserCheck,
   X,
 } from 'lucide-react'
 
@@ -21,6 +24,9 @@ const items = [
   { key: 'agenda', label: 'Agenda', icon: CalendarDays },
   { key: 'contas', label: 'Contas de anúncio', icon: Megaphone },
   { key: 'relatorios', label: 'Relatórios', icon: FileText },
+  { key: 'clientes-prospecao', label: 'Prospecção', icon: Target },
+  { key: 'sdr', label: 'SDR', icon: UserCheck },
+  { key: 'disparos', label: 'Disparos', icon: Send },
   { key: 'extensoes', label: 'Extensões', icon: Puzzle },
 ]
 
