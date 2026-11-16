@@ -162,7 +162,8 @@ Usadas pelo app (Preview e Production têm cópia, configuradas em 04/11/2026):
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (públicas, client-side)
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (secret, **somente servidor**: server actions/admin)
 - `SUPABASE_JWKS_URL` (secret, hoje Production e Preview; reservada para auth futura)
-- `META_ACCESS_TOKEN` (secret, **somente servidor**: token de Usuário do Sistema da Meta) e `META_BUSINESS_ID` (id do portfólio) — sincronização de Contas de anúncio (`lib/meta/graph.ts`, 0007)
+- `META_APP_ID` (id do app da Meta), `META_APP_SECRET` (secret) e `META_TOKEN_KEY` (secret, 32 bytes base64 — chave AES-256-GCM dos tokens) — **Configurações → Integrações → Conectar com o Facebook** (OAuth, vários portfólios; `lib/meta/api.ts`, `lib/meta/sync.ts`, migration `20261116210000_meta_integrations.sql`). No app da Meta: produto “Login do Facebook”, URL de redirecionamento `https://undercuthub.vercel.app/api/meta/oauth/callback`, permissões `ads_read` + `business_management`. Trocar `META_TOKEN_KEY` invalida as conexões (reconectar).
+- `META_ACCESS_TOKEN` + `META_BUSINESS_ID` (legado, opcional) — usados só se nenhum portfólio estiver conectado no painel (`lib/meta/graph.ts`, 0007)
 - `CRON_SECRET` (secret, gerado aleatório em 2026-11-09) — protege `/api/cron/keepalive` (cron diário em `vercel.json` que impede a pausa do Supabase gratuito por 7 dias sem uso)
 - `ANTHROPIC_API_KEY` (opcional) — sem ela, `/api/v1/analysis` usa o modo gratuito (regras + pesquisa pública)
 - `CARDAPIOWEB_EXTENSION_IDS` (opcional) — id(s) do Chrome da extensão Cardápio Web (ver `docs/extensoes.md` §13 e `docs/integracao-extensoes-hub.md`)

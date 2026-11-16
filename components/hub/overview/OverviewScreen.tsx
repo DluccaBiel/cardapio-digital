@@ -79,6 +79,7 @@ type ColumnId =
   | 'tags'
   | 'spend'
   | 'balance'
+  | 'roas'
   | 'termination'
   | 'lastChange'
   | 'pix'
@@ -92,6 +93,7 @@ type SortKey =
   | 'situation'
   | 'spendMonth'
   | 'balance'
+  | 'roas'
   | 'termination'
   | 'lastChange'
   | 'campaignState'
@@ -105,6 +107,7 @@ const COLUMNS: { id: ColumnId; label: string; width: number; sortKey?: SortKey }
   { id: 'tags', label: 'Tags', width: 168 },
   { id: 'spend', label: 'Gasto no mês', width: 148, sortKey: 'spendMonth' },
   { id: 'balance', label: 'Saldo e dias', width: 198, sortKey: 'balance' },
+  { id: 'roas', label: 'ROAS (mês)', width: 110, sortKey: 'roas' },
   { id: 'termination', label: 'Término', width: 105, sortKey: 'termination' },
   { id: 'lastChange', label: 'Última alteração', width: 140, sortKey: 'lastChange' },
   { id: 'pix', label: 'Status Pix', width: 140 },
@@ -306,7 +309,7 @@ export function OverviewScreen({
     link.download = 'clientes-demo.csv'
     link.click()
     URL.revokeObjectURL(url)
-    setToast('CSV gerado com os dados fictícios da demonstração.')
+    setToast('CSV gerado com os dados da tabela.')
   }
 
   const copy = async (value: string, message = 'Copiado.') => {
@@ -717,7 +720,7 @@ export function OverviewScreen({
                                 <span className="text-[13px] text-[#8E8A86]">Sem conta</span>
                                 <button
                                   type="button"
-                                  onClick={() => setToast('Vínculo de conta disponível na próxima fase.')}
+                                  onClick={() => window.location.assign(window.location.pathname.replace(/\/visao-geral.*$/, '/contas'))}
                                   className="rounded-md border border-[#D7141F]/45 bg-[#D7141F]/5 px-2 py-0.5 text-[10px] font-semibold text-[#F0333D] hover:bg-[#D7141F]/15"
                                 >
                                   Vincular conta
@@ -747,6 +750,17 @@ export function OverviewScreen({
                               </div>
                             )}
                           </div>
+                        )}
+                        {id === 'roas' && (
+                          <span
+                            title="Faturamento de compras ÷ gasto no mês (Meta)"
+                            className={cn(
+                              'font-mono text-[13px] font-bold tabular-nums',
+                              client.roas == null ? 'text-[#6E6A66]' : client.roas >= 3 ? 'text-[#34D399]' : client.roas >= 1 ? 'text-[#FBBF24]' : 'text-[#FF6A3D]',
+                            )}
+                          >
+                            {client.roas == null ? '—' : `${client.roas.toFixed(2).replace('.', ',')}x`}
+                          </span>
                         )}
                         {id === 'termination' && <span className="tabular-nums text-[#DCD8D1]">{shortDate(client.termination)}</span>}
                         {id === 'lastChange' && (
@@ -876,7 +890,7 @@ export function OverviewScreen({
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-[#85817C]">
         <span>
-          {sorted.length} de {clients.length} clientes · dados fictícios de demonstração
+          {sorted.length} de {clients.length} clientes · contas de anúncio sincronizadas da Meta (botão Sincronizar)
         </span>
         <span className="flex items-center gap-1.5">
           <Info size={12} /> Role horizontalmente para ver todas as colunas
@@ -951,6 +965,8 @@ function csvValue(client: MockClient, id: ColumnId): string {
       return client.spendMonth.toFixed(2).replace('.', ',')
     case 'balance':
       return client.balance === null ? 'Sem conta' : client.balance.toFixed(2).replace('.', ',')
+    case 'roas':
+      return client.roas == null ? '' : client.roas.toFixed(2).replace('.', ',')
     case 'termination':
       return client.termination ?? ''
     case 'lastChange':

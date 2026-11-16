@@ -26,7 +26,7 @@ import { createClientAndLinkAction, linkAccountAction, setWatchedAction, syncMet
 export type AccountsLive = {
   ws: string
   canManage: boolean
-  /** META_ACCESS_TOKEN + META_BUSINESS_ID presentes no servidor */
+  /** Portfólio conectado em Configurações → Integrações (ou env legado) */
   configured: boolean
   /** migration 0007 aplicada (a leitura das contas funcionou) */
   schemaReady: boolean
@@ -188,7 +188,7 @@ export function AccountsScreen({
           {banner?.text ??
             (!live.schemaReady
               ? 'O banco ainda não tem os campos da sincronização com a Meta (migration 0007). Aplique a migration e recarregue.'
-              : 'Integração com a Meta não configurada no servidor: cadastre META_ACCESS_TOKEN (token de Usuário do Sistema) e META_BUSINESS_ID na Vercel e refaça o deploy.')}
+              : 'Nenhum portfólio conectado: conecte sua conta do Facebook em Configurações → Integrações e ative os portfólios.')}
         </div>
       )}
 

@@ -18,10 +18,12 @@ import {
   Users,
   Wifi,
   WifiOff,
+  Plug,
 } from 'lucide-react'
 import { cn, FieldLabel, Modal, TextInput, TextSelect, Toast } from '@/components/hub/ui'
 import { Btn, Empty } from '@/components/hub/menu/shared'
 import { ExtensionHub, type HubExtension } from '@/components/hub/extensions/ExtensionHub'
+import { IntegrationsPanel, type MetaBusinessView, type MetaConnectionView } from '@/components/hub/settings/IntegrationsPanel'
 import {
   createClientAction,
   inviteMemberAction,
@@ -62,11 +64,12 @@ function isOnline(i: Install | undefined): boolean {
   return Boolean(i.last_seen_at && Date.now() - new Date(i.last_seen_at).getTime() < 10 * 60_000)
 }
 
-type Tab = 'geral' | 'equipe' | 'clientes' | 'extensoes' | 'seguranca'
+type Tab = 'geral' | 'equipe' | 'clientes' | 'integracoes' | 'extensoes' | 'seguranca'
 const TABS: { id: Tab; label: string; icon: typeof Settings }[] = [
   { id: 'geral', label: 'Visão geral', icon: Settings },
   { id: 'equipe', label: 'Equipe e acessos', icon: Users },
   { id: 'clientes', label: 'Clientes', icon: UserPlus },
+  { id: 'integracoes', label: 'Integrações', icon: Plug },
   { id: 'extensoes', label: 'Extensões', icon: KeyRound },
   { id: 'seguranca', label: 'Segurança', icon: ShieldCheck },
 ]
@@ -84,6 +87,8 @@ export function SettingsScreen({
   extensions,
   installs,
   activeKeys,
+  integrations,
+  initialTab,
 }: {
   ws: string
   workspaceName: string
@@ -97,9 +102,17 @@ export function SettingsScreen({
   extensions: HubExtension[]
   installs: Install[]
   activeKeys: number
+  integrations: {
+    appConfigured: boolean
+    schemaReady: boolean
+    connections: MetaConnectionView[]
+    businesses: MetaBusinessView[]
+    status: string | null
+  }
+  initialTab?: string
 }) {
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>('geral')
+  const [tab, setTab] = useState<Tab>(() => (TABS.some((t) => t.id === initialTab) ? (initialTab as Tab) : 'geral'))
   const [toast, setToast] = useState<string | null>(null)
   const [invite, setInvite] = useState(false)
   const [newClient, setNewClient] = useState(false)
@@ -352,6 +365,12 @@ export function SettingsScreen({
             </div>
           )}
         </section>
+      )}
+
+      {tab === 'integracoes' && (
+        <div className="uc-fade-up">
+          <IntegrationsPanel ws={ws} {...integrations} />
+        </div>
       )}
 
       {tab === 'extensoes' && (

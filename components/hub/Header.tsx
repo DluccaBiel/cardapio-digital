@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { syncMetaAction } from '@/app/a/[ws]/meta-actions'
 import { useEffect, useRef, useState } from 'react'
 import { brand } from '@undercut/brand'
 import {
@@ -41,7 +43,21 @@ export function Header({
   live?: boolean
 }) {
   const [switcherOpen, setSwitcherOpen] = useState(false)
-  const [soon, setSoon] = useState(false)
+  const [soon, setSoon] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const router = useRouter()
+
+  /** Sincronização real: todas as contas dos portfólios conectados (Configurações → Integrações). */
+  const runSync = async () => {
+    if (demo) return setSoon('Demonstração: sem sincronização real.')
+    setSyncing(true)
+    const res = await syncMetaAction(workspace.slug)
+    setSyncing(false)
+    if (!res.ok) return setSoon(res.error)
+    const extra = res.errors.length ? ` · ${res.errors.length} aviso(s): ${res.errors[0]}` : ''
+    setSoon(`${res.total} conta(s) sincronizada(s) de ${res.businesses} portfólio(s)${res.created ? ` · ${res.created} nova(s)` : ''}${extra}`)
+    router.refresh()
+  }
   const switcherRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -61,7 +77,7 @@ export function Header({
 
   useEffect(() => {
     if (!soon) return
-    const timer = setTimeout(() => setSoon(false), 2800)
+    const timer = setTimeout(() => setSoon(null), 6000)
     return () => clearTimeout(timer)
   }, [soon])
 
@@ -167,17 +183,18 @@ export function Header({
               // A tela atual pode tratar a sincronização (ex.: Extensões → checa a conexão)
               // chamando event.preventDefault(); se ninguém tratar, mostra o aviso de "simulada".
               const handled = !window.dispatchEvent(new CustomEvent(SYNC_EVENT, { cancelable: true }))
-              if (!handled) setSoon(true)
+              if (!handled) void runSync()
             }}
             title="Sincronizar"
+            disabled={syncing}
             className="uc-cut flex h-[42px] items-center gap-2 bg-[#D7141F] px-4 font-mono text-[12px] font-bold font-mono uppercase tracking-[0.12em] text-[#FFFFFF] transition-[background-color,box-shadow] [--cut:10px] hover:bg-[#F0333D] hover:shadow-[0_0_24px_rgba(215,20,31,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0333D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090A]"
           >
-            <RefreshCw size={17} strokeWidth={2.2} />
-            <span className="hidden sm:inline">Sincronizar</span>
+            <RefreshCw size={17} strokeWidth={2.2} className={syncing ? 'animate-spin' : undefined} />
+            <span className="hidden sm:inline">{syncing ? 'Sincronizando…' : 'Sincronizar'}</span>
           </button>
           {soon && (
-            <div role="status" className="absolute right-0 top-[52px] z-50 w-[230px] rounded-[5px] border border-[#2A2A2E] bg-[#0F0F11] px-3 py-2 text-[11px] text-[#CFCBC4] shadow-2xl">
-              Sincronização simulada — integração real na próxima fase.
+            <div role="status" className="absolute right-0 top-[52px] z-50 w-[300px] rounded-[5px] border border-[#2A2A2E] bg-[#0F0F11] px-3 py-2 text-[11px] text-[#CFCBC4] shadow-2xl">
+              {soon}
             </div>
           )}
         </div>

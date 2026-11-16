@@ -4,14 +4,14 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { audit } from '../../../../lib/audit'
 import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
-import { fetchBusinessAdAccounts, MetaError, metaConfig } from '../../../../lib/meta/graph'
+import { MetaError } from '../../../../lib/meta/graph'
+import { syncWorkspaceMeta } from '../../../../lib/meta/sync'
 import { createServerClient } from '../../../../lib/supabaseServer'
 
 type Fail = { ok: false; error: string }
 export type SyncResult = { ok: true; total: number; created: number; updated: number; linked: number; synced_at: string } | Fail
 
 const MANAGERS = ['owner', 'coordenador']
-const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase()
 
 async function managerCtx(ws: string) {
   const workspace = await getWorkspaceBySlug(ws)
@@ -24,71 +24,30 @@ async function managerCtx(ws: string) {
 }
 
 /**
- * "Buscar contas da BM" / Sincronizar: lê o portfólio na Meta (token só no servidor)
- * e faz upsert em ad_accounts (RLS: owner/coordenador). Não apaga contas que sumiram
- * da Meta — só deixam de ser atualizadas. Vincula automaticamente ao cliente do Undercut
- * cujo nome bate com o nome da BM dona (ou da conta), se a conta ainda não tem cliente.
+ * "Buscar contas" / Sincronizar: todos os portfólios conectados em Configurações →
+ * Integrações (ou o modo legado por env). Ver lib/meta/sync.ts.
  */
 export async function syncMetaAccountsAction(ws: string): Promise<SyncResult> {
   const c = await managerCtx(ws)
   if ('error' in c) return { ok: false, error: c.error! }
-  const cfg = metaConfig()
-  if (!cfg) return { ok: false, error: 'Integração com a Meta não configurada no servidor: cadastre META_ACCESS_TOKEN e META_BUSINESS_ID na Vercel e refaça o deploy.' }
-
-  let remote
   try {
-    remote = await fetchBusinessAdAccounts(cfg)
+    const s = await syncWorkspaceMeta(c.db, c.workspace.id)
+    await audit({
+      workspaceId: c.workspace.id,
+      actorType: 'user',
+      actorId: c.userId,
+      action: 'ad_accounts.sync_meta',
+      entityType: 'workspace',
+      entityId: c.workspace.id,
+      metadata: { total: s.total, created: s.created, linked: s.linked, businesses: s.businesses, errors: s.errors.length }, // nunca o token
+    })
+    revalidatePath(`/a/${ws}/contas`)
+    revalidatePath(`/a/${ws}/visao-geral`)
+    if (s.total === 0 && s.errors.length > 0) return { ok: false, error: s.errors[0]! }
+    return { ok: true, total: s.total, created: s.created, updated: s.updated, linked: s.linked, synced_at: s.synced_at }
   } catch (e) {
     return { ok: false, error: e instanceof MetaError ? e.message : 'Falha ao consultar a Meta.' }
   }
-
-  const { workspace, db } = c
-  const [{ data: existing, error: exErr }, { data: clients }] = await Promise.all([
-    db.from('ad_accounts').select('id, external_account_id, client_id').eq('workspace_id', workspace.id).eq('platform', 'meta'),
-    db.from('clients').select('id, name').eq('workspace_id', workspace.id).is('archived_at', null),
-  ])
-  if (exErr) return { ok: false, error: 'Não consegui ler as contas do Undercut (migration 0007 aplicada?).' }
-  const byExt = new Map((existing ?? []).map((r) => [r.external_account_id as string, r]))
-  const clientByName = new Map<string, string>()
-  for (const cl of clients ?? []) if (!clientByName.has(norm(cl.name))) clientByName.set(norm(cl.name), cl.id)
-
-  const now = new Date().toISOString()
-  let created = 0
-  let linked = 0
-  const rows = remote.map((a) => {
-    const prev = byExt.get(a.external_account_id)
-    if (!prev) created += 1
-    let client_id: string | null = prev?.client_id ?? null
-    if (!client_id) {
-      client_id = (a.owner_business_name && clientByName.get(norm(a.owner_business_name))) || clientByName.get(norm(a.name)) || null
-      if (client_id) linked += 1
-    }
-    return {
-      workspace_id: workspace.id,
-      platform: 'meta' as const,
-      ...a,
-      client_id,
-      last_synced_at: now,
-      sync_error: null,
-    }
-  })
-
-  for (let i = 0; i < rows.length; i += 200) {
-    const { error } = await db.from('ad_accounts').upsert(rows.slice(i, i + 200), { onConflict: 'workspace_id,platform,external_account_id' })
-    if (error) return { ok: false, error: `Não consegui salvar as contas (${error.code ?? 'erro'}). Confira se a migration 0007 foi aplicada.` }
-  }
-
-  await audit({
-    workspaceId: workspace.id,
-    actorType: 'user',
-    actorId: c.userId,
-    action: 'ad_accounts.sync_meta',
-    entityType: 'workspace',
-    entityId: workspace.id,
-    metadata: { total: rows.length, created, linked }, // nunca o token
-  })
-  revalidatePath(`/a/${ws}/contas`)
-  return { ok: true, total: rows.length, created, updated: rows.length - created, linked, synced_at: now }
 }
 
 const idSchema = z.string().uuid()

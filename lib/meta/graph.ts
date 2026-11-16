@@ -12,6 +12,20 @@
  */
 // (servidor apenas: importado só por server actions — nunca por componente 'use client')
 
+import { createHmac } from 'node:crypto'
+
+export function graphVersion(): string {
+  return /^v\d+\.\d+$/.test(process.env.META_GRAPH_VERSION ?? '') ? process.env.META_GRAPH_VERSION! : 'v23.0'
+}
+
+/** access_token + appsecret_proof (quando META_APP_SECRET existe) — protege contra uso de token vazado. */
+export function authParams(token: string, extra: Record<string, string> = {}): URLSearchParams {
+  const qs = new URLSearchParams({ ...extra, access_token: token })
+  const secret = process.env.META_APP_SECRET?.trim()
+  if (secret) qs.set('appsecret_proof', createHmac('sha256', secret).update(token).digest('hex'))
+  return qs
+}
+
 export type MetaAdAccount = {
   external_account_id: string // act_123
   name: string
@@ -112,7 +126,7 @@ function mapAccount(a: RawAccount, access: MetaAdAccount['access_kind']): MetaAd
   }
 }
 
-async function graphGet(url: string): Promise<{ data?: RawAccount[]; paging?: { next?: string } }> {
+export async function graphGet<T = any>(url: string): Promise<T> {
   let res: Response
   try {
     res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(25_000) })
@@ -124,9 +138,9 @@ async function graphGet(url: string): Promise<{ data?: RawAccount[]; paging?: { 
     const e = json?.error ?? {}
     const code = Number(e.code) || res.status
     const hint =
-      code === 190 ? 'Token da Meta inválido ou expirado — gere um novo (Usuário do Sistema) e atualize META_ACCESS_TOKEN.'
-      : code === 200 || code === 10 ? 'O token não tem permissão para este portfólio (precisa de ads_read e business_management, e o Usuário do Sistema com acesso às contas).'
-      : code === 100 ? 'ID do portfólio inválido ou sem acesso (META_BUSINESS_ID).'
+      code === 190 ? 'Acesso ao Facebook expirado ou revogado — reconecte em Configurações → Integrações.'
+      : code === 200 || code === 10 ? 'Sem permissão neste portfólio/conta (precisa de ads_read e business_management e acesso às contas no Gerenciador de Negócios).'
+      : code === 100 ? 'Portfólio ou conta inválida ou sem acesso.'
       : code === 4 || code === 17 || code === 613 ? 'Limite de chamadas da Meta atingido. Tente de novo em alguns minutos.'
       : `Meta respondeu erro ${code}.`
     throw new MetaError(hint, code)
@@ -141,11 +155,11 @@ export async function fetchBusinessAdAccounts(cfg: MetaConfig): Promise<MetaAdAc
     ['owned_ad_accounts', 'owned'],
     ['client_ad_accounts', 'client'],
   ] as const) {
-    const qs = new URLSearchParams({ fields: FIELDS, limit: '100', access_token: cfg.token })
+    const qs = authParams(cfg.token, { fields: FIELDS, limit: '100' })
     let url: string | undefined = `https://graph.facebook.com/${cfg.version}/${cfg.businessId}/${edge}?${qs}`
     let pages = 0
     while (url && pages < 20) {
-      const page = await graphGet(url)
+      const page: { data?: RawAccount[]; paging?: { next?: string } } = await graphGet(url)
       for (const raw of page.data ?? []) {
         const acc = mapAccount(raw, access)
         if (!out.has(acc.external_account_id)) out.set(acc.external_account_id, acc)

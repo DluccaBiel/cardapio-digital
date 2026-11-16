@@ -1,11 +1,14 @@
 import { notFound } from 'next/navigation'
 import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
-import { getClients, MOCK_TAGS_LIST } from '../../../../lib/mock'
+import { loadOverview } from '../../../../lib/db/overview'
+import { createServerClient } from '../../../../lib/supabaseServer'
 import { OverviewScreen } from '../../../../components/hub/overview/OverviewScreen'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 300
 export const metadata = { title: 'Undercut — Visão geral' }
 
+/** Visão geral com dados reais: clientes + contas de anúncio sincronizadas da Meta (RLS). */
 export default async function VisaoGeralPage({
   params,
   searchParams,
@@ -16,10 +19,13 @@ export default async function VisaoGeralPage({
   const workspace = await getWorkspaceBySlug(params.ws)
   if (!workspace) notFound()
 
+  const { clients, tags } = await loadOverview(createServerClient(), workspace.id)
+
   return (
     <OverviewScreen
-      initialClients={getClients()}
-      initialTags={MOCK_TAGS_LIST}
+      key={clients.map((c) => `${c.id}:${c.lastChange}:${c.spendMonth}:${c.balance}`).join('|')}
+      initialClients={clients}
+      initialTags={tags}
       initialQuery={typeof searchParams.q === 'string' ? searchParams.q : ''}
       workspaceName={workspace.name}
     />
