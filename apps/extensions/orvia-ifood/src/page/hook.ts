@@ -17,6 +17,15 @@ const SOURCE = 'orvia-hook'
 const MAX_CHARS = 6_000_000
 const SKIP_HEADERS = new Set(['cookie', 'content-length', 'host', 'content-type', 'accept-encoding', 'connection'])
 const lastHeaders = new Map<string, Record<string, string>>()
+/** Endereços (memória da aba) de onde o portal carregou o cardápio — usados pelo "Sincronizar". */
+const menuUrls: string[] = []
+function rememberMenuUrl(url: URL) {
+  const href = url.href
+  const i = menuUrls.indexOf(href)
+  if (i >= 0) menuUrls.splice(i, 1)
+  menuUrls.unshift(href)
+  menuUrls.length = Math.min(menuUrls.length, 12)
+}
 
 function isIfoodApi(url: URL): boolean {
   return url.protocol === 'https:' && (url.hostname === 'ifood.com.br' || url.hostname.endsWith('.ifood.com.br'))
@@ -62,6 +71,7 @@ function observe(method: string, rawUrl: string, status: number, responseText: s
   const json = parse(responseText)
   const m = method.toUpperCase()
   if (m === 'GET' && json !== undefined && looksLikeMenuPayload(json)) {
+    rememberMenuUrl(url)
     window.postMessage({ source: SOURCE, kind: 'menu', path: sanitizePath(url.href), payload: json }, window.location.origin)
   }
   if (!isIfoodApi(url) && url.origin !== window.location.origin) return
@@ -138,9 +148,31 @@ function bodyOf(body: unknown): unknown {
   // ---- Executor (pedido do content script) -------------------------------
   window.addEventListener('message', async (event: MessageEvent) => {
     if (event.source !== window || event.origin !== window.location.origin) return
-    const data = event.data as { source?: string; id?: string; method?: string; url?: string; body?: unknown } | null
-    if (!data || data.source !== 'orvia-exec' || !data.id || !data.url || !data.method) return
+    const data = event.data as { source?: string; id?: string; action?: string; method?: string; url?: string; body?: unknown } | null
+    if (!data || data.source !== 'orvia-exec' || !data.id) return
     const reply = (status: number, json: unknown) => window.postMessage({ source: 'orvia-exec-result', id: data.id, status, json }, window.location.origin)
+
+    // "Sincronizar": relê todos os endereços de cardápio já usados pelo portal nesta aba
+    if (data.action === 'refetch-menu') {
+      let read = 0
+      for (const href of [...menuUrls]) {
+        const url = absolute(href)
+        if (!url) continue
+        try {
+          const res = await originalFetch(url.href, {
+            headers: { Accept: 'application/json', ...(isIfoodApi(url) ? lastHeaders.get(url.host) ?? {} : {}) },
+            credentials: 'include',
+          })
+          observe('GET', url.href, res.status, await res.text(), undefined)
+          if (res.ok) read += 1
+        } catch {
+          /* segue para o próximo */
+        }
+      }
+      return reply(200, { known: menuUrls.length, read })
+    }
+
+    if (!data.url || !data.method) return
     const url = absolute(data.url)
     const method = data.method.toUpperCase()
     if (!url || !isIfoodApi(url) || !['GET', 'PUT', 'PATCH', 'POST'].includes(method)) return reply(0, { error: 'destino não permitido' })

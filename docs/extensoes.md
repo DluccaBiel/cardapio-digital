@@ -237,6 +237,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   `host_permissions`/`content_scripts.matches` atualizados; worker aceita `hub:status` de
   origem do hub e a ponte responde status (`configured`, `workspace`, `scopes`); `hello`
   dispara status automático.
+
+- **FlyTo (parceiro):** slug `orvia-flyto` incluído em `EXTENSION_SLUGS` (allowlist de
+  código de conexão/login); canal `flyto` (`PLATFORM_OF`, `PLATFORM_LABEL`, `STORE_COLUMN`);
+  migration `0010_flyto_channel.sql` (catálogo + `clients.flyto_store_id` + CHECK de
+  `menu_optimizations.platform`). Com isso, o botão “Gerar chave de conexão” do parceiro
+  funciona após o cadastro da extensão no catálogo.
 - **Pendências:** publicar pacote público para Cardápio Web/Anota AI (hoje “em breve”);
   aplicar a migration `0009` no banco de produção (catálogo com nomes Undercut) antes de
   anunciar os nomes novos no catálogo global.

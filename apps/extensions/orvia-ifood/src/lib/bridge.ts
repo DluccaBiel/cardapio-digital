@@ -112,3 +112,12 @@ export function comboComponentsFromIfood(
   }
   return out
 }
+
+/** Mantém só os produtos selecionados (e as categorias que ainda têm produtos). */
+export function filterSnapshot(snapshot: MenuSnapshot, ids: Set<string>): MenuSnapshot {
+  const items = snapshot.items.filter((i) => ids.has(i.id))
+  const categories = snapshot.categories
+    .map((c) => ({ ...c, itemIds: c.itemIds.filter((id) => ids.has(id)) }))
+    .filter((c) => c.itemIds.length > 0)
+  return { ...snapshot, items, categories }
+}

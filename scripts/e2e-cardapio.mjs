@@ -20,7 +20,9 @@ await fetch(`${SB}/rest/v1/members`, { method: 'POST', headers: H, body: JSON.st
 
 const log = (ok, m) => console.log(`${ok ? 'PASS' : 'FAIL'}  ${m}`)
 const browser = await chromium.launch()
-const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage()
+const page = await (
+  await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] })
+).newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(`${new URL(page.url()).pathname}: ${e.message.split(/\r?\n/)[0]}`))
 try {
@@ -79,13 +81,20 @@ try {
 
   // Extensões: gerar chave
   await page.goto(`${HUB}/a/orvia-demo/extensoes`)
-  await page.getByRole('button', { name: 'Gerar chave' }).click()
+  await page.getByRole('button', { name: 'Gerar chave', exact: true }).first().click()
   await page.getByPlaceholder('Ex.: Chrome do escritório').fill('Chave E2E')
   await page.getByRole('dialog').getByRole('button', { name: 'Gerar chave' }).click()
   await page.getByText('Copie agora').waitFor({ timeout: 15000 })
-  const keyText = await page.locator('code').textContent()
-  log(/^ck_live_[A-Za-z0-9_-]{43}$/.test(keyText ?? ''), 'chave exibida uma vez no formato certo')
-  await page.locator('code').evaluate((el) => (el.textContent = 'ck_live_••••••••••••••••(oculta na captura)'))
+  // A chave nunca é exibida: só prefixo mascarado + botão "Copiar chave".
+  const masked = await page.getByLabel('Chave oculta').textContent()
+  await page.getByRole('button', { name: 'Copiar chave' }).click()
+  await page.getByRole('button', { name: 'Copiada' }).waitFor({ timeout: 5000 })
+  const keyText = await page.evaluate(() => navigator.clipboard.readText())
+  const html = await page.content()
+  log(
+    /^ck_live_[A-Za-z0-9_-]{43}$/.test(keyText) && /^ck_live_\S*•{24}$/.test(masked ?? '') && !html.includes(keyText),
+    'chave copiada no formato certo e nunca exibida na página',
+  )
   await page.screenshot({ path: `${OUT}/06-chave.png` })
   await page.getByRole('button', { name: 'Concluir' }).click()
   await page.waitForTimeout(1500)

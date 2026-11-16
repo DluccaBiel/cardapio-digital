@@ -48,4 +48,15 @@ table.diff td { padding: 4px 6px; vertical-align: top; } td.before { color: #7C8
 .okText { color: #6EE7B7; font-size: 12px; }
 .check { display: flex; gap: 6px; align-items: center; margin-top: 10px; font-size: 12px; color: #B4BFD0; cursor: pointer; }
 .log { margin-top: 8px; max-height: 180px; overflow-y: auto; border-top: 1px solid #1A2231; padding-top: 6px; }
+.listbar { align-items: center; margin: 4px 0 6px; }
+.plist { max-height: 46vh; overflow-y: auto; border: 1px solid #1E2738; border-radius: 10px; background: #080D18; }
+.pcat { display: flex; gap: 8px; align-items: center; padding: 8px 10px; background: #0D1320; border-bottom: 1px solid #1A2231; position: sticky; top: 0; cursor: pointer; }
+.prow { display: grid; grid-template-columns: 18px 1fr auto auto; gap: 8px; align-items: center; padding: 7px 10px; border-bottom: 1px solid #111827; cursor: pointer; font-size: 12px; }
+.prow.on { background: rgba(61,142,255,.07); }
+.pname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #E6ECFA; }
+.pprice { font-family: ui-monospace, Consolas, monospace; color: #B4BFD0; }
+.tag { margin-left: 6px; font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid #26314A; color: #8FA0C4; white-space: nowrap; }
+.tag.ok { color: #6EE7B7; border-color: rgba(52,211,153,.4); }
+.tag.new { color: #C4B5FD; border-color: rgba(167,139,250,.4); }
+input[type=checkbox] { accent-color: #3D8EFF; }
 `
