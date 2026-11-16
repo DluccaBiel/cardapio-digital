@@ -4,6 +4,21 @@ import { useState } from 'react'
 import { brand } from '@undercut/brand'
 import { createClient } from '../../lib/supabase'
 
+/**
+ * Atalhos de conta SÓ no ambiente local (`next dev`): preenchem apenas o e-mail.
+ * Nenhuma senha fica no código. Em build de produção, NODE_ENV é 'production'
+ * e o bloco é removido do bundle.
+ */
+const DEV_ACCOUNTS =
+  process.env.NODE_ENV === 'development'
+    ? [
+        { label: 'Usuário comum', email: 'usuario@undercut.com' },
+        { label: 'Coordenador / Suporte', email: 'coordenador@undercut.com' },
+        { label: 'Usuário teste', email: 'teste@undercut.com' },
+        { label: 'Owner', email: 'owner@undercut.com' },
+      ]
+    : []
+
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -46,6 +61,26 @@ export default function Login() {
         <h2>Login</h2>
         {error && <div className="flash error">{error}</div>}
         <form onSubmit={handleLogin}>
+          {DEV_ACCOUNTS.length > 0 && (
+            <>
+              <label htmlFor="dev-account">Conta (atalho local)</label>
+              <select
+                id="dev-account"
+                value={DEV_ACCOUNTS.some(a => a.email === email) ? email : ''}
+                onChange={e => {
+                  setEmail(e.target.value)
+                  setPassword('')
+                }}
+              >
+                <option value="">— Digitar e-mail —</option>
+                {DEV_ACCOUNTS.map(a => (
+                  <option key={a.email} value={a.email}>
+                    {a.label} · {a.email}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <label>E-mail</label>
           <input type="email" required value={email} onChange={e => setEmail(e.target.value)} />
           <label>Senha</label>
