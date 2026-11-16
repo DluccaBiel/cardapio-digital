@@ -18,6 +18,29 @@ export function graphVersion(): string {
   return /^v\d+\.\d+$/.test(process.env.META_GRAPH_VERSION ?? '') ? process.env.META_GRAPH_VERSION! : 'v23.0'
 }
 
+/**
+ * Simulador local (testes E2E): só fora de produção e só http://localhost/127.0.0.1.
+ * Em qualquer build da Vercel (NODE_ENV=production) é ignorado.
+ */
+function localOverride(name: string): string | null {
+  if (process.env.NODE_ENV === 'production') return null
+  const v = process.env[name]?.trim()
+  return v && /^http:\/\/(127\.0\.0\.1|localhost):\d{2,5}$/.test(v) ? v : null
+}
+
+export function graphBase(): string {
+  return localOverride('META_GRAPH_BASE_URL') ?? 'https://graph.facebook.com'
+}
+
+export function dialogBase(): string {
+  return localOverride('META_DIALOG_BASE_URL') ?? 'https://www.facebook.com'
+}
+
+/** Só seguimos paging.next da própria Graph API (o link já traz o token). */
+export function isGraphUrl(url: string | undefined): url is string {
+  return !!url && url.startsWith(`${graphBase()}/`)
+}
+
 /** access_token + appsecret_proof (quando META_APP_SECRET existe) — protege contra uso de token vazado. */
 export function authParams(token: string, extra: Record<string, string> = {}): URLSearchParams {
   const qs = new URLSearchParams({ ...extra, access_token: token })
@@ -156,7 +179,7 @@ export async function fetchBusinessAdAccounts(cfg: MetaConfig): Promise<MetaAdAc
     ['client_ad_accounts', 'client'],
   ] as const) {
     const qs = authParams(cfg.token, { fields: FIELDS, limit: '100' })
-    let url: string | undefined = `https://graph.facebook.com/${cfg.version}/${cfg.businessId}/${edge}?${qs}`
+    let url: string | undefined = `${graphBase()}/${cfg.version}/${cfg.businessId}/${edge}?${qs}`
     let pages = 0
     while (url && pages < 20) {
       const page: { data?: RawAccount[]; paging?: { next?: string } } = await graphGet(url)
@@ -166,7 +189,7 @@ export async function fetchBusinessAdAccounts(cfg: MetaConfig): Promise<MetaAdAc
       }
       // paging.next é URL da própria Meta (já com o token) — só seguimos se for graph.facebook.com
       const next = page.paging?.next
-      url = next && next.startsWith('https://graph.facebook.com/') ? next : undefined
+      url = isGraphUrl(next) ? next : undefined
       pages += 1
     }
   }

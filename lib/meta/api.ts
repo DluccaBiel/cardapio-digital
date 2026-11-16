@@ -5,7 +5,7 @@
  *   META_APP_ID       id do app da Meta (não é segredo)
  *   META_APP_SECRET   segredo do app (secret)
  */
-import { authParams, graphGet, graphVersion, MetaError } from './graph'
+import { authParams, dialogBase, graphBase, graphGet, graphVersion, isGraphUrl, MetaError } from './graph'
 
 export const META_SCOPES = ['ads_read', 'business_management'] as const
 
@@ -19,11 +19,11 @@ export function metaAppConfig(): { appId: string; appSecret: string } | null {
   return { appId, appSecret }
 }
 
-const G = () => `https://graph.facebook.com/${graphVersion()}`
+const G = () => `${graphBase()}/${graphVersion()}`
 
 export function oauthDialogUrl(appId: string, redirectUri: string, state: string): string {
   const qs = new URLSearchParams({ client_id: appId, redirect_uri: redirectUri, state, scope: META_SCOPES.join(','), response_type: 'code' })
-  return `https://www.facebook.com/${graphVersion()}/dialog/oauth?${qs}`
+  return `${dialogBase()}/${graphVersion()}/dialog/oauth?${qs}`
 }
 
 /** code → token curto → token de longa duração (~60 dias). */
@@ -61,7 +61,7 @@ export async function fetchBusinesses(token: string): Promise<{ id: string; name
     const page: { data?: { id: string; name?: string }[]; paging?: { next?: string } } = await graphGet(url)
     for (const b of page.data ?? []) if (/^\d{5,25}$/.test(b.id)) out.push({ id: b.id, name: (b.name || b.id).slice(0, 160) })
     const next = page.paging?.next
-    url = next && next.startsWith('https://graph.facebook.com/') ? next : undefined
+    url = isGraphUrl(next) ? next : undefined
     pages += 1
   }
   return out

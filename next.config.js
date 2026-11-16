@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Pasta de build separada para servidores de teste (não disputar a .next do `npm run dev`).
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   transpilePackages: ['@undercut/brand'],
   typescript: {
     ignoreBuildErrors: true,

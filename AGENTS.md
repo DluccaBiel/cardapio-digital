@@ -48,6 +48,9 @@ docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/checks.
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/combos_ifood.sql    # 16 testes combos/iFood (16/0)
 # API + painel + extensão (hub local em :3100 apontando para o Supabase local, envs só no processo):
 #   node supabase/tests/api_menu.mjs (34/34) → node scripts/e2e-cardapio.mjs (9/9) → (apps/extensions/orvia-ifood) node scripts/e2e.mjs (15/15)
+# Integração Meta (simulador local da Graph API/OAuth — nunca a Meta real; hub com NEXT_DIST_DIR=.next-e2e,
+#   META_GRAPH_BASE_URL/META_DIALOG_BASE_URL=http://127.0.0.1:4590 e app/chave de teste; ver cabeçalho do script):
+#   node scripts/e2e-meta.mjs (32/32) — conectar → portfólios → sincronizar → visão geral → relatórios → desconectar; limpa o banco local ao final
 # Smoke test HTTP (chaves descartáveis locais via env — NUNCA gravar em arquivos):
 $s = npx supabase status -o env
 $env:LOCAL_API_URL = (($s | Select-String '^API_URL=').Line -split '=',2)[1].Trim('"')
