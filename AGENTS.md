@@ -152,12 +152,12 @@ Fluxo padrão (nunca pular o preview):
 
 ### Rollback
 
-- Produção atual (16/11/2026, release/undercut-v0.8): `https://orvia-nph2d96ap-gabrieldluccaoliveira-4662s-projects.vercel.app`. Anterior a ela (rollback): `https://orvia-5s7q1f2qi-gabrieldluccaoliveira-4662s-projects.vercel.app`.
+- Produção atual (16/11/2026, release/undercut-v0.9 — integração Meta): `https://orvia-9yho907nc-gabrieldluccaoliveira-4662s-projects.vercel.app`. Anterior a ela (rollback): `https://orvia-nph2d96ap-gabrieldluccaoliveira-4662s-projects.vercel.app` (v0.8).
 - Deployment de produção mais antigo (registrado em 04/11/2026): `dpl_9Fj52z3X72xZfQ5pFsBLUi5WFm4c` (alias `https://nextjs-cardapio-jxjyn9mto-gabrieldluccaoliveira-4662s-projects.vercel.app`).
 - Para reverter: `npx vercel rollback <url-do-deployment-anterior>` (ou promova o deployment anterior no painel da Vercel → Deployments → Promote). Depois reverta o `master` (`git revert`/`git switch master` e re-push) para manter o histórico de acordo.
 - **NUNCA** `git push --force`, apagar deployments ou renomear o projeto/domínio sem decisão explícita.
 - **Banco remoto**: 0001–0003 (schema Undercut + RLS + FK composta) aplicadas em produção (projeto AnjimBanco/zzdiefephohlyicgexkv) em 05/11/2026, após backup (`db dump --remote`, dump em disco local, fora do repo). **Migrations futuras**: apenas via `supabase db push` com backup prévio + janela; desenvolvimento primeiro (`supabase db reset`).
-- **16/11/2026**: 0004–0008 já estavam no remoto; aplicadas 0009 (catálogo Undercut), 0010 (FlyTo) e 20261116152908 (`clients.niche`/`website`; clientes existentes ficaram `niche='food'`). Backup antes/depois em `%USERPROFILE%/undercut-backups/` (`pre-migration_2026-11-16_*.sql`, `post-migration_2026-11-16_schema.sql`). Verificado: 26/26 tabelas com RLS. Em modo agente a CLI exige `db push --yes` — só com confirmação explícita do usuário.
+- **16/11/2026**: 0004–0008 já estavam no remoto; aplicadas 0009 (catálogo Undercut), 0010 (FlyTo) e 20261116152908 (`clients.niche`/`website`; clientes existentes ficaram `niche='food'`). Backup antes/depois em `%USERPROFILE%/undercut-backups/` (`pre-migration_2026-11-16_*.sql`, `post-migration_2026-11-16_schema.sql`). Verificado: 26/26 tabelas com RLS. Em modo agente a CLI exige `db push --yes` — só com confirmação explícita do usuário. Mais tarde no mesmo dia: aplicada `20261116210000_meta_integrations.sql` (backup `pre-meta-integrations_2026-11-16_*.sql`); 29/29 tabelas com RLS. `META_TOKEN_KEY` gerada aleatória e cadastrada na Vercel (Production + Preview) sem exibir o valor. Consultas de leitura em produção: `npx supabase db query --linked --read-only "<sql>"`.
 
 ### Variáveis de ambiente na Vercel (nomes, nunca valores)
 
