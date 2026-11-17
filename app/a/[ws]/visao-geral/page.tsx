@@ -19,10 +19,13 @@ export default async function VisaoGeralPage({
   const workspace = await getWorkspaceBySlug(params.ws)
   if (!workspace) notFound()
 
-  const { clients, tags } = await loadOverview(createServerClient(), workspace.id)
+  const { clients, tags, lastSyncedAt } = await loadOverview(createServerClient(), workspace.id)
 
   return (
     <OverviewScreen
+      ws={params.ws}
+      canSync={['owner', 'coordenador'].includes(workspace.role)}
+      lastSyncedAt={lastSyncedAt}
       key={clients.map((c) => `${c.id}:${c.lastChange}:${c.spendMonth}:${c.balance}`).join('|')}
       initialClients={clients}
       initialTags={tags}

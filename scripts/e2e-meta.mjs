@@ -38,6 +38,7 @@ const log = (ok, m) => {
 // Simulador da Meta
 // ---------------------------------------------------------------------------
 const calls = []
+const live = { C1: 'ACTIVE' } // status "ao vivo" da campanha C1 (o teste pausa no meio)
 const days = (since, until) => {
   const out = []
   for (let d = new Date(`${since}T12:00:00Z`); d <= new Date(`${until}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) out.push(d.toISOString().slice(0, 10))
@@ -93,25 +94,40 @@ const mock = createServer((req, res) => {
   if (m) {
     const range = JSON.parse(q.get('time_range') ?? '{}')
     const list = days(range.since, range.until)
-    if (q.get('time_increment') === '1') {
-      return send(200, { data: list.map((d) => ({ date_start: d, date_stop: d, spend: '100.00', action_values: [{ action_type: 'omni_purchase', value: '400.00' }, { action_type: 'purchase', value: '400.00' }] })) })
-    }
+    // Por dia: gasto 100, 3000 impressões, 50 cliques no link, 10 carrinhos, 4 compras (R$ 400)
+    const dayRow = (n) => ({
+      spend: String(100 * n), reach: String(1000 * n), impressions: String(3000 * n), clicks: String(60 * n), inline_link_clicks: String(50 * n),
+      actions: [{ action_type: 'omni_purchase', value: String(4 * n) }, { action_type: 'purchase', value: String(4 * n) }, { action_type: 'omni_add_to_cart', value: String(10 * n) }, { action_type: 'link_click', value: String(50 * n) }],
+      action_values: [{ action_type: 'omni_purchase', value: String(400 * n) }, { action_type: 'purchase', value: String(400 * n) }],
+    })
+    if (q.get('time_increment') === '1') return send(200, { data: list.map((d) => ({ date_start: d, date_stop: d, ...dayRow(1) })) })
     if (q.get('level') === 'ad') {
-      return send(200, { data: [
-        { ad_name: 'Criativo Pizza Calabresa', spend: '300', actions: [{ action_type: 'omni_purchase', value: '9' }] },
-        { ad_name: 'Criativo Combo Família', spend: '250', actions: [{ action_type: 'omni_purchase', value: '14' }] },
-        { ad_name: 'Criativo Sobremesa', spend: '150', actions: [{ action_type: 'omni_purchase', value: '3' }] },
-      ] })
+      const ad = (id, name, spend, purchases) => ({ ad_id: id, ad_name: name, spend: String(spend), impressions: String(spend * 30), inline_link_clicks: String(spend / 2), actions: [{ action_type: 'omni_purchase', value: String(purchases) }, { action_type: 'omni_add_to_cart', value: String(purchases * 2) }], action_values: [{ action_type: 'omni_purchase', value: String(purchases * 100) }] })
+      return send(200, { data: [ad('A1', 'Criativo Pizza Calabresa', 300, 9), ad('A2', 'Criativo Combo Família', 250, 14), ad('A3', 'Criativo Sobremesa', 150, 3)] })
     }
-    const n = list.length
-    return send(200, { data: [{ spend: String(100 * n), reach: String(1000 * n), impressions: String(3000 * n), clicks: String(60 * n), actions: [{ action_type: 'omni_purchase', value: String(4 * n) }], action_values: [{ action_type: 'omni_purchase', value: String(400 * n) }] }] })
+    return send(200, { data: [dayRow(list.length)] })
+  }
+  m = /^\/(act_\d+)\/campaigns$/.exec(path)
+  if (m) {
+    return send(200, { data: [
+      { id: 'C1', name: 'Campanha Vendas Pizza', effective_status: live.C1, daily_budget: '5000', objective: 'OUTCOME_SALES', start_time: '2026-10-01T00:00:00-0300' },
+      { id: 'C2', name: 'Campanha Antiga', effective_status: 'PAUSED', lifetime_budget: '90000', objective: 'OUTCOME_SALES' },
+    ] })
   }
   m = /^\/(act_\d+)\/adsets$/.exec(path)
   if (m) {
     return send(200, { data: [
-      { effective_status: 'ACTIVE', end_time: '2026-12-20T23:59:00-0300', updated_time: '2026-11-15T10:00:00-0300' },
-      { effective_status: 'ACTIVE', updated_time: '2026-11-14T10:00:00-0300' },
-      { effective_status: 'PAUSED', end_time: '2027-01-30T23:59:00-0300', updated_time: '2026-11-16T09:30:00-0300' },
+      { id: 'S1', name: 'Conjunto Aberto', campaign_id: 'C1', effective_status: 'ACTIVE', end_time: '2026-12-20T23:59:00-0300', updated_time: '2026-11-15T10:00:00-0300' },
+      { id: 'S2', name: 'Conjunto Remarketing', campaign_id: 'C1', effective_status: 'ACTIVE', daily_budget: '2000', updated_time: '2026-11-14T10:00:00-0300' },
+      { id: 'S3', name: 'Conjunto Antigo', campaign_id: 'C2', effective_status: 'PAUSED', end_time: '2027-01-30T23:59:00-0300', updated_time: '2026-11-16T09:30:00-0300' },
+    ] })
+  }
+  m = /^\/(act_\d+)\/ads$/.exec(path)
+  if (m) {
+    return send(200, { data: [
+      { id: 'A1', name: 'Criativo Pizza Calabresa', adset_id: 'S1', campaign_id: 'C1', effective_status: 'ACTIVE', creative: { thumbnail_url: 'https://scontent.fbcdn.net/e2e/calabresa.png' } },
+      { id: 'A2', name: 'Criativo Combo Família', adset_id: 'S2', campaign_id: 'C1', effective_status: 'ACTIVE', creative: { thumbnail_url: 'https://evil.example/x.png' } },
+      { id: 'A3', name: 'Criativo Sobremesa', adset_id: 'S3', campaign_id: 'C2', effective_status: 'PAUSED' },
     ] })
   }
   return send(404, { error: { code: 803, message: `rota não simulada: ${path}` } })
@@ -133,6 +149,16 @@ const page = await (await browser.newContext({ viewport: { width: 1440, height: 
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message.split(/\r?\n/)[0]))
 const shot = (n) => (OUT ? page.screenshot({ path: `${OUT}/${n}.png`, fullPage: true }) : Promise.resolve())
+// Miniaturas "da Meta" (fbcdn) servidas localmente: o teste nunca toca a internet.
+const thumbs = []
+await page.route('https://*.fbcdn.net/**', (route) => {
+  thumbs.push(route.request().url())
+  route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64') })
+})
+await page.route('https://evil.example/**', (route) => {
+  thumbs.push(route.request().url())
+  route.abort()
+})
 
 try {
   // Login
@@ -212,6 +238,85 @@ try {
   await page.getByText(/2 conta\(s\) sincronizada\(s\) de 1 portfólio/).waitFor({ timeout: 90000 })
   log(true, 'botão Sincronizar do topo faz a sincronização real')
   log(!/Sincronização simulada/.test(await page.locator('body').innerText()), 'mensagem "simulada" não aparece mais')
+
+  // Status por cor + conta sem cliente sempre no fim
+  await page.goto(`${HUB}/a/${WS}/visao-geral`)
+  await page.getByText('Pizzaria do Ze (Demo)').first().waitFor({ timeout: 60000 })
+  const names = await page.locator('table[aria-label="Lista de clientes"] tbody tr').evaluateAll((trs) => trs.map((tr) => tr.innerText.split('\n')[0]))
+  log(names.length > 1 && names[names.length - 1].includes('Conta Pos-paga E2E'), `conta sem cliente fica no fim da lista (${names.slice(-2).join(' | ')})`)
+  const pizzaRow = page.locator('table[aria-label="Lista de clientes"] tbody tr').filter({ hasText: 'Pizzaria do Ze (Demo)' })
+  const contaRow = page.locator('table[aria-label="Lista de clientes"] tbody tr').filter({ hasText: 'Conta Pos-paga E2E' })
+  log((await pizzaRow.getByLabel('Status: Tranquilo').count()) === 1, 'cliente com saldo e término folgados = bolinha verde (Tranquilo)')
+  log((await contaRow.getByLabel('Status: Sem cliente').count()) === 1, 'conta sem cliente = bolinha azul')
+  log(/contas sem cliente/.test(await page.locator('body').innerText()), 'legenda de status com contagem por cor')
+
+  // Situação salva no banco
+  await pizzaRow.getByLabel('Situação do cliente').selectOption('stand_by')
+  await page.getByText(/Stand-by salvo/).waitFor({ timeout: 30000 })
+  const st1 = await (await rest('clients?id=eq.bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1&select=status')).json()
+  log(st1[0]?.status === 'pausado', 'mudar a situação para Stand-by salva no banco (pausado)')
+  await pizzaRow.getByLabel('Situação do cliente').selectOption('ativo')
+  await page.getByText(/Ativo salvo/).waitFor({ timeout: 30000 })
+  await shot('04b-visao-geral-status')
+
+  // Clicar no cliente abre a apresentação
+  await pizzaRow.getByTitle('Abrir métricas, campanhas e criativos').click()
+  await page.waitForURL(/\/clientes\/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1/, { timeout: 60000 })
+  log(true, 'clicar no cliente abre a apresentação de métricas')
+  await page.getByText('Faturamento ÷ investimento').waitFor({ timeout: 90000 })
+  let cbody = await page.locator('body').innerText()
+  log(/4,00x/i.test(cbody), 'Métricas (7 dias): ROAS 4,00x')
+  log(/R\$\s?2\.800,00/.test(cbody) && /R\$\s?700,00/.test(cbody), 'Métricas: faturamento R$ 2.800,00 e total investido R$ 700,00')
+  log(/R\$\s?2,00/.test(cbody) && /1,67%/.test(cbody), 'Métricas: CPC R$ 2,00 e CTR do link 1,67%')
+  log(/\b350\b/.test(cbody) && /\b70\b/.test(cbody), 'Métricas: 350 cliques no link e 70 adições ao carrinho')
+  log((await page.getByRole('img', { name: /Gráfico diário/ }).count()) === 1, 'gráfico diário de investimento × faturamento')
+  await shot('06-cliente-metricas')
+
+  await page.getByRole('button', { name: 'Últimos 30 dias' }).click()
+  await page.getByText(/R\$\s?3\.000,00/).first().waitFor({ timeout: 60000 })
+  log(true, 'período 30 dias: total investido R$ 3.000,00')
+  await page.getByRole('button', { name: 'Últimos 14 dias' }).click()
+  await page.getByText(/R\$\s?1\.400,00/).first().waitFor({ timeout: 60000 })
+  log(true, 'período 14 dias: total investido R$ 1.400,00')
+  await page.getByLabel('Data inicial do período').fill('2026-11-01')
+  await page.getByLabel('Data final do período').fill('2026-11-03')
+  await page.getByRole('button', { name: 'Personalizado' }).click()
+  await page.getByText('01/11 a 03/11').waitFor({ timeout: 60000 })
+  log(/R\$\s?300,00/.test(await page.locator('body').innerText()), 'período personalizado (01/11 a 03/11): R$ 300,00')
+
+  // Campanhas (gerenciador)
+  await page.getByRole('tab', { name: /Campanhas/ }).click()
+  await page.getByText('Campanha Vendas Pizza').waitFor({ timeout: 60000 })
+  cbody = await page.locator('body').innerText()
+  log(!cbody.includes('Campanha Antiga'), 'Campanhas: filtro "Ativas" esconde a campanha pausada')
+  log(/R\$ 50,00\/dia/.test(cbody), 'Campanhas: orçamento diário R$ 50,00/dia')
+  await page.getByRole('button', { name: 'Expandir Campanha Vendas Pizza' }).click()
+  await page.getByText('Conjunto Aberto').waitFor({ timeout: 10000 })
+  log(await page.getByText('Conjunto Remarketing').isVisible(), 'seta da campanha abre os conjuntos')
+  await page.getByRole('button', { name: 'Expandir Conjunto Aberto' }).click()
+  await page.getByText('Criativo Pizza Calabresa').waitFor({ timeout: 10000 })
+  log(true, 'seta do conjunto abre os anúncios')
+  await page.getByRole('radio', { name: 'Desativadas' }).click()
+  await page.getByText('Campanha Antiga').waitFor({ timeout: 10000 })
+  log(!(await page.getByText('Campanha Vendas Pizza').isVisible()), 'filtro "Desativadas" mostra só as pausadas')
+  await page.getByRole('radio', { name: 'Todas' }).click()
+  const vendasRow = page.locator('tr').filter({ hasText: 'Campanha Vendas Pizza' })
+  log(/Ativo/.test(await vendasRow.innerText()), 'status da campanha ativa = Ativo (bolinha verde)')
+  await shot('07-cliente-campanhas')
+  live.C1 = 'PAUSED'
+  await vendasRow.getByText('Pausado').waitFor({ timeout: 45000 })
+  log(true, 'ao vivo: campanha pausada na Meta vira "Pausado" (vermelho) sem recarregar')
+
+  // Criativos
+  await page.getByRole('tab', { name: /Criativos/ }).click()
+  await page.getByText('Criativo Combo Família').first().waitFor({ timeout: 60000 })
+  const cards = await page.locator('article').evaluateAll((els) => els.map((e) => e.innerText))
+  log(cards.length === 3 && cards[0].includes('Criativo Combo Família') && cards[0].includes('#1'), 'Criativos: 3 anúncios, ordenados por compras (#1 Combo Família)')
+  log(thumbs.some((u) => u.includes('fbcdn.net')) && !thumbs.some((u) => u.includes('evil.example')), 'miniatura da Meta carrega; URL de fora da Meta é bloqueada')
+  await page.getByLabel('Ordenar criativos').selectOption('spend')
+  const first = await page.locator('article').first().innerText()
+  log(first.includes('Criativo Pizza Calabresa'), 'ordenar por maior gasto funciona')
+  await shot('08-cliente-criativos')
 
   // Relatórios
   await page.goto(`${HUB}/a/${WS}/relatorios`)

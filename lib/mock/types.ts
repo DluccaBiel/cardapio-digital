@@ -42,6 +42,9 @@ export type MockClient = {
   roas?: number | null
   /** Quantas contas de anúncio entram na soma. */
   accountsCount?: number
+  /** Saúde (bolinha): risk vermelho · ok verde · unlinked azul (conta sem cliente) · none cinza. */
+  health?: 'risk' | 'ok' | 'unlinked' | 'none'
+  healthReason?: string
 }
 
 export type MockAdAccount = {

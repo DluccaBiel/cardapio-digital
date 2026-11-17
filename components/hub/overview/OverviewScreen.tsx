@@ -34,6 +34,13 @@ import {
 import { currentISOWeek, formatBRL, shortDate } from '@/lib/format'
 import type { MockClient, MockTag, Situation } from '@/lib/mock'
 import { cn, FieldLabel, Modal, TextInput, TextSelect, Toast, Toggle } from '@/components/hub/ui'
+import { useRouter } from 'next/navigation'
+import { syncMetaAction } from '@/app/a/[ws]/meta-actions'
+import { setClientSituationAction } from '@/app/a/[ws]/visao-geral/actions'
+import { HEALTH_COLOR, HEALTH_LABEL } from '@/lib/health'
+
+/** Sincronização automática ao abrir a Visão geral: no máximo a cada N minutos. */
+const AUTO_SYNC_MIN = 5
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const DAY = 86_400_000
@@ -162,13 +169,61 @@ export function OverviewScreen({
   initialTags,
   initialQuery = '',
   workspaceName,
+  ws,
+  canSync = false,
+  lastSyncedAt = null,
 }: {
   initialClients: MockClient[]
   initialTags: MockTag[]
   initialQuery?: string
   workspaceName: string
+  /** Sem `ws` (rota /demo): nada é salvo nem sincronizado. */
+  ws?: string
+  canSync?: boolean
+  lastSyncedAt?: string | null
 }) {
+  const router = useRouter()
   const week = currentISOWeek()
+  const [autoSync, setAutoSync] = useState<'idle' | 'running' | 'done'>('idle')
+
+  // Ao abrir a tela: puxa as contas da Meta (novas contas aparecem no fim, em azul).
+  // Evita repetir em menos de AUTO_SYNC_MIN minutos (a Meta limita chamadas).
+  useEffect(() => {
+    if (!ws || !canSync) return
+    const age = lastSyncedAt ? Date.now() - new Date(lastSyncedAt).getTime() : Infinity
+    if (age < AUTO_SYNC_MIN * 60_000) return
+    let alive = true
+    setAutoSync('running')
+    syncMetaAction(ws).then((res) => {
+      if (!alive) return
+      setAutoSync('done')
+      if (res.ok) {
+        if (res.created) setToast(`${res.created} conta(s) nova(s) da Meta — aparecem no fim da lista, em azul.`)
+        router.refresh()
+      }
+    })
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const openClient = (client: MockClient) => {
+    if (!ws) return setLinksFor(client)
+    if (client.id.startsWith('conta:')) return router.push(`/a/${ws}/contas`)
+    router.push(`/a/${ws}/clientes/${client.id}`)
+  }
+
+  const saveSituation = async (client: MockClient, value: Situation) => {
+    const before = client.situation
+    update(client.id, { situation: value })
+    if (!ws || client.id.startsWith('conta:')) return
+    const res = await setClientSituationAction(ws, client.id, value)
+    if (!res.ok) {
+      update(client.id, { situation: before })
+      setToast(res.error)
+    } else setToast(`${client.name}: ${SITUATION_LABEL[value]} salvo.`)
+  }
   const [clients, setClients] = useState<MockClient[]>(initialClients)
   const [tags, setTags] = useState<MockTag[]>(initialTags)
   const [month, setMonth] = useState(() => `${new Date().toISOString().slice(0, 7)}-01`)
@@ -243,9 +298,13 @@ export function OverviewScreen({
   }, [clients, query, situation, alertFilter, campaign, delivery, editor, weekPending, period])
 
   const sorted = useMemo(() => {
-    if (!sort) return filtered
+    // Contas sem cliente (azul) sempre no fim, qualquer que seja a ordenação.
+    const unlinked = (c: MockClient) => (c.id.startsWith('conta:') ? 1 : 0)
+    const rank = (c: MockClient) => (c.health === 'risk' ? 0 : c.health === 'ok' ? 1 : 2)
+    if (!sort) return [...filtered].sort((a, b) => unlinked(a) - unlinked(b) || rank(a) - rank(b) || a.name.localeCompare(b.name, 'pt-BR'))
     const multiplier = sort.dir === 'asc' ? 1 : -1
     return [...filtered].sort((a, b) => {
+      if (unlinked(a) !== unlinked(b)) return unlinked(a) - unlinked(b)
       const valueA = a[sort.key]
       const valueB = b[sort.key]
       if (valueA === null || valueA === undefined) return 1
@@ -350,6 +409,24 @@ export function OverviewScreen({
           sub="Soma de contas monitoradas"
           icon={<span className="text-[18px] font-bold">$</span>}
         />
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px]">
+        {(['risk', 'ok', 'unlinked', 'none'] as const).map((h) => {
+          const count = clients.filter((c) => (c.health ?? 'ok') === h).length
+          if (!count && h !== 'risk' && h !== 'ok') return null
+          return (
+            <span key={h} className="inline-flex items-center gap-1.5 rounded-full border border-[#222225] bg-[#111113] px-3 py-1 text-[#CFCBC4]">
+              <span className="h-2 w-2 rounded-full" style={{ background: HEALTH_COLOR[h], boxShadow: `0 0 8px ${HEALTH_COLOR[h]}` }} />
+              <b className="tabular-nums text-[#F7F5F1]">{count}</b> {h === 'risk' ? 'precisam de atenção (saldo baixo / término próximo)' : h === 'ok' ? 'tranquilos' : h === 'unlinked' ? 'contas sem cliente' : 'sem conta'}
+            </span>
+          )
+        })}
+        {autoSync === 'running' && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D7141F]/40 bg-[#D7141F]/10 px-3 py-1 text-[#FFB3B8]">
+            <Clock size={12} className="animate-pulse" /> Puxando contas da Meta…
+          </span>
+        )}
       </div>
 
       <div className="mt-5 flex flex-col gap-4 xl:mt-6 xl:flex-row xl:items-start xl:justify-between">
@@ -678,7 +755,14 @@ export function OverviewScreen({
               {sorted.map((client) => {
                 const changeDays = daysSince(client.lastChange)
                 return (
-                  <tr key={client.id} className="group border-b border-[#1C1C1F] last:border-b-0 hover:bg-[#151517]">
+                  <tr
+                    key={client.id}
+                    className={cn(
+                      'group border-b border-[#1C1C1F] last:border-b-0 hover:bg-[#151517]',
+                      client.health === 'unlinked' && 'shadow-[inset_3px_0_0_#3B82F6]',
+                      client.health === 'risk' && 'shadow-[inset_3px_0_0_#FF3B47]',
+                    )}
+                  >
                     {visibleColumns.map((id) => (
                       <td
                         key={id}
@@ -687,11 +771,11 @@ export function OverviewScreen({
                           id === 'client' && 'sticky left-0 z-10 border-r border-r-[#18181B] bg-[#111113] group-hover:bg-[#151517]',
                         )}
                       >
-                        {id === 'client' && <ClientCell client={client} onOpen={() => setLinksFor(client)} />}
+                        {id === 'client' && <ClientCell client={client} onOpen={() => openClient(client)} />}
                         {id === 'situation' && (
                           <PillSelect
                             value={client.situation}
-                            onChange={(value) => update(client.id, { situation: value as Situation })}
+                            onChange={(value) => saveSituation(client, value as Situation)}
                             options={Object.entries(SITUATION_LABEL).map(([value, label]) => ({ value, label }))}
                             className={SITUATION_PILL[client.situation]}
                           />
@@ -1002,19 +1086,41 @@ function KpiCard({ label, value, sub, icon }: { label: string; value: string; su
 }
 
 function ClientCell({ client, onOpen }: { client: MockClient; onOpen: () => void }) {
+  const health = client.health ?? (client.alert ? 'risk' : 'ok')
+  const color = HEALTH_COLOR[health]
+  const unlinked = health === 'unlinked'
   return (
-    <div className="flex min-w-0 items-start gap-2">
-      {client.alert && <span className="mt-[7px] h-[7px] w-[7px] shrink-0 rounded-full bg-[#FF6A3D]" title="Pendência no cliente" />}
+    <div className="flex min-w-0 items-start gap-2.5">
+      <span
+        className={cn('mt-[6px] shrink-0', health === 'risk' ? 'uc-live-dot' : 'h-[9px] w-[9px] rounded-full')}
+        style={health === 'risk' ? { color } : { background: color, boxShadow: `0 0 8px ${color}99` }}
+        title={`${HEALTH_LABEL[health]} · ${client.healthReason ?? ''}`}
+        aria-label={`Status: ${HEALTH_LABEL[health]}`}
+      >
+        {health === 'risk' && (
+          <>
+            <i />
+            <i />
+          </>
+        )}
+      </span>
       <div className="min-w-0">
         <button
           type="button"
           onClick={onOpen}
-          className="block max-w-full truncate text-left text-[15px] font-semibold text-[#F7F5F1] transition-colors hover:text-[#F0333D] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
-          title="Abrir links do cliente"
+          className={cn(
+            'block max-w-full truncate text-left text-[15px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]',
+            unlinked ? 'text-[#8FB6FF] hover:text-[#BFD4FF]' : 'text-[#F7F5F1] hover:text-[#F0333D]',
+          )}
+          title={unlinked ? 'Vincular esta conta a um cliente' : 'Abrir métricas, campanhas e criativos'}
         >
           {client.name}
         </button>
-        {client.segment && <p className="mt-0.5 truncate text-[11px] text-[#8E8A86]">{client.segment}</p>}
+        {health === 'risk' && client.healthReason ? (
+          <p className="mt-0.5 truncate text-[11px] font-semibold text-[#FF6B73]">{client.healthReason}</p>
+        ) : (
+          client.segment && <p className={cn('mt-0.5 truncate text-[11px]', unlinked ? 'text-[#5F8BD9]' : 'text-[#8E8A86]')}>{client.segment}</p>
+        )}
       </div>
     </div>
   )
