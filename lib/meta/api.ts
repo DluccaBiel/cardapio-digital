@@ -22,7 +22,11 @@ export function metaAppConfig(): { appId: string; appSecret: string } | null {
 const G = () => `${graphBase()}/${graphVersion()}`
 
 export function oauthDialogUrl(appId: string, redirectUri: string, state: string): string {
-  const qs = new URLSearchParams({ client_id: appId, redirect_uri: redirectUri, state, scope: META_SCOPES.join(','), response_type: 'code' })
+  const qs = new URLSearchParams({ client_id: appId, redirect_uri: redirectUri, state, response_type: 'code' })
+  // App tipo Empresa (Login do Facebook para Empresas): permissões vêm da configuração (config_id).
+  const configId = process.env.META_LOGIN_CONFIG_ID?.trim()
+  if (configId && /^\d{5,25}$/.test(configId)) qs.set('config_id', configId)
+  else qs.set('scope', META_SCOPES.join(','))
   return `${dialogBase()}/${graphVersion()}/dialog/oauth?${qs}`
 }
 
