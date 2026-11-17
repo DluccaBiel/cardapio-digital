@@ -73,7 +73,13 @@ export function CommandPalette({
       id: `client-${client.id}`,
       label: client.name,
       hint: client.segment,
-      action: () => router.push(`${basePath}/visao-geral?q=${encodeURIComponent(client.name)}`),
+      // Cliente real (uuid) abre a apresentação; na demo, filtra a Visão geral.
+      action: () =>
+        router.push(
+          /^[0-9a-f-]{36}$/i.test(client.id) && basePath.startsWith('/a/')
+            ? `${basePath}/clientes/${client.id}`
+            : `${basePath}/visao-geral?q=${encodeURIComponent(client.name)}`,
+        ),
     })),
     ...shortcuts.map((shortcut) => ({
       id: shortcut.key,

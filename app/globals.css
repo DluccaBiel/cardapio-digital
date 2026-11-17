@@ -384,3 +384,12 @@ a:hover { text-decoration: underline; }
   outline: 2px solid var(--uc-red-glow);
   outline-offset: 2px;
 }
+
+/* Status "ao vivo" (campanhas/conjuntos/anúncios): bolinha flutuante com halo pulsando */
+@keyframes uc-live-ping { 0% { transform: scale(1); opacity: .7; } 80%, 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes uc-live-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+.uc-live-dot { position: relative; display: inline-flex; width: 10px; height: 10px; flex-shrink: 0; animation: uc-live-float 2.4s ease-in-out infinite; }
+.uc-live-dot > i { position: absolute; inset: 0; border-radius: 9999px; background: currentColor; }
+.uc-live-dot > i:first-child { animation: uc-live-ping 1.8s cubic-bezier(0,0,.2,1) infinite; }
+.uc-live-dot > i:last-child { box-shadow: 0 0 10px currentColor; }
+@media (prefers-reduced-motion: reduce) { .uc-live-dot, .uc-live-dot > i:first-child { animation: none; } }

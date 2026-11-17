@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { MockClient, MockTag, Situation } from '../mock'
+import { clientHealth } from '../health'
 
 /**
  * Dados REAIS da Visão geral: clientes + tags + contas de anúncio (sincronizadas da Meta).
@@ -97,7 +98,7 @@ const EMPTY_OPS = {
   notePending: false,
 }
 
-export async function loadOverview(db: SupabaseClient, workspaceId: string): Promise<{ clients: MockClient[]; tags: MockTag[] }> {
+export async function loadOverview(db: SupabaseClient, workspaceId: string): Promise<{ clients: MockClient[]; tags: MockTag[]; lastSyncedAt: string | null }> {
   const accountsFull =
     'id, client_id, name, status, account_type, balance, spend_month, spend_yesterday, spend_7d, revenue_month, ends_at, runs_continuously, last_change_at, active_adsets, is_watched, last_synced_at, owner_business_name'
   const accountsBasic = 'id, client_id, name, status, account_type, balance, spend_month, is_watched, last_synced_at, owner_business_name'
@@ -156,7 +157,20 @@ export async function loadOverview(db: SupabaseClient, workspaceId: string): Pro
     )
   }
 
-  return { clients, tags }
+  for (const c of clients) {
+    const h = clientHealth({
+      unlinked: c.id.startsWith('conta:'),
+      accountsCount: c.accountsCount ?? 0,
+      balance: c.balance,
+      daysLeft: c.daysLeft,
+      termination: c.termination,
+    })
+    c.health = h.health
+    c.healthReason = h.reason
+  }
+
+  const synced = accounts.map((a) => a.last_synced_at).filter((v): v is string => !!v).sort()
+  return { clients, tags, lastSyncedAt: synced.length ? synced[synced.length - 1]! : null }
 }
 
 /** Lista leve para a busca (Ctrl K): só clientes, sem métricas. */

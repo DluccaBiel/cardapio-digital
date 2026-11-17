@@ -72,3 +72,43 @@ describe('appsecret_proof', () => {
     if (prev !== undefined) process.env.META_APP_SECRET = prev
   })
 })
+
+import { clientHealth, daysUntil } from '../lib/health'
+import { finalize, firstOf } from '../lib/meta/insights'
+
+describe('saúde do cliente (bolinha da Visão geral)', () => {
+  const now = new Date('2026-11-17T15:00:00Z')
+  it('vermelho com saldo devedor, saldo baixo ou término próximo', () => {
+    expect(clientHealth({ accountsCount: 1, balance: -10, daysLeft: -1, termination: null, now }).health).toBe('risk')
+    expect(clientHealth({ accountsCount: 1, balance: 50, daysLeft: 2.4, termination: null, now }).reason).toBe('Saldo baixo (~2d)')
+    expect(clientHealth({ accountsCount: 1, balance: 900, daysLeft: 20, termination: '2026-11-19', now }).reason).toBe('Termina em 2d')
+    expect(clientHealth({ accountsCount: 1, balance: 900, daysLeft: 20, termination: '2026-11-17', now }).reason).toBe('Termina hoje')
+  })
+  it('verde quando tudo está tranquilo; azul para conta sem cliente; cinza sem conta', () => {
+    expect(clientHealth({ accountsCount: 1, balance: 900, daysLeft: 20, termination: '2026-12-20', now }).health).toBe('ok')
+    expect(clientHealth({ accountsCount: 1, balance: 0, daysLeft: null, termination: null, now }).health).toBe('ok')
+    expect(clientHealth({ unlinked: true, accountsCount: 1, balance: -5, daysLeft: -1, termination: null, now }).health).toBe('unlinked')
+    expect(clientHealth({ accountsCount: 0, balance: null, daysLeft: null, termination: null, now }).health).toBe('none')
+  })
+  it('conta dias no fuso de São Paulo', () => {
+    expect(daysUntil('2026-11-18T02:00:00Z', new Date('2026-11-17T12:00:00Z'))).toBe(0) // 23h de 17/11 em SP
+  })
+})
+
+describe('métricas da apresentação do cliente', () => {
+  it('calcula ROAS, CTR do link, CPC e custo por compra a partir das somas', () => {
+    const m = finalize({ spend: 200, revenue: 800, impressions: 10000, reach: 6000, linkClicks: 250, addToCart: 40, purchases: 10 })
+    expect(m.roas).toBe(4)
+    expect(m.ctr).toBe(2.5)
+    expect(m.cpc).toBe(0.8)
+    expect(m.cpm).toBe(20)
+    expect(m.costPerPurchase).toBe(20)
+  })
+  it('sem divisão por zero', () => {
+    const m = finalize({ spend: 0, revenue: 0, impressions: 0, reach: 0, linkClicks: 0, addToCart: 0, purchases: 0 })
+    expect([m.roas, m.ctr, m.cpc, m.cpm, m.costPerPurchase]).toEqual([0, 0, 0, 0, 0])
+  })
+  it('adições ao carrinho: primeiro tipo presente', () => {
+    expect(firstOf([{ action_type: 'add_to_cart', value: '3' }, { action_type: 'omni_add_to_cart', value: '5' }], ['omni_add_to_cart', 'add_to_cart'])).toBe(5)
+  })
+})
