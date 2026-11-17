@@ -46,6 +46,13 @@ export default async function ContasPage({ params }: { params: { ws: string } })
     }
   })
 
+  // Configurado = algum portfólio conectado em Integrações, ou o modo legado por env.
+  const { count: enabledBusinesses } = await db
+    .from('meta_businesses')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', workspace.id)
+    .eq('enabled', true)
+
   return (
     <AccountsScreen
       initialAccounts={accounts}
@@ -53,7 +60,7 @@ export default async function ContasPage({ params }: { params: { ws: string } })
       live={{
         ws: workspace.slug,
         canManage: ['owner', 'coordenador'].includes(workspace.role),
-        configured: metaConfig() !== null,
+        configured: (enabledBusinesses ?? 0) > 0 || metaConfig() !== null,
         schemaReady: !error,
         clients: (clients ?? []) as { id: string; name: string }[],
       }}

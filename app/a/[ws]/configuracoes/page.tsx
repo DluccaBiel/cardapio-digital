@@ -4,8 +4,11 @@ import { createServerClient } from '../../../../lib/supabaseServer'
 import { createAdminClient } from '../../../../lib/supabaseAdmin'
 import { shortUrlFor } from '../../../../lib/shortlink'
 import { SettingsScreen, type SettingsClient, type SettingsMember } from '../../../../components/hub/settings/SettingsScreen'
+import { metaAppConfig } from '../../../../lib/meta/api'
+import { tokenCryptoReady } from '../../../../lib/meta/crypto'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 300
 export const metadata = { title: 'Undercut — Configurações' }
 
 /**
@@ -16,7 +19,7 @@ export const metadata = { title: 'Undercut — Configurações' }
  * vem do Supabase Auth (service role) — nunca do navegador — e é mascarado
  * quando o papel não permite administrar a equipe.
  */
-export default async function ConfiguracoesPage({ params }: { params: { ws: string } }) {
+export default async function ConfiguracoesPage({ params, searchParams }: { params: { ws: string }; searchParams: { tab?: string; meta?: string } }) {
   const workspace = await getWorkspaceBySlug(params.ws)
   if (!workspace) notFound()
 
@@ -76,8 +79,26 @@ export default async function ConfiguracoesPage({ params }: { params: { ws: stri
     (k) => !k.revoked_at && !(k.expires_at && new Date(k.expires_at).getTime() < now),
   ).length
 
+  // Integrações (Meta): conexões sem token + portfólios. Sem a migration, a aba avisa.
+  const [connResult, { data: businessRows }] = await Promise.all([
+    db.from('meta_connections').select('id, fb_user_name, status, token_expires_at, scopes, created_at').eq('workspace_id', workspace.id).order('created_at'),
+    db
+      .from('meta_businesses')
+      .select('id, connection_id, business_id, name, enabled, last_synced_at, accounts_count, sync_error')
+      .eq('workspace_id', workspace.id)
+      .order('name'),
+  ])
+
   return (
     <SettingsScreen
+      initialTab={typeof searchParams.tab === 'string' ? searchParams.tab : undefined}
+      integrations={{
+        appConfigured: metaAppConfig() !== null && tokenCryptoReady(),
+        schemaReady: !connResult.error,
+        connections: (connResult.data ?? []) as never,
+        businesses: (businessRows ?? []) as never,
+        status: typeof searchParams.meta === 'string' ? searchParams.meta.slice(0, 40) : null,
+      }}
       ws={workspace.slug}
       workspaceName={workspace.name}
       workspaceSlug={workspace.slug}

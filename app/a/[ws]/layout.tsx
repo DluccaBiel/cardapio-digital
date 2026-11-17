@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { getUserWorkspaces, getWorkspaceBySlug } from '../../../lib/db/workspaces'
 import { createServerClient } from '../../../lib/supabaseServer'
 import { appEnvLabel } from '../../../lib/demo'
-import { getClients } from '../../../lib/mock'
+import { loadClientIndex } from '../../../lib/db/overview'
 import { HubShell } from '../../../components/hub/HubShell'
 
 const ONLINE_MS = 10 * 60_000
@@ -54,7 +54,11 @@ export default async function WorkspaceLayout({
   const current = await getWorkspaceBySlug(ws)
   if (!current) notFound()
 
-  const [workspaces, live] = await Promise.all([getUserWorkspaces(), allExtensionsLive(current.id, current.role)])
+  const [workspaces, live, clientIndex] = await Promise.all([
+    getUserWorkspaces(),
+    allExtensionsLive(current.id, current.role),
+    loadClientIndex(supabase, current.id),
+  ])
   const initial = (userData.user.email ?? '?').charAt(0).toUpperCase()
 
   return (
@@ -66,7 +70,7 @@ export default async function WorkspaceLayout({
       basePath={`/a/${current.slug}`}
       envLabel={appEnvLabel()}
       live={live}
-      clients={getClients()}
+      clients={clientIndex}
     >
       {children}
     </HubShell>

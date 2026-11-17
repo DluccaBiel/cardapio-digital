@@ -48,6 +48,9 @@ docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/checks.
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/combos_ifood.sql    # 16 testes combos/iFood (16/0)
 # API + painel + extensão (hub local em :3100 apontando para o Supabase local, envs só no processo):
 #   node supabase/tests/api_menu.mjs (34/34) → node scripts/e2e-cardapio.mjs (9/9) → (apps/extensions/orvia-ifood) node scripts/e2e.mjs (15/15)
+# Integração Meta (simulador local da Graph API/OAuth — nunca a Meta real; hub com NEXT_DIST_DIR=.next-e2e,
+#   META_GRAPH_BASE_URL/META_DIALOG_BASE_URL=http://127.0.0.1:4590 e app/chave de teste; ver cabeçalho do script):
+#   node scripts/e2e-meta.mjs (32/32) — conectar → portfólios → sincronizar → visão geral → relatórios → desconectar; limpa o banco local ao final
 # Smoke test HTTP (chaves descartáveis locais via env — NUNCA gravar em arquivos):
 $s = npx supabase status -o env
 $env:LOCAL_API_URL = (($s | Select-String '^API_URL=').Line -split '=',2)[1].Trim('"')
@@ -162,7 +165,8 @@ Usadas pelo app (Preview e Production têm cópia, configuradas em 04/11/2026):
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (públicas, client-side)
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (secret, **somente servidor**: server actions/admin)
 - `SUPABASE_JWKS_URL` (secret, hoje Production e Preview; reservada para auth futura)
-- `META_ACCESS_TOKEN` (secret, **somente servidor**: token de Usuário do Sistema da Meta) e `META_BUSINESS_ID` (id do portfólio) — sincronização de Contas de anúncio (`lib/meta/graph.ts`, 0007)
+- `META_APP_ID` (id do app da Meta), `META_APP_SECRET` (secret) e `META_TOKEN_KEY` (secret, 32 bytes base64 — chave AES-256-GCM dos tokens) — **Configurações → Integrações → Conectar com o Facebook** (OAuth, vários portfólios; `lib/meta/api.ts`, `lib/meta/sync.ts`, migration `20261116210000_meta_integrations.sql`). No app da Meta: produto “Login do Facebook”, URL de redirecionamento `https://undercuthub.vercel.app/api/meta/oauth/callback`, permissões `ads_read` + `business_management`. Trocar `META_TOKEN_KEY` invalida as conexões (reconectar).
+- `META_ACCESS_TOKEN` + `META_BUSINESS_ID` (legado, opcional) — usados só se nenhum portfólio estiver conectado no painel (`lib/meta/graph.ts`, 0007)
 - `CRON_SECRET` (secret, gerado aleatório em 2026-11-09) — protege `/api/cron/keepalive` (cron diário em `vercel.json` que impede a pausa do Supabase gratuito por 7 dias sem uso)
 - `ANTHROPIC_API_KEY` (opcional) — sem ela, `/api/v1/analysis` usa o modo gratuito (regras + pesquisa pública)
 - `CARDAPIOWEB_EXTENSION_IDS` (opcional) — id(s) do Chrome da extensão Cardápio Web (ver `docs/extensoes.md` §13 e `docs/integracao-extensoes-hub.md`)

@@ -38,6 +38,10 @@ export type MockClient = {
   editor: string
   /** Destaque vermelho no ícone de nota (pendência de rotina). */
   notePending: boolean
+  /** ROAS do mês (faturamento ÷ gasto) — dados reais da Meta. */
+  roas?: number | null
+  /** Quantas contas de anúncio entram na soma. */
+  accountsCount?: number
 }
 
 export type MockAdAccount = {

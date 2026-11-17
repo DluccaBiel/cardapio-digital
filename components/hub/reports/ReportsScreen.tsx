@@ -22,6 +22,7 @@ import {
 import { formatBRL } from '@/lib/format'
 import type { MockClient, MockReportDraft } from '@/lib/mock'
 import { cn, Toast, Toggle } from '@/components/hub/ui'
+import { buildReportAction } from '@/app/a/[ws]/relatorios/actions'
 
 type PeriodKey = 'last' | '7d' | '14d' | '30d' | 'month' | 'lastMonth' | 'yesterday' | 'custom'
 
@@ -43,10 +44,13 @@ const HISTORY = [
 ]
 
 export function ReportsScreen({
+  ws,
   initialDraft,
   clients,
   workspaceName,
 }: {
+  /** Ausente na demonstração (/demo): usa initialDraft fictício, sem consultar a Meta. */
+  ws?: string
   initialDraft: MockReportDraft
   clients: MockClient[]
   workspaceName: string
@@ -61,6 +65,10 @@ export function ReportsScreen({
   const [message, setMessage] = useState(initialDraft.whatsappText)
   const [toast, setToast] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+  const [draft, setDraft] = useState<MockReportDraft>(initialDraft)
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
 
   const selected = clients.find((client) => client.id === clientId) ?? clients[0]
   const displayName = mode === 'all' ? 'Resumo do time' : selected.name
@@ -73,21 +81,38 @@ export function ReportsScreen({
   }, [toast])
 
   useEffect(() => {
-    if (mode === 'all') return
-    setMessage(initialDraft.whatsappText.replace(initialDraft.clientName, selected.name))
     setSent(false)
-  }, [clientId, initialDraft, mode, selected.name])
+  }, [clientId, mode])
 
-  const periodLabel = useMemo(() => {
-    if (period === 'last') return initialDraft.periodLabel
-    if (period === '7d') return 'Últimos 7 dias'
-    if (period === '14d') return 'Últimos 14 dias'
-    if (period === '30d') return 'Últimos 30 dias'
-    if (period === 'month') return 'Este mês'
-    if (period === 'lastMonth') return 'Mês passado'
-    if (period === 'yesterday') return 'Ontem'
-    return 'Período personalizado'
-  }, [period, initialDraft.periodLabel])
+  const periodLabel = draft.periodLabel
+
+  // Dados reais da Meta: recarrega quando muda cliente, período ou comparação.
+  useEffect(() => {
+    let cancelled = false
+    const target = mode === 'all' ? 'all' : clientId
+    if (!ws || !target) return
+    setLoading(true)
+    setLoadError(null)
+    buildReportAction(ws, { target, period, compare }).then((res) => {
+      if (cancelled) return
+      setLoading(false)
+      if (!res.ok) {
+        setLoadError(res.error)
+        setWarnings([])
+        setDraft({ ...initialDraft, clientName: displayName, compare })
+        setMessage('')
+        return
+      }
+      setDraft(res.draft)
+      setWarnings(res.warnings)
+      setMessage(res.draft.whatsappText)
+      setBlocks((b) => ({ ...b, topCreatives: res.draft.creatives.length > 0 ? b.topCreatives : false }))
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, mode, clientId, period, compare])
 
   const copyMessage = async () => {
     try {
@@ -141,11 +166,23 @@ export function ReportsScreen({
         </div>
       </div>
 
+      {tab === 'gerador' && (loading || loadError || warnings.length > 0) && (
+        <div
+          role="status"
+          className={cn(
+            'mt-5 rounded-[6px] border px-4 py-3 text-[12px]',
+            loadError ? 'border-[#D7141F]/40 bg-[#D7141F]/10 text-[#FFB199]' : 'border-[#2A2A2E] bg-[#111113] text-[#CFCBC4]',
+          )}
+        >
+          {loading ? 'Consultando a Meta com os valores reais do período…' : loadError ?? warnings.join(' · ')}
+        </div>
+      )}
+
       {tab === 'historico' ? (
         <div className="mt-6 overflow-hidden rounded-[8px] border border-[#1C1C1F] bg-[#111113]">
           <div className="border-b border-[#1C1C1F] px-5 py-4">
             <h2 className="text-[13px] font-bold font-mono uppercase tracking-[0.1em] text-[#CFCBC4]">Relatórios gerados</h2>
-            <p className="mt-1 text-[11px] text-[#86827D]">Histórico fictício da fase visual.</p>
+            <p className="mt-1 text-[11px] text-[#86827D]">Exemplo — o histórico de relatórios enviados ainda não é salvo.</p>
           </div>
           <div className="divide-y divide-[#1C1C1F]">
             {HISTORY.map((item) => (
@@ -270,7 +307,7 @@ export function ReportsScreen({
 
               <div className="mt-4 flex items-center gap-3">
                 <Toggle checked={compare} onChange={setCompare} label="Comparar com o período anterior" />
-                <span className="text-[12px] text-[#CFCBC4]">Comparar com o período anterior ({initialDraft.previousPeriodLabel})</span>
+                <span className="text-[12px] text-[#CFCBC4]">Comparar com o período anterior ({draft.previousPeriodLabel})</span>
               </div>
             </section>
 
@@ -413,11 +450,11 @@ export function ReportsScreen({
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <MetricBox label="Investimento total" value={formatBRL(initialDraft.metrics.investment)} delta={initialDraft.metrics.investmentDelta} />
+                  <MetricBox label="Investimento total" value={formatBRL(draft.metrics.investment)} delta={draft.metrics.investmentDelta} />
                   <MetricBox
                     label="Pessoas alcançadas (aprox.)"
-                    value={new Intl.NumberFormat('pt-BR').format(initialDraft.metrics.reach)}
-                    delta={initialDraft.metrics.reachDelta}
+                    value={new Intl.NumberFormat('pt-BR').format(draft.metrics.reach)}
+                    delta={draft.metrics.reachDelta}
                   />
                 </div>
 
@@ -434,21 +471,21 @@ export function ReportsScreen({
                     <div>
                       <p className="text-[8px] font-bold font-mono uppercase tracking-[0.13em] text-[#86827D]">Resultados (compras)</p>
                       <p className="mt-1 flex items-baseline gap-1.5">
-                        <span className="font-display text-[34px] leading-none tracking-[0.01em] text-[#F7F5F1]">{initialDraft.metrics.purchases}</span>
-                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#34D399]"><TrendingUp size={9} />{initialDraft.metrics.purchasesDelta}%</span>
+                        <span className="font-display text-[34px] leading-none tracking-[0.01em] text-[#F7F5F1]">{draft.metrics.purchases}</span>
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#34D399]"><TrendingUp size={9} />{draft.metrics.purchasesDelta}%</span>
                       </p>
                     </div>
                     <div>
                       <p className="text-[8px] font-bold font-mono uppercase tracking-[0.13em] text-[#86827D]">Custo por resultado</p>
                       <p className="mt-1 flex items-baseline gap-1.5">
-                        <span className="text-[26px] font-extrabold leading-none tracking-[-0.04em] text-[#F7F5F1]">{formatBRL(initialDraft.metrics.costPerPurchase)}</span>
-                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#FBBF24]"><TrendingUp size={9} />{initialDraft.metrics.costPerPurchaseDelta}%</span>
+                        <span className="text-[26px] font-extrabold leading-none tracking-[-0.04em] text-[#F7F5F1]">{formatBRL(draft.metrics.costPerPurchase)}</span>
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#FBBF24]"><TrendingUp size={9} />{draft.metrics.costPerPurchaseDelta}%</span>
                       </p>
                     </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-[#1C1C1F] pt-2.5">
-                    <span className="text-[9px] text-[#8E8A86]">Faturamento: <strong className="text-[11px] text-[#ECE9E3]">{formatBRL(initialDraft.metrics.revenue)}</strong></span>
-                    <span className="text-[9px] font-bold font-mono uppercase tracking-[0.1em] text-[#34D399]">ROAS: {initialDraft.metrics.roas.toFixed(2).replace('.', ',')}x</span>
+                    <span className="text-[9px] text-[#8E8A86]">Faturamento: <strong className="text-[11px] text-[#ECE9E3]">{formatBRL(draft.metrics.revenue)}</strong></span>
+                    <span className="text-[9px] font-bold font-mono uppercase tracking-[0.1em] text-[#34D399]">ROAS: {draft.metrics.roas.toFixed(2).replace('.', ',')}x</span>
                   </div>
                 </div>
 
@@ -457,7 +494,7 @@ export function ReportsScreen({
                     <Sparkles size={11} className="text-[#C8C2B8]" /> Melhores criativos ativos
                   </p>
                   <div className="mt-2 grid grid-cols-3 gap-2">
-                    {initialDraft.creatives.map((creative) => (
+                    {draft.creatives.map((creative) => (
                       <div key={creative.id} className="overflow-hidden rounded-[5px] border border-[#222225] bg-[#111113]">
                         <div className="relative flex aspect-[4/3] items-center justify-center" style={{ background: creative.gradient }}>
                           <ImageIcon size={20} className="text-white/25" />
@@ -474,8 +511,8 @@ export function ReportsScreen({
                 <div className="mt-3 flex items-center justify-between gap-3 border-t border-[#222225] pt-3">
                   <span className="flex items-center gap-1.5 text-[9px] text-[#ADA8A1]">
                     <Wallet size={11} className="text-[#D7141F]" />
-                    Saldo da conta: <strong className="text-[10px] text-[#ECE9E3]">{formatBRL(initialDraft.metrics.balance)}</strong>
-                    <span className="text-[#85817C]">(~{initialDraft.metrics.balanceDays} dias)</span>
+                    Saldo da conta: <strong className="text-[10px] text-[#ECE9E3]">{formatBRL(draft.metrics.balance)}</strong>
+                    <span className="text-[#85817C]">(~{draft.metrics.balanceDays} dias)</span>
                   </span>
                   <span className="hidden text-[7px] font-bold font-mono uppercase tracking-[0.16em] text-[#85817C] sm:inline">Gestão de tráfego profissional</span>
                 </div>
