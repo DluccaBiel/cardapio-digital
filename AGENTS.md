@@ -152,7 +152,7 @@ Fluxo padrão (nunca pular o preview):
 
 ### Rollback
 
-- Produção atual (16/11/2026, release/undercut-v0.9 — integração Meta): `https://orvia-9yho907nc-gabrieldluccaoliveira-4662s-projects.vercel.app`. Anterior a ela (rollback): `https://orvia-nph2d96ap-gabrieldluccaoliveira-4662s-projects.vercel.app` (v0.8).
+- Produção atual (17/11/2026, release/undercut-v0.10 — apresentação do cliente): `https://orvia-bgnnpmaia-gabrieldluccaoliveira-4662s-projects.vercel.app`. Anterior (rollback, v0.9 integração Meta): `https://orvia-9yho907nc-gabrieldluccaoliveira-4662s-projects.vercel.app`.
 - Deployment de produção mais antigo (registrado em 04/11/2026): `dpl_9Fj52z3X72xZfQ5pFsBLUi5WFm4c` (alias `https://nextjs-cardapio-jxjyn9mto-gabrieldluccaoliveira-4662s-projects.vercel.app`).
 - Para reverter: `npx vercel rollback <url-do-deployment-anterior>` (ou promova o deployment anterior no painel da Vercel → Deployments → Promote). Depois reverta o `master` (`git revert`/`git switch master` e re-push) para manter o histórico de acordo.
 - **NUNCA** `git push --force`, apagar deployments ou renomear o projeto/domínio sem decisão explícita.
