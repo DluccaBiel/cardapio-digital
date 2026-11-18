@@ -6,7 +6,7 @@
   "type": "module",
   "engines": { "node": ">=22.18" },
   "scripts": {
-    "start": "node --env-file-if-exists=.env src/index.mjs"
+    "start": "node --env-file-if-exists=../../.env.local --env-file-if-exists=../../.env --env-file-if-exists=.env src/index.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

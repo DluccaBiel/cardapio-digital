@@ -35,7 +35,45 @@ try {
     stdio: ['ignore', 'pipe', 'ignore'],
   })
 } catch {
-  fail('A Supabase CLI não conseguiu listar as chaves. Rode "npx supabase login" e tente de novo.')
+  // Fallback: se a Supabase CLI não estiver logada, tenta ler do .env.local da raiz
+  const rootEnvLocal = path.join(ROOT, '.env.local')
+  const rootEnv = path.join(ROOT, '.env')
+  const fallbackFile = existsSync(rootEnvLocal) ? rootEnvLocal : existsSync(rootEnv) ? rootEnv : null
+  if (fallbackFile) {
+    const content = readFileSync(fallbackFile, 'utf8')
+    let sUrl = ''
+    let sKey = ''
+    for (const line of content.split('\n')) {
+      const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)?\s*$/)
+      if (m && !m[1].startsWith('#')) {
+        const k = m[1]
+        let v = (m[2] || '').trim()
+        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+          v = v.slice(1, -1)
+        }
+        if (k === 'SUPABASE_URL') sUrl = v
+        if (k === 'SUPABASE_SERVICE_ROLE_KEY') sKey = v
+      }
+    }
+    if (sUrl && sKey) {
+      const slug = process.env.UNDERCUT_WORKSPACE ?? ''
+      writeFileSync(
+        ENV,
+        [
+          '# Gerado por scripts/setup-env.mjs (via .env.local) — NUNCA commitar (acesso total ao banco).',
+          `SUPABASE_URL=${sUrl}`,
+          `SUPABASE_SERVICE_ROLE_KEY=${sKey}`,
+          `UNDERCUT_WORKSPACE=${slug}`,
+          '',
+        ].join('\n'),
+        { encoding: 'utf8', mode: 0o600 },
+      )
+      console.log(`✓ apps/whatsapp-worker/.env criado a partir de ${path.basename(fallbackFile)} (chave gravada, não exibida).`)
+      console.log('  Agora rode: npm run worker')
+      process.exit(0)
+    }
+  }
+  fail('A Supabase CLI não conseguiu listar as chaves e .env.local não possui SUPABASE_SERVICE_ROLE_KEY.')
 }
 
 let keys
@@ -46,10 +84,11 @@ try {
   fail('Resposta inesperada da Supabase CLI (atualize com "npm i -D supabase@latest").')
 }
 
-// Prefere a chave secreta nova (sb_secret_…); senão, a service_role legada.
+// Prefere chave não mascarada (a CLI mascara chaves secretas novas com ···· no JSON).
+const unmasked = (k) => k?.api_key && !k.api_key.includes('·') && !k.api_key.includes('...')
 const pick =
-  keys.find((k) => k.type === 'secret' && k.api_key) ??
-  keys.find((k) => k.name === 'service_role' && k.api_key)
+  keys.find((k) => k.name === 'service_role' && unmasked(k)) ??
+  keys.find((k) => k.type === 'secret' && unmasked(k))
 if (!pick) fail('Não encontrei chave secreta/service_role no projeto (confira em Project Settings → API Keys).')
 
 const slug = process.env.UNDERCUT_WORKSPACE ?? ''

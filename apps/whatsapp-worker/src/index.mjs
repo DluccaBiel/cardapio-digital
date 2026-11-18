@@ -7,7 +7,7 @@
 // Variáveis (arquivo .env desta pasta, NUNCA commitado — ver .env.example):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, UNDERCUT_WORKSPACE (slug; opcional se houver 1 workspace)
 
-import { closeSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,6 +24,38 @@ const { useMultiFileAuthState, DisconnectReason, Browsers, fetchLatestBaileysVer
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const log = (...a) => console.log(new Date().toLocaleTimeString('pt-BR'), '·', ...a)
+
+// Tenta carregar variáveis de .env do worker, .env.local ou .env da raiz
+function tryLoadEnv() {
+  const candidates = [
+    path.join(HERE, '..', '.env'),
+    path.join(HERE, '..', '..', '..', '.env.local'),
+    path.join(HERE, '..', '..', '..', '.env'),
+  ]
+  for (const f of candidates) {
+    if (existsSync(f)) {
+      try {
+        if (typeof process.loadEnvFile === 'function') {
+          process.loadEnvFile(f)
+        } else {
+          const content = readFileSync(f, 'utf8')
+          for (const line of content.split('\n')) {
+            const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)?\s*$/)
+            if (m && !m[1].startsWith('#')) {
+              const k = m[1]
+              let v = (m[2] || '').trim()
+              if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+                v = v.slice(1, -1)
+              }
+              if (!process.env[k]) process.env[k] = v
+            }
+          }
+        }
+      } catch {}
+    }
+  }
+}
+tryLoadEnv()
 
 // Um robô por pasta/computador: dois processos disputariam a sessão do WhatsApp e
 // poderiam enviar a mesma mensagem duas vezes. (Checado antes de qualquer rede.)
@@ -82,7 +114,9 @@ async function resolveWorkspace() {
   const { data, error } = slug ? await q.eq('slug', slug) : await q
   if (error) throw new Error(`Supabase recusou a leitura (${error.code ?? error.message}). Confira a URL/chave e se a migration foi aplicada.`)
   if (!data || data.length === 0) throw new Error(slug ? `Workspace "${slug}" não encontrado.` : 'Nenhum workspace no banco.')
-  if (data.length > 1) throw new Error(`Há ${data.length} workspaces — defina UNDERCUT_WORKSPACE no .env com um destes: ${data.map((w) => w.slug).join(', ')}`)
+  if (data.length > 1 && !slug) {
+    log(`Há ${data.length} workspaces — usando "${data[0].slug}" (${data[0].name}). Defina UNDERCUT_WORKSPACE no .env para selecionar outro.`)
+  }
   return data[0]
 }
 
@@ -145,7 +179,13 @@ async function start() {
         status = 'qr'
         const dataUrl = await QRCode.toDataURL(u.qr, { margin: 1, width: 300 })
         await setStatus({ status: 'qr', qr_data_url: dataUrl, qr_updated_at: new Date().toISOString() })
-        log('QR code novo — escaneie no painel (Disparos).')
+        try {
+          const termQr = await QRCode.toString(u.qr, { type: 'terminal', small: true })
+          console.log('\n================ QR CODE WHATSAPP ================')
+          console.log(termQr)
+          console.log('==================================================\n')
+        } catch {}
+        log('QR code novo gerado! Escaneie acima no terminal ou no painel (Disparos).')
       }
       if (u.connection === 'connecting' && status === 'qr') {
         status = 'connecting'
@@ -460,6 +500,17 @@ async function loop() {
     busy = false
   }
 }
+
+// Bate ponto inicial imediatamente
+await setStatus({ worker_seen_at: new Date().toISOString() })
+
+// Se o usuário iniciou o robô pelo terminal, inicia a conexão do WhatsApp automaticamente
+const { data: initSession } = await db.from('whatsapp_sessions').select('desired_state').eq('workspace_id', WS).maybeSingle()
+if (initSession?.desired_state !== 'connected') {
+  log('Iniciando conexão com WhatsApp...')
+  await setStatus({ desired_state: 'connected' })
+}
+start().catch((e) => log('erro ao iniciar conexão:', e.message))
 
 setInterval(loop, 4000)
 loop()

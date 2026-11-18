@@ -1,0 +1,93 @@
+{
+  "manifest_version": 3,
+  "name": "Undercut · Otimizador Cardápio Web",
+  "version": "0.5.4",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwlxGQUCh6UUlpFMVihI5WCpI6nqpn3iDKAJk7rhhrUVAaOOp1TSdzWNWWMI8oINIUnkTm79TsP7CcOAbK8MPFRTP+PsurmalsgpuUt4FASsGu5uy4/AFJMJ7oq3JbZiXYz29Pbes/Qd6pdcWsispmXRV75/2ujUBB983QMJHehueqSn1nYddDbdsFhrXFAYqu2W97opI06vFC+druo5MdpIneDCnIGOpbSRSUY9/UlKQKeFCYSbaeceufgJeA7jV2Xp3LldvIUUyKufE2kMhXItkb6outSedCE7nnsajmIF2p3NJJ/UXwbsCFVVO3qE/40bcKoGbPw6Fm5GS2Hq+wQIDAQAB",
+  "description": "Sincroniza o cardápio do Portal do Cardápio Web, analisa com o Undercut, aplica o que você aprovar e gera o relatório. Inclui a troca de fotos em massa.",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "downloads",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://portal.cardapioweb.com/*",
+    "https://api.cardapioweb.com/*",
+    "https://*.cardapioweb.com/*",
+    "https://*.cloudfront.net/*",
+    "https://*.amazonaws.com/*",
+    "https://nextjs-cardapio.vercel.app/*",
+    "https://orvia-gestao.vercel.app/*"
+  ],
+  "optional_host_permissions": [
+    "https://*.vercel.app/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://portal.cardapioweb.com/*"
+      ],
+      "js": [
+        "dist/page-hook.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://portal.cardapioweb.com/*"
+      ],
+      "js": [
+        "dist/content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://portal.cardapioweb.com/*"
+      ],
+      "js": [
+        "flyto/content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://nextjs-cardapio.vercel.app/a/*/extensoes*",
+        "https://nextjs-cardapio.vercel.app/conectar-extensao*",
+        "https://orvia-gestao.vercel.app/a/*/extensoes*",
+        "https://orvia-gestao.vercel.app/conectar-extensao*"
+      ],
+      "js": [
+        "dist/hub-bridge.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "action": {
+    "default_title": "Undercut · Cardápio Web — conexão"
+  },
+  "icons": {
+    "16": "assets/brand/icon16.png",
+    "48": "assets/brand/icon48.png",
+    "128": "assets/brand/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/fonts/*.woff2"
+      ],
+      "matches": [
+        "https://portal.cardapioweb.com/*"
+      ]
+    }
+  ]
+}

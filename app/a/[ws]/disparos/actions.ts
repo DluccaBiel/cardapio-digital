@@ -222,3 +222,144 @@ export async function setCampaignStatusAction(ws: string, id: string, status: st
   revalidatePath(`/a/${ws}/disparos`)
   return { ok: true }
 }
+
+function todaySP(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}
+function dowSP(): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(new Date())
+  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+  return map[parts] ?? 0
+}
+
+/** Inicia ou despausa imediatamente um disparo específico. */
+export async function triggerCampaignNowAction(ws: string, id: string): Promise<{ ok: true } | Fail> {
+  const c = await ctx(ws)
+  if ('error' in c) return { ok: false, error: c.error! }
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: 'Disparo inválido.' }
+
+  const { data: camp, error: fetchErr } = await c.db
+    .from('broadcast_campaigns')
+    .select('id, days_of_week')
+    .eq('workspace_id', c.workspace.id)
+    .eq('id', id)
+    .single()
+  if (fetchErr || !camp) return { ok: false, error: 'Disparo não encontrado.' }
+
+  const today = todaySP()
+  const dow = dowSP()
+  const currentDays = (camp.days_of_week as number[]) ?? []
+  const days = Array.from(new Set([...currentDays, dow])).sort()
+
+  const { error } = await c.db
+    .from('broadcast_campaigns')
+    .update({
+      status: 'enviando',
+      start_date: today,
+      days_of_week: days,
+      next_send_at: null,
+      last_error: null,
+    })
+    .eq('workspace_id', c.workspace.id)
+    .eq('id', id)
+  if (error) return { ok: false, error: 'Não consegui iniciar o disparo.' }
+
+  await audit({ workspaceId: c.workspace.id, actorType: 'user', actorId: c.userId, action: 'broadcast_campaign.start_now', entityType: 'broadcast_campaign', entityId: id })
+  revalidatePath(`/a/${ws}/disparos`)
+  return { ok: true }
+}
+
+/** Inicia os disparos da primeira campanha agendada ou pausada encontrada. */
+export async function triggerDisparosAction(ws: string): Promise<{ ok: true; message: string } | Fail> {
+  const c = await ctx(ws)
+  if ('error' in c) return { ok: false, error: c.error! }
+
+  // Garante que o WhatsApp está com pedido de conexão
+  await c.db
+    .from('whatsapp_sessions')
+    .upsert({ workspace_id: c.workspace.id, desired_state: 'connected' }, { onConflict: 'workspace_id' })
+  await c.db
+    .from('whatsapp_sessions')
+    .update({ desired_state: 'connected' })
+    .eq('workspace_id', c.workspace.id)
+
+  const { data: campaigns } = await c.db
+    .from('broadcast_campaigns')
+    .select('id, name, status, days_of_week')
+    .eq('workspace_id', c.workspace.id)
+    .in('status', ['agendada', 'pausada', 'enviando'])
+    .order('created_at', { ascending: true })
+
+  if (!campaigns || campaigns.length === 0) {
+    return { ok: false, error: 'Nenhum disparo agendado. Monte o público e agende a mensagem abaixo para disparar.' }
+  }
+
+  const active = campaigns.find((x) => x.status === 'enviando')
+  if (active) {
+    return { ok: true, message: `O robô já está disparando a campanha "${active.name}".` }
+  }
+
+  const target = campaigns[0]
+  const today = todaySP()
+  const dow = dowSP()
+  const currentDays = (target.days_of_week as number[]) ?? []
+  const days = Array.from(new Set([...currentDays, dow])).sort()
+
+  const { error } = await c.db
+    .from('broadcast_campaigns')
+    .update({
+      status: 'enviando',
+      start_date: today,
+      days_of_week: days,
+      next_send_at: null,
+      last_error: null,
+    })
+    .eq('workspace_id', c.workspace.id)
+    .eq('id', target.id)
+
+  if (error) return { ok: false, error: 'Não consegui ativar os envios.' }
+
+  await audit({ workspaceId: c.workspace.id, actorType: 'user', actorId: c.userId, action: 'broadcast_campaign.start_now', entityType: 'broadcast_campaign', entityId: target.id })
+  revalidatePath(`/a/${ws}/disparos`)
+  return { ok: true, message: `Disparos iniciados para "${target.name}"!` }
+}
+
+/** Tenta iniciar o robô localmente no computador do usuário ou registra o pedido na nuvem. */
+export async function startLocalWorkerAction(ws: string): Promise<{ ok: true; isVercel?: boolean; message: string } | Fail> {
+  const c = await ctx(ws)
+  if ('error' in c) return { ok: false, error: c.error! }
+
+  // Garante o pedido de conexão no banco
+  await c.db
+    .from('whatsapp_sessions')
+    .upsert({ workspace_id: c.workspace.id, desired_state: 'connected' }, { onConflict: 'workspace_id' })
+  await c.db
+    .from('whatsapp_sessions')
+    .update({ desired_state: 'connected' })
+    .eq('workspace_id', c.workspace.id)
+
+  if (process.env.VERCEL === '1') {
+    return {
+      ok: true,
+      isVercel: true,
+      message: 'Pedido registrado! No seu computador, execute no terminal: npm run worker',
+    }
+  }
+
+  try {
+    const { spawn } = await import('node:child_process')
+    const path = await import('node:path')
+    const rootDir = process.cwd()
+    const scriptPath = path.join(rootDir, 'apps', 'whatsapp-worker', 'src', 'index.mjs')
+    const child = spawn(process.execPath, [scriptPath], {
+      cwd: path.join(rootDir, 'apps', 'whatsapp-worker'),
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    })
+    child.unref()
+    return { ok: true, isVercel: false, message: 'Robô iniciado com sucesso em segundo plano!' }
+  } catch (e: any) {
+    return { ok: false, error: `Falha ao spawnar robô local: ${e?.message ?? e}` }
+  }
+}

@@ -2,13 +2,33 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, CalendarClock, Loader2, Pause, Play, QrCode, Search, Send, ShieldCheck, Smartphone, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  CalendarClock,
+  Check,
+  Copy,
+  Loader2,
+  Pause,
+  Play,
+  QrCode,
+  Radio,
+  Search,
+  Send,
+  ShieldCheck,
+  Smartphone,
+  Terminal,
+  X,
+  Zap,
+} from 'lucide-react'
 import type { Campaign, ProspectLead, WhatsappSession } from '../../../lib/db/disparos'
 import {
   createCampaignAction,
   requestSearchAction,
   searchStatusAction,
   setCampaignStatusAction,
+  startLocalWorkerAction,
+  triggerCampaignNowAction,
+  triggerDisparosAction,
   whatsappConnectAction,
   whatsappStatusAction,
 } from '../../../app/a/[ws]/disparos/actions'
@@ -88,43 +108,8 @@ export function DisparosScreen({ ws, canManage, ready, initialSession, leads: in
     window.setTimeout(() => setToast(null), 4000)
   }, [])
 
-  // Público: leads conhecidos + novos desta busca, com seleção
-  const [leads, setLeads] = useState<ProspectLead[]>(initialLeads)
-  useEffect(() => setLeads(initialLeads), [initialLeads])
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-
-  return (
-    <div className="mx-auto w-full max-w-[1400px] px-4 pb-10 pt-5 sm:px-6 md:px-[30px] md:pt-[26px]">
-      <PageHeader title="Disparos WhatsApp" description="Conecte seu WhatsApp pelo QR code, deixe a IA montar o público e agende os envios com intervalo seguro." />
-
-      {!ready && (
-        <div className="mb-4 rounded-[6px] border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-3 text-[12px] text-[#FBBF24]">
-          As tabelas de disparo ainda não existem neste banco — aplique a migration <code>20261118120000_whatsapp_disparos.sql</code>.
-        </div>
-      )}
-      {!canManage && (
-        <div className="mb-4 rounded-[6px] border border-[#2A2A2E] bg-[#111113] px-4 py-3 text-[12px] text-[#8E8A86]">
-          Somente dono ou coordenador conectam o WhatsApp e criam disparos. Você pode acompanhar os envios abaixo.
-        </div>
-      )}
-
-      {ready && canManage && <WhatsAppCard ws={ws} initial={initialSession} flash={flash} />}
-      {ready && canManage && <AudienceCard ws={ws} leads={leads} setLeads={setLeads} selected={selected} setSelected={setSelected} flash={flash} />}
-      {ready && canManage && <CampaignForm ws={ws} selected={selected} leads={leads} onCreated={() => setSelected(new Set())} flash={flash} />}
-      {ready && <CampaignList ws={ws} campaigns={campaigns} canManage={canManage} flash={flash} />}
-
-      <Toast message={toast} />
-    </div>
-  )
-}
-
-// ===========================================================================
-// 1) Conexão WhatsApp (QR → vinculado → sincronização)
-// ===========================================================================
-function WhatsAppCard({ ws, initial, flash }: { ws: string; initial: WhatsappSession | null; flash: (t: string) => void }) {
-  const [session, setSession] = useState<WhatsappSession | null>(initial)
+  const [session, setSession] = useState<WhatsappSession | null>(initialSession)
   const [workerOnline, setWorkerOnline] = useState<boolean | null>(null)
-  const [pending, start] = useTransition()
 
   useEffect(() => {
     let alive = true
@@ -142,9 +127,284 @@ function WhatsAppCard({ ws, initial, flash }: { ws: string; initial: WhatsappSes
     }
   }, [ws])
 
+  // Público: leads conhecidos + novos desta busca, com seleção
+  const [leads, setLeads] = useState<ProspectLead[]>(initialLeads)
+  useEffect(() => setLeads(initialLeads), [initialLeads])
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [fromSdr, setFromSdr] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('fromSdr')) setFromSdr(true)
+      const idsParam = params.get('ids')
+      if (idsParam) {
+        const idList = idsParam.split(',').filter(Boolean)
+        if (idList.length > 0) {
+          setSelected(new Set(idList))
+          return
+        }
+      }
+    }
+    setSelected((prev) => {
+      if (prev.size > 0) return prev
+      const novos = initialLeads.filter((l) => l.status === 'novo').map((l) => l.id)
+      return new Set(novos)
+    })
+  }, [initialLeads])
+
+  return (
+    <div className="mx-auto w-full max-w-[1400px] px-4 pb-10 pt-5 sm:px-6 md:px-[30px] md:pt-[26px]">
+      <PageHeader title="Disparos WhatsApp" description="Conecte seu WhatsApp pelo QR code, deixe a IA montar o público e agende os envios com intervalo seguro." />
+
+      {fromSdr && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-[6px] border border-[#22C55E]/40 bg-[#0F291E]/70 px-4 py-3 text-[13px] text-[#86EFAC]">
+          <span>
+            ✨ <b>Empresas recebidas do SDR!</b> Elas já estão selecionadas no público abaixo. Escreva sua mensagem usando <code>{'{nome}'}</code> e dispare quando quiser.
+          </span>
+          <button type="button" onClick={() => setFromSdr(false)} className="text-[#86EFAC]/70 hover:text-white">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {!ready && (
+        <div className="mb-4 rounded-[6px] border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-3 text-[12px] text-[#FBBF24]">
+          As tabelas de disparo ainda não existem neste banco — aplique a migration <code>20261118120000_whatsapp_disparos.sql</code>.
+        </div>
+      )}
+      {!canManage && (
+        <div className="mb-4 rounded-[6px] border border-[#2A2A2E] bg-[#111113] px-4 py-3 text-[12px] text-[#8E8A86]">
+          Somente dono ou coordenador conectam o WhatsApp e criam disparos. Você pode acompanhar os envios abaixo.
+        </div>
+      )}
+
+      {ready && canManage && (
+        <RobotControlBanner
+          ws={ws}
+          session={session}
+          workerOnline={workerOnline}
+          campaigns={campaigns}
+          flash={flash}
+        />
+      )}
+
+      {ready && canManage && (
+        <WhatsAppCard
+          ws={ws}
+          session={session}
+          setSession={setSession}
+          workerOnline={workerOnline}
+          flash={flash}
+        />
+      )}
+      {ready && canManage && <AudienceCard ws={ws} leads={leads} setLeads={setLeads} selected={selected} setSelected={setSelected} flash={flash} />}
+      {ready && canManage && <CampaignForm ws={ws} selected={selected} leads={leads} onCreated={() => setSelected(new Set())} flash={flash} />}
+      {ready && <CampaignList ws={ws} campaigns={campaigns} canManage={canManage} flash={flash} />}
+
+      <Toast message={toast} />
+    </div>
+  )
+}
+
+// ===========================================================================
+// Barra de Controle do Robô & Disparos
+// ===========================================================================
+function RobotControlBanner({
+  ws,
+  session,
+  workerOnline,
+  campaigns,
+  flash,
+}: {
+  ws: string
+  session: WhatsappSession | null
+  workerOnline: boolean | null
+  campaigns: Campaign[]
+  flash: (t: string) => void
+}) {
+  const router = useRouter()
+  const [pending, start] = useTransition()
+  const [copied, setCopied] = useState(false)
+
+  const activeCamp = campaigns.find((c) => c.status === 'enviando')
+  const nextCamp = campaigns.find((c) => c.status === 'agendada' || c.status === 'pausada')
+  const isLinked = session?.status === 'ready' || session?.status === 'syncing'
+
+  const copyCommand = () => {
+    navigator.clipboard.writeText('npm run worker')
+    setCopied(true)
+    flash('Comando "npm run worker" copiado!')
+    window.setTimeout(() => setCopied(false), 2500)
+  }
+
+  const handleStartRobotAndDispatch = () => {
+    start(async () => {
+      // 1. Inicia ou garante robô local se estiver offline
+      if (workerOnline === false) {
+        const wr = await startLocalWorkerAction(ws)
+        if (!wr.ok) return flash(wr.error)
+        if (wr.isVercel) {
+          flash(wr.message)
+        }
+      }
+
+      // 2. Dispara a campanha pronta ou ativa a primeira agendada/pausada
+      const dr = await triggerDisparosAction(ws)
+      if (!dr.ok) {
+        flash(dr.error)
+      } else {
+        flash(dr.message)
+      }
+      router.refresh()
+    })
+  }
+
+  const handlePause = (id: string) => {
+    start(async () => {
+      const r = await setCampaignStatusAction(ws, id, 'pausada')
+      if (!r.ok) return flash(r.error)
+      flash('Disparos pausados.')
+      router.refresh()
+    })
+  }
+
+  return (
+    <div className="mb-6 overflow-hidden rounded-[8px] border border-[#D7141F]/40 bg-gradient-to-r from-[#1A0A0D] via-[#111113] to-[#0E0E10] p-4 shadow-[0_0_20px_rgba(215,20,31,0.08)]">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* Status Telemetria */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[6px] border border-[#D7141F]/50 bg-[#250D11] text-[#D7141F]">
+            <Radio size={20} className={activeCamp ? 'animate-pulse text-[#22C55E]' : ''} />
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-[11px] font-bold tracking-wider uppercase text-[#CFCBC4]">
+                Robô de Disparos
+              </span>
+              {workerOnline === true && (
+                <span className="inline-flex items-center gap-1 rounded bg-[#15803D]/25 px-2 py-0.5 text-[10px] font-bold text-[#4ADE80]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#4ADE80] animate-ping" />
+                  ONLINE
+                </span>
+              )}
+              {workerOnline === false && (
+                <span className="inline-flex items-center gap-1 rounded bg-[#B91C1C]/25 px-2 py-0.5 text-[10px] font-bold text-[#F87171]">
+                  DESLIGADO
+                </span>
+              )}
+              {isLinked ? (
+                <span className="rounded bg-[#15803D]/15 px-2 py-0.5 text-[10px] font-medium text-[#86EFAC]">
+                  WhatsApp Conectado
+                </span>
+              ) : session?.status === 'qr' ? (
+                <span className="rounded bg-[#78350F]/20 px-2 py-0.5 text-[10px] font-medium text-[#FBBF24]">
+                  Aguardando Leitura do QR
+                </span>
+              ) : (
+                <span className="rounded bg-[#2A2A2E] px-2 py-0.5 text-[10px] font-medium text-[#8E8A86]">
+                  WhatsApp Desconectado
+                </span>
+              )}
+            </div>
+
+            <p className="mt-0.5 text-[12px] text-[#ECE9E3]">
+              {activeCamp ? (
+                <span>
+                  Disparando agora: <b className="text-white">{activeCamp.name}</b> ({activeCamp.sent_count}/{activeCamp.total} enviados)
+                </span>
+              ) : nextCamp ? (
+                <span>
+                  Fila pronta: <b className="text-white">{nextCamp.name}</b> ({nextCamp.total} contatos)
+                </span>
+              ) : (
+                <span className="text-[#8E8A86]">
+                  Nenhum disparo na fila. Monte o público e agende uma mensagem abaixo.
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Botão de Ação Principal */}
+        <div className="flex flex-wrap items-center gap-2">
+          {workerOnline === false && (
+            <button
+              type="button"
+              onClick={copyCommand}
+              title="Copiar comando para rodar no terminal"
+              className="inline-flex items-center gap-1.5 rounded-[5px] border border-[#2A2A2E] bg-[#0B0B0C] px-3 py-2 text-[12px] font-mono text-[#CFCBC4] hover:border-[#D7141F] hover:text-white"
+            >
+              {copied ? <Check size={13} className="text-[#4ADE80]" /> : <Terminal size={13} />}
+              npm run worker
+            </button>
+          )}
+
+          {activeCamp ? (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => handlePause(activeCamp.id)}
+              className="inline-flex items-center gap-1.5 rounded-[5px] bg-[#F59E0B] px-5 py-2.5 text-[13px] font-bold text-black hover:bg-[#D97706] disabled:opacity-40"
+            >
+              {pending ? <Loader2 size={15} className="animate-spin" /> : <Pause size={15} />}
+              Pausar Disparos
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={handleStartRobotAndDispatch}
+              className="inline-flex items-center gap-2 rounded-[5px] bg-[#16A34A] px-5 py-2.5 text-[13px] font-bold text-white shadow-lg shadow-[#16A34A]/25 hover:bg-[#15803D] active:scale-[0.99] disabled:opacity-40"
+            >
+              {pending ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+              Iniciar Robô & Disparos
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ===========================================================================
+// 1) Conexão WhatsApp (QR → vinculado → sincronização)
+// ===========================================================================
+function WhatsAppCard({
+  ws,
+  session,
+  setSession,
+  workerOnline,
+  flash,
+}: {
+  ws: string
+  session: WhatsappSession | null
+  setSession: React.Dispatch<React.SetStateAction<WhatsappSession | null>>
+  workerOnline: boolean | null
+  flash: (t: string) => void
+}) {
+  const [pending, start] = useTransition()
+  const [copied, setCopied] = useState(false)
+
   const wants = session?.desired_state === 'connected'
   const st = session?.status ?? 'disconnected'
   const linked = st === 'syncing' || st === 'ready'
+
+  const copyWorkerCmd = () => {
+    navigator.clipboard.writeText('npm run worker')
+    setCopied(true)
+    flash('Comando "npm run worker" copiado!')
+    window.setTimeout(() => setCopied(false), 2500)
+  }
+
+  const handleStartLocalWorker = () => {
+    start(async () => {
+      const r = await startLocalWorkerAction(ws)
+      if (!r.ok) return flash(r.error)
+      flash(r.message)
+    })
+  }
 
   function request(connect: boolean) {
     start(async () => {
@@ -169,18 +429,44 @@ function WhatsAppCard({ ws, initial, flash }: { ws: string; initial: WhatsappSes
       </div>
 
       {workerOnline === false && (
-        <div className="mb-4 rounded-[5px] border border-[#D7141F]/40 bg-[#1F0D0F]/60 p-3 text-[12px] leading-relaxed text-[#FFB199]">
-          O robô de envio não está rodando no seu computador. Abra um terminal na pasta do projeto e rode{' '}
-          <code className="rounded bg-black/40 px-1.5 py-0.5 text-[#ECE9E3]">npm run worker</code>. Ele precisa ficar aberto para conectar e
-          disparar.
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[5px] border border-[#D7141F]/40 bg-[#1F0D0F]/60 p-3 text-[12px] leading-relaxed text-[#FFB199]">
+          <div>
+            O robô de envio não está rodando no seu computador. Abra um terminal na pasta do projeto e rode{' '}
+            <code className="rounded bg-black/40 px-1.5 py-0.5 text-[#ECE9E3]">npm run worker</code>. Ele precisa ficar aberto para conectar e
+            disparar.
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleStartLocalWorker}
+              disabled={pending}
+              className="inline-flex items-center gap-1.5 rounded-[4px] bg-[#D7141F] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#B5121B] disabled:opacity-40"
+            >
+              {pending ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              Iniciar Robô no PC
+            </button>
+            <button
+              type="button"
+              onClick={copyWorkerCmd}
+              className="inline-flex items-center gap-1.5 rounded-[4px] border border-[#2A2A2E] bg-black/50 px-3 py-1.5 text-[11px] font-mono text-[#CFCBC4] hover:border-[#D7141F] hover:text-white"
+            >
+              {copied ? <Check size={12} className="text-[#4ADE80]" /> : <Copy size={12} />}
+              Copiar comando
+            </button>
+          </div>
         </div>
       )}
 
       <div className="grid gap-5 md:grid-cols-[320px_1fr]">
         <div className="flex min-h-[220px] items-center justify-center rounded-[6px] border border-dashed border-[#2A2A2E] bg-[#0B0B0C] p-3">
           {st === 'qr' && session?.qr_data_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={session.qr_data_url} alt="QR code para vincular o WhatsApp" width={280} height={280} className="rounded bg-white p-2" />
+            <div className="flex flex-col items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={session.qr_data_url} alt="QR code para vincular o WhatsApp" width={280} height={280} className="rounded bg-white p-2" />
+              <p className="mt-2 text-center text-[11px] text-[#8E8A86]">
+                Também exibido no terminal do <code>npm run worker</code>
+              </p>
+            </div>
           ) : linked ? (
             <div className="text-center">
               <ShieldCheck size={44} className="mx-auto text-[#4ADE80]" />
@@ -522,7 +808,7 @@ function CampaignForm({
     setDays(s)
   }
 
-  function submit() {
+  function submit(startNow = false) {
     start(async () => {
       const r = await createCampaignAction(ws, {
         name: name.trim() || `Disparo food · ${new Intl.DateTimeFormat('pt-BR').format(new Date())}`,
@@ -535,9 +821,10 @@ function CampaignForm({
         interval_max_seconds: max,
         daily_limit: dailyLimit,
         lead_ids: Array.from(selected),
+        start_now: startNow,
       })
       if (!r.ok) return flash(r.error)
-      flash(`Disparo agendado para ${r.total} empresa(s).`)
+      flash(startNow ? `Disparo iniciado para ${r.total} empresa(s)!` : `Disparo agendado para ${r.total} empresa(s).`)
       setMessage('')
       setName('')
       onCreated()
@@ -657,9 +944,24 @@ function CampaignForm({
             )}
           </div>
 
-          <button type="button" onClick={submit} disabled={pending || invalid} className={cn(BTN_PRIMARY, 'w-full py-2.5')}>
-            {pending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Agendar disparo
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => submit(true)}
+              disabled={pending || invalid}
+              className={cn(BTN_PRIMARY, 'w-full py-2.5 bg-[#16A34A] hover:bg-[#15803D] shadow-md shadow-[#16A34A]/20')}
+            >
+              {pending ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />} Iniciar disparo agora
+            </button>
+            <button
+              type="button"
+              onClick={() => submit(false)}
+              disabled={pending || invalid}
+              className={cn(BTN_GHOST, 'w-full justify-center py-2 text-[12px]')}
+            >
+              <CalendarClock size={14} /> Agendar para a janela configurada
+            </button>
+          </div>
           {audience === 0 && <p className="text-center text-[11px] text-[#85817C]">Selecione o público acima (a busca da IA já seleciona as empresas novas).</p>}
         </div>
       </div>
@@ -691,6 +993,15 @@ function CampaignList({ ws, campaigns, canManage, flash }: { ws: string; campaig
     const id = window.setInterval(() => router.refresh(), 15_000)
     return () => window.clearInterval(id)
   }, [active, router])
+
+  function triggerNow(id: string) {
+    start(async () => {
+      const r = await triggerCampaignNowAction(ws, id)
+      if (!r.ok) return flash(r.error)
+      flash('Disparo ativado! O robô iniciará os envios imediatamente.')
+      router.refresh()
+    })
+  }
 
   function set(id: string, status: 'pausada' | 'agendada' | 'cancelada') {
     if (status === 'cancelada' && !window.confirm('Cancelar este disparo? Os envios pendentes não serão feitos.')) return
@@ -748,19 +1059,44 @@ function CampaignList({ ws, campaigns, canManage, flash }: { ws: string; campaig
                   <td className="px-3 py-2.5 font-mono text-[11px] text-[#CFCBC4]">{c.status === 'enviando' || c.status === 'agendada' ? fmtDateTime(c.next_send_at) : '—'}</td>
                   {canManage && (
                     <td className="px-3 py-2.5 text-right">
-                      <div className="inline-flex gap-1.5">
-                        {(c.status === 'agendada' || c.status === 'enviando') && (
-                          <button type="button" disabled={pending} onClick={() => set(c.id, 'pausada')} className={BTN_GHOST}>
-                            <Pause size={12} /> Pausar
+                      <div className="inline-flex items-center gap-1.5">
+                        {c.status === 'agendada' && (
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => triggerNow(c.id)}
+                            className="inline-flex items-center gap-1 rounded-[4px] bg-[#16A34A] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#15803D] disabled:opacity-40"
+                          >
+                            <Play size={11} /> Disparar agora
                           </button>
                         )}
                         {c.status === 'pausada' && (
-                          <button type="button" disabled={pending} onClick={() => set(c.id, 'agendada')} className={BTN_GHOST}>
-                            <Play size={12} /> Retomar
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => triggerNow(c.id)}
+                            className="inline-flex items-center gap-1 rounded-[4px] bg-[#16A34A] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#15803D] disabled:opacity-40"
+                          >
+                            <Play size={11} /> Retomar
+                          </button>
+                        )}
+                        {c.status === 'enviando' && (
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => set(c.id, 'pausada')}
+                            className={cn(BTN_GHOST, 'border-[#F59E0B]/50 text-[#FBBF24] hover:border-[#F59E0B]')}
+                          >
+                            <Pause size={12} /> Pausar
                           </button>
                         )}
                         {(c.status === 'agendada' || c.status === 'enviando' || c.status === 'pausada') && (
-                          <button type="button" disabled={pending} onClick={() => set(c.id, 'cancelada')} className={BTN_GHOST}>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => set(c.id, 'cancelada')}
+                            className={BTN_GHOST}
+                          >
                             <X size={12} /> Cancelar
                           </button>
                         )}
