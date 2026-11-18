@@ -33,6 +33,9 @@ npm run dev            # sobe o hub em http://localhost:3000
 npm run build          # build de produção
 npm run lint           # eslint + tsc --noEmit
 npm test               # vitest run tests (modo gratuito da análise + testes da extensão iFood)
+npm run worker:install # dependências do robô local de Disparos WhatsApp (uma vez)
+npm run worker:setup   # gera apps/whatsapp-worker/.env do projeto vinculado (o USUÁRIO roda; a chave não é exibida — agente não lê chaves)
+npm run worker         # robô de Disparos (QR, pesquisa de leads, envios agendados) — ver apps/whatsapp-worker/README.md
 
 # Banco / migrations (Supabase CLI como devDependency: npm i -D supabase; Docker Desktop necessário)
 npx supabase start           # sobe o stack local (Postgres + API + Studio em http://127.0.0.1:54323)
@@ -46,6 +49,7 @@ docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_iso
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_cross_link.sql  # 20 testes cross-link (20/0)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/checks.sql          # higiene (0 problemas)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/combos_ifood.sql    # 16 testes combos/iFood (16/0)
+docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/disparos_rls.sql    # Disparos WhatsApp: RLS/grants/constraints (falhas = 0)
 # API + painel + extensão (hub local em :3100 apontando para o Supabase local, envs só no processo):
 #   node supabase/tests/api_menu.mjs (34/34) → node scripts/e2e-cardapio.mjs (9/9) → (apps/extensions/orvia-ifood) node scripts/e2e.mjs (15/15)
 # Integração Meta (simulador local da Graph API/OAuth — nunca a Meta real; hub com NEXT_DIST_DIR=.next-e2e,
@@ -135,6 +139,14 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 - Referências reais ficam em `imagens/` (gitignored, LGPD) — nunca commitar.
 - “Fase visual concluída” em `docs/progresso-ui.md`; próximos passos = ligar Supabase por tela (Visão geral → Contas → Relatórios).
 
+## 📲 Disparos WhatsApp (robô local)
+
+- Menu **Disparos** = conexão **não oficial** por QR (Baileys) + agente de prospecção (OpenStreetMap, sem chave) + envios agendados.
+- O WhatsApp exige processo sempre ligado → **não roda na Vercel**: `apps/whatsapp-worker` roda no PC do usuário (`npm run worker`), fala só com o Supabase (service role em `apps/whatsapp-worker/.env`, nunca commitado). Sessão em `apps/whatsapp-worker/auth/` (gitignored).
+- Tabelas: `whatsapp_sessions` (painel só altera `desired_state` — grant por coluna), `prospect_searches` (fila de pesquisa executada pelo robô), `prospect_leads`, `broadcast_campaigns`, `broadcast_recipients` (migration `20261118120000_whatsapp_disparos.sql`).
+- Proteções do número: intervalo aleatório ≥ 20 s, janela de horário/dias em America/Sao_Paulo, limite diário do número, "digitando…", opt-out por "SAIR", pausa após 5 falhas.
+- Rede local do usuário: o Windows reserva 54212–54611 (Hyper-V) e o `supabase start` falha na 54322. Para testar local, troque as portas em `supabase/config.toml` temporariamente (ex.: 583xx) e **restaure antes do commit**.
+
 ## 🗺️ Roadmap
 
 `docs/roadmap-fase-1.md` — ordem de implementação da Fase 1 com critério de pronto. Fases futuras (cardápio público/pedidos, Meta Ads, relatórios, WhatsApp) ficam fora do escopo atual.
@@ -158,6 +170,7 @@ Fluxo padrão (nunca pular o preview):
 - **NUNCA** `git push --force`, apagar deployments ou renomear o projeto/domínio sem decisão explícita.
 - **Banco remoto**: 0001–0003 (schema Undercut + RLS + FK composta) aplicadas em produção (projeto AnjimBanco/zzdiefephohlyicgexkv) em 05/11/2026, após backup (`db dump --remote`, dump em disco local, fora do repo). **Migrations futuras**: apenas via `supabase db push` com backup prévio + janela; desenvolvimento primeiro (`supabase db reset`).
 - **16/11/2026**: 0004–0008 já estavam no remoto; aplicadas 0009 (catálogo Undercut), 0010 (FlyTo) e 20261116152908 (`clients.niche`/`website`; clientes existentes ficaram `niche='food'`). Backup antes/depois em `%USERPROFILE%/undercut-backups/` (`pre-migration_2026-11-16_*.sql`, `post-migration_2026-11-16_schema.sql`). Verificado: 26/26 tabelas com RLS. Em modo agente a CLI exige `db push --yes` — só com confirmação explícita do usuário. Mais tarde no mesmo dia: aplicada `20261116210000_meta_integrations.sql` (backup `pre-meta-integrations_2026-11-16_*.sql`); 29/29 tabelas com RLS. `META_TOKEN_KEY` gerada aleatória e cadastrada na Vercel (Production + Preview) sem exibir o valor. Consultas de leitura em produção: `npx supabase db query --linked --read-only "<sql>"`.
+- **18/11/2026**: aplicada `20261118120000_whatsapp_disparos.sql` (Disparos WhatsApp) após backup `%USERPROFILE%/undercut-backups/pre-disparos_2026-11-18_1118_{schema,data}.sql`. Verificado: 34/34 tabelas com RLS; `authenticated` só altera `whatsapp_sessions.desired_state`. Preview `release/undercut-v0.11` (Disparos + correção do redirect da Meta): `https://orvia-93jqyv047-gabrieldluccaoliveira-4662s-projects.vercel.app` — ainda NÃO promovido a produção.
 
 ### Variáveis de ambiente na Vercel (nomes, nunca valores)
 

@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { audit } from '@/lib/audit'
 import { getWorkspaceBySlug } from '@/lib/db/workspaces'
-import { exchangeCode, fetchBusinesses, fetchMe, META_STATE_COOKIE } from '@/lib/meta/api'
+import { exchangeCode, fetchBusinesses, fetchMe, META_STATE_COOKIE, metaOAuthOrigin } from '@/lib/meta/api'
 import { encryptToken } from '@/lib/meta/crypto'
 import { MetaError } from '@/lib/meta/graph'
 import { createAdminClient } from '@/lib/supabaseAdmin'
@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
   if (!workspace || !['owner', 'coordenador'].includes(workspace.role)) return back('sem_permissao')
 
   try {
-    const { token, expiresAt } = await exchangeCode(code, `${origin}/api/meta/oauth/callback`)
+    // redirect_uri idêntico ao usado no início (endereço oficial em produção)
+    const { token, expiresAt } = await exchangeCode(code, `${metaOAuthOrigin(origin)}/api/meta/oauth/callback`)
     const me = await fetchMe(token)
 
     const { data: conn, error: connErr } = await db

@@ -1,0 +1,17 @@
+{
+  "name": "@undercut/whatsapp-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Robô local de disparos WhatsApp (conexão não oficial por QR) do Undercut.",
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@whiskeysockets/baileys": "6.7.24",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4"
+  }
+}
