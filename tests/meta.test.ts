@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { decryptToken, encryptToken, tokenCryptoReady } from '../lib/meta/crypto'
-import { firstPurchase, spDate } from '../lib/meta/api'
+import { firstPurchase, metaOAuthOrigin, spDate } from '../lib/meta/api'
 import { authParams } from '../lib/meta/graph'
 
 describe('criptografia do token da Meta', () => {
@@ -110,5 +110,16 @@ describe('métricas da apresentação do cliente', () => {
   })
   it('adições ao carrinho: primeiro tipo presente', () => {
     expect(firstOf([{ action_type: 'add_to_cart', value: '3' }, { action_type: 'omni_add_to_cart', value: '5' }], ['omni_add_to_cart', 'add_to_cart'])).toBe(5)
+  })
+})
+
+describe('origem do redirect_uri do OAuth da Meta', () => {
+  it('em produção usa sempre o endereço oficial (aliases legados não estão cadastrados na Meta)', () => {
+    expect(metaOAuthOrigin('https://orvia-gestao.vercel.app', 'production')).toBe('https://undercuthub.vercel.app')
+    expect(metaOAuthOrigin('https://undercuthub.vercel.app', 'production')).toBe('https://undercuthub.vercel.app')
+  })
+  it('fora de produção usa a origem da requisição (local/E2E/preview)', () => {
+    expect(metaOAuthOrigin('http://localhost:3100', undefined)).toBe('http://localhost:3100')
+    expect(metaOAuthOrigin('https://orvia-abc.vercel.app', 'preview')).toBe('https://orvia-abc.vercel.app')
   })
 })

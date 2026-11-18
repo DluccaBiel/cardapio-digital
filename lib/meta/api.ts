@@ -5,6 +5,7 @@
  *   META_APP_ID       id do app da Meta (não é segredo)
  *   META_APP_SECRET   segredo do app (secret)
  */
+import { brand } from '@undercut/brand'
 import { authParams, dialogBase, graphBase, graphGet, graphVersion, isGraphUrl, MetaError } from './graph'
 
 export const META_SCOPES = ['ads_read', 'business_management'] as const
@@ -20,6 +21,16 @@ export function metaAppConfig(): { appId: string; appSecret: string } | null {
 }
 
 const G = () => `${graphBase()}/${graphVersion()}`
+
+/**
+ * Origem usada no redirect_uri do OAuth. Em produção é SEMPRE o endereço oficial
+ * (brand.baseUrl), o único cadastrado no app da Meta — os aliases legados
+ * (orvia-gestao/orviahub) dariam "URL de redirecionamento inválida".
+ * Fora de produção (local, E2E, preview) usa a origem da própria requisição.
+ */
+export function metaOAuthOrigin(requestOrigin: string, vercelEnv = process.env.VERCEL_ENV): string {
+  return vercelEnv === 'production' ? new URL(brand.baseUrl).origin : requestOrigin
+}
 
 export function oauthDialogUrl(appId: string, redirectUri: string, state: string): string {
   const qs = new URLSearchParams({ client_id: appId, redirect_uri: redirectUri, state, response_type: 'code' })
