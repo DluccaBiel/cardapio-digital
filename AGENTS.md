@@ -164,7 +164,8 @@ Fluxo padrão (nunca pular o preview):
 
 ### Rollback
 
-- Produção atual (18/11/2026, release/undercut-v0.11 — Disparos WhatsApp + redirect da Meta no endereço oficial): `https://orvia-b81ht677m-gabrieldluccaoliveira-4662s-projects.vercel.app`. Anterior (rollback, v0.10 apresentação do cliente): `https://orvia-ao8pe96vd-gabrieldluccaoliveira-4662s-projects.vercel.app` (v0.9: `https://orvia-9yho907nc-gabrieldluccaoliveira-4662s-projects.vercel.app`).
+- Produção atual (18/11/2026, release/undercut-v0.11.1 — sincronização Meta sem estourar tempo): `https://orvia-7ms2ufrx0-gabrieldluccaoliveira-4662s-projects.vercel.app`. Anterior (rollback, v0.11 Disparos + redirect Meta, com redeploy das envs Meta): `https://orvia-6kjm0imdi-gabrieldluccaoliveira-4662s-projects.vercel.app`; v0.10: `https://orvia-ao8pe96vd-gabrieldluccaoliveira-4662s-projects.vercel.app`.
+- **App da Meta em uso**: "System" (ID 1495761092432893, portfólio BM 01, tipo Login do Facebook para Empresas). Em 18/11/2026: URI de redirecionamento `https://undercuthub.vercel.app/api/meta/oauth/callback` cadastrado (salvar MANUALMENTE — o auto-salvar não grava a lista), plataforma Site e configuração de login "Undercut" (ID 3011809992522711, token de usuário, `ads_read` + `business_management`) → `META_LOGIN_CONFIG_ID` na Vercel.
 - Deployment de produção mais antigo (registrado em 04/11/2026): `dpl_9Fj52z3X72xZfQ5pFsBLUi5WFm4c` (alias `https://nextjs-cardapio-jxjyn9mto-gabrieldluccaoliveira-4662s-projects.vercel.app`).
 - Para reverter: `npx vercel rollback <url-do-deployment-anterior>` (ou promova o deployment anterior no painel da Vercel → Deployments → Promote). Depois reverta o `master` (`git revert`/`git switch master` e re-push) para manter o histórico de acordo.
 - **NUNCA** `git push --force`, apagar deployments ou renomear o projeto/domínio sem decisão explícita.
