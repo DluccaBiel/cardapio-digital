@@ -34,6 +34,7 @@ npm run build          # build de produção
 npm run lint           # eslint + tsc --noEmit
 npm test               # vitest run tests (modo gratuito da análise + testes da extensão iFood)
 npm run worker:install # dependências do robô local de Disparos WhatsApp (uma vez)
+npm run worker:setup   # gera apps/whatsapp-worker/.env do projeto vinculado (o USUÁRIO roda; a chave não é exibida — agente não lê chaves)
 npm run worker         # robô de Disparos (QR, pesquisa de leads, envios agendados) — ver apps/whatsapp-worker/README.md
 
 # Banco / migrations (Supabase CLI como devDependency: npm i -D supabase; Docker Desktop necessário)

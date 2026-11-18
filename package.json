@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run tests",
     "worker": "npm --prefix apps/whatsapp-worker start",
-    "worker:install": "npm --prefix apps/whatsapp-worker install"
+    "worker:install": "npm --prefix apps/whatsapp-worker install",
+    "worker:setup": "node apps/whatsapp-worker/scripts/setup-env.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

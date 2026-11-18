@@ -22,8 +22,14 @@ Requer Node 22.18+ (o robô importa `lib/sdr/providers/osm.ts` direto).
 npm run worker:install
 ```
 
-Crie `apps/whatsapp-worker/.env` a partir de `.env.example` e preencha `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`
-(painel do Supabase → Project Settings → API). **Nunca commite esse arquivo** — a chave service role dá acesso total ao banco.
+Gere o `apps/whatsapp-worker/.env` do projeto Supabase vinculado (AnjimBanco) — usa o login da Supabase CLI
+e grava a chave sem exibi-la:
+
+```bash
+npm run worker:setup
+```
+
+(Ou crie à mão a partir de `.env.example`.) **Nunca commite esse arquivo** — a chave service role dá acesso total ao banco.
 `UNDERCUT_WORKSPACE` é o slug do workspace (parte da URL `/a/<slug>/...`); pode ficar vazio se o banco tiver um só.
 
 ## Uso
