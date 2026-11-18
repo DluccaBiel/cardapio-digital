@@ -8,7 +8,7 @@
  *   META_GRAPH_VERSION opcional (padrão v23.0).
  *
  * Lê as contas próprias (owned_ad_accounts) e as de clientes compartilhadas com o
- * portfólio (client_ad_accounts), com o gasto do mês via field expansion de insights.
+ * portfólio (client_ad_accounts). O gasto do mês vem do enriquecimento por conta (api.ts).
  */
 // (servidor apenas: importado só por server actions — nunca por componente 'use client')
 
@@ -85,8 +85,10 @@ const FIELDS = [
   'timezone_name',
   'business{id,name}',
   'funding_source_details',
-  'insights.date_preset(this_month){spend}',
 ].join(',')
+// O gasto do mês NÃO vem mais embutido aqui (field expansion de insights deixava a
+// listagem lenta a ponto de estourar o tempo em portfólios com muitas contas de clientes);
+// ele é calculado no enriquecimento por conta (lib/meta/api.ts → enrichAccount).
 
 /** Erro "seguro": mensagem da Meta sem o token e sem a URL. */
 export class MetaError extends Error {
@@ -149,17 +151,44 @@ function mapAccount(a: RawAccount, access: MetaAdAccount['access_kind']): MetaAd
   }
 }
 
-export async function graphGet<T = any>(url: string): Promise<T> {
-  let res: Response
+/** Caminho da chamada SEM query string (a query carrega o token) — seguro para log. */
+function safePath(url: string): string {
   try {
-    res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(25_000) })
+    const u = new URL(url)
+    return `${u.host}${u.pathname}`
   } catch {
-    throw new MetaError('Sem conexão com a Meta (graph.facebook.com).')
+    return 'url-invalida'
+  }
+}
+
+const GRAPH_TIMEOUT_MS = 60_000
+
+export async function graphGet<T = any>(url: string): Promise<T> {
+  let res: Response | undefined
+  let lastErr: unknown
+  // Até 2 tentativas: a Graph API às vezes demora/derruba a conexão em consultas grandes.
+  for (let attempt = 1; attempt <= 2 && !res; attempt += 1) {
+    try {
+      res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS) })
+    } catch (e) {
+      lastErr = e
+      const err = e as { name?: string; cause?: { code?: string } }
+      console.error('[meta] falha de rede', { path: safePath(url), attempt, name: err?.name, code: err?.cause?.code })
+    }
+  }
+  if (!res) {
+    const timedOut = (lastErr as { name?: string })?.name === 'TimeoutError'
+    throw new MetaError(
+      timedOut
+        ? 'A Meta demorou demais para responder (tempo esgotado). Tente sincronizar de novo em instantes.'
+        : 'Sem conexão com a Meta (graph.facebook.com).',
+    )
   }
   const json = (await res.json().catch(() => null)) as any
   if (!res.ok || json?.error) {
     const e = json?.error ?? {}
     const code = Number(e.code) || res.status
+    console.error('[meta] erro da Graph API', { path: safePath(url), status: res.status, code, subcode: e.error_subcode, type: e.type })
     const hint =
       code === 190 ? 'Acesso ao Facebook expirado ou revogado — reconecte em Configurações → Integrações.'
       : code === 200 || code === 10 ? 'Sem permissão neste portfólio/conta (precisa de ads_read e business_management e acesso às contas no Gerenciador de Negócios).'
@@ -178,10 +207,10 @@ export async function fetchBusinessAdAccounts(cfg: MetaConfig): Promise<MetaAdAc
     ['owned_ad_accounts', 'owned'],
     ['client_ad_accounts', 'client'],
   ] as const) {
-    const qs = authParams(cfg.token, { fields: FIELDS, limit: '100' })
+    const qs = authParams(cfg.token, { fields: FIELDS, limit: '50' })
     let url: string | undefined = `${graphBase()}/${cfg.version}/${cfg.businessId}/${edge}?${qs}`
     let pages = 0
-    while (url && pages < 20) {
+    while (url && pages < 40) {
       const page: { data?: RawAccount[]; paging?: { next?: string } } = await graphGet(url)
       for (const raw of page.data ?? []) {
         const acc = mapAccount(raw, access)
