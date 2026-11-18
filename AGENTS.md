@@ -33,6 +33,8 @@ npm run dev            # sobe o hub em http://localhost:3000
 npm run build          # build de produção
 npm run lint           # eslint + tsc --noEmit
 npm test               # vitest run tests (modo gratuito da análise + testes da extensão iFood)
+npm run worker:install # dependências do robô local de Disparos WhatsApp (uma vez)
+npm run worker         # robô de Disparos (QR, pesquisa de leads, envios agendados) — ver apps/whatsapp-worker/README.md
 
 # Banco / migrations (Supabase CLI como devDependency: npm i -D supabase; Docker Desktop necessário)
 npx supabase start           # sobe o stack local (Postgres + API + Studio em http://127.0.0.1:54323)
@@ -46,6 +48,7 @@ docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_iso
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_cross_link.sql  # 20 testes cross-link (20/0)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/checks.sql          # higiene (0 problemas)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/combos_ifood.sql    # 16 testes combos/iFood (16/0)
+docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/disparos_rls.sql    # Disparos WhatsApp: RLS/grants/constraints (falhas = 0)
 # API + painel + extensão (hub local em :3100 apontando para o Supabase local, envs só no processo):
 #   node supabase/tests/api_menu.mjs (34/34) → node scripts/e2e-cardapio.mjs (9/9) → (apps/extensions/orvia-ifood) node scripts/e2e.mjs (15/15)
 # Integração Meta (simulador local da Graph API/OAuth — nunca a Meta real; hub com NEXT_DIST_DIR=.next-e2e,
@@ -134,6 +137,14 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 - Capturas de comparação: `docs/referencia/comparacao/` (01–11), script `scripts/capture-visual.mjs` (Playwright, viewport 1915×1030 + 1366×768 + 390px).
 - Referências reais ficam em `imagens/` (gitignored, LGPD) — nunca commitar.
 - “Fase visual concluída” em `docs/progresso-ui.md`; próximos passos = ligar Supabase por tela (Visão geral → Contas → Relatórios).
+
+## 📲 Disparos WhatsApp (robô local)
+
+- Menu **Disparos** = conexão **não oficial** por QR (Baileys) + agente de prospecção (OpenStreetMap, sem chave) + envios agendados.
+- O WhatsApp exige processo sempre ligado → **não roda na Vercel**: `apps/whatsapp-worker` roda no PC do usuário (`npm run worker`), fala só com o Supabase (service role em `apps/whatsapp-worker/.env`, nunca commitado). Sessão em `apps/whatsapp-worker/auth/` (gitignored).
+- Tabelas: `whatsapp_sessions` (painel só altera `desired_state` — grant por coluna), `prospect_searches` (fila de pesquisa executada pelo robô), `prospect_leads`, `broadcast_campaigns`, `broadcast_recipients` (migration `20261118120000_whatsapp_disparos.sql`).
+- Proteções do número: intervalo aleatório ≥ 20 s, janela de horário/dias em America/Sao_Paulo, limite diário do número, "digitando…", opt-out por "SAIR", pausa após 5 falhas.
+- Rede local do usuário: o Windows reserva 54212–54611 (Hyper-V) e o `supabase start` falha na 54322. Para testar local, troque as portas em `supabase/config.toml` temporariamente (ex.: 583xx) e **restaure antes do commit**.
 
 ## 🗺️ Roadmap
 

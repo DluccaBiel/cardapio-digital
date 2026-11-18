@@ -11,7 +11,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run tests"
+    "test": "vitest run tests",
+    "worker": "npm --prefix apps/whatsapp-worker start",
+    "worker:install": "npm --prefix apps/whatsapp-worker install"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
