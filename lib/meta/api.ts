@@ -114,6 +114,42 @@ export type AccountEnrichment = {
   runs_continuously: boolean
   last_change_at: string | null
   active_adsets: number
+  /** Só campanhas de VENDAS com compras do pixel (base do ROAS médio e do custo por resultado). */
+  sales_spend_month: number
+  sales_revenue_month: number
+  sales_purchases_month: number
+}
+
+/** Objetivos de campanha de vendas (ODAX novo + legados). */
+export const SALES_OBJECTIVES = new Set(['OUTCOME_SALES', 'CONVERSIONS', 'PRODUCT_CATALOG_SALES'])
+/** Compra registrada pelo PIXEL do site/cardápio (fallback para os tipos agregados). */
+const PIXEL_PURCHASE_TYPES = ['offsite_conversion.fb_pixel_purchase', 'purchase', 'omni_purchase']
+
+export function pixelPurchase(list: ActionValue[] | undefined): number {
+  for (const t of PIXEL_PURCHASE_TYPES) {
+    const hit = list?.find((a) => a.action_type === t)
+    if (hit) return Number(hit.value) || 0
+  }
+  return 0
+}
+
+type CampaignInsight = { objective?: string; spend?: string; actions?: ActionValue[]; action_values?: ActionValue[] }
+
+/** Soma do mês só das campanhas de vendas que tiveram compra no pixel. */
+export function summarizeSales(rows: CampaignInsight[]): { spend: number; revenue: number; purchases: number } {
+  let spend = 0
+  let revenue = 0
+  let purchases = 0
+  for (const r of rows) {
+    if (!SALES_OBJECTIVES.has(String(r.objective ?? '').toUpperCase())) continue
+    const p = pixelPurchase(r.actions)
+    const v = pixelPurchase(r.action_values)
+    if (p <= 0 && v <= 0) continue // campanha de vendas sem pixel/compra não entra
+    spend += Number(r.spend ?? 0) || 0
+    revenue += v
+    purchases += p
+  }
+  return { spend: Math.round(spend * 100) / 100, revenue: Math.round(revenue * 100) / 100, purchases: Math.round(purchases) }
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -125,7 +161,7 @@ export async function enrichAccount(token: string, actId: string): Promise<Accou
   const yesterday = spDate(-1)
   const since = monthStart < weekStart ? monthStart : weekStart
 
-  const [insights, adsets] = await Promise.all([
+  const [insights, adsets, campaigns] = await Promise.all([
     graphGet<{ data?: { date_start: string; spend?: string; action_values?: ActionValue[] }[] }>(
       `${G()}/${actId}/insights?${authParams(token, {
         fields: 'spend,action_values',
@@ -137,7 +173,17 @@ export async function enrichAccount(token: string, actId: string): Promise<Accou
     graphGet<{ data?: { end_time?: string; updated_time?: string; effective_status?: string }[] }>(
       `${G()}/${actId}/adsets?${authParams(token, { fields: 'end_time,updated_time,effective_status', limit: '200' })}`,
     ),
+    // Campanhas do mês (para separar as de vendas com pixel). Falha aqui não derruba o resto.
+    graphGet<{ data?: CampaignInsight[] }>(
+      `${G()}/${actId}/insights?${authParams(token, {
+        level: 'campaign',
+        fields: 'objective,spend,actions,action_values',
+        time_range: JSON.stringify({ since: monthStart, until: today }),
+        limit: '500',
+      })}`,
+    ).catch(() => ({ data: [] as CampaignInsight[] })),
   ])
+  const sales = summarizeSales(campaigns.data ?? [])
 
   let spend_month = 0
   let spend_yesterday = 0
@@ -181,6 +227,9 @@ export async function enrichAccount(token: string, actId: string): Promise<Accou
     runs_continuously,
     last_change_at,
     active_adsets,
+    sales_spend_month: sales.spend,
+    sales_revenue_month: sales.revenue,
+    sales_purchases_month: sales.purchases,
   }
 }
 

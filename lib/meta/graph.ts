@@ -62,6 +62,13 @@ export type MetaAdAccount = {
   owner_business_id: string | null
   owner_business_name: string | null
   access_kind: 'owned' | 'client'
+  /** pix = pré-paga (saldo disponível) · card = pós-paga no cartão · other/unknown. */
+  funding_kind: 'pix' | 'card' | 'other' | 'unknown'
+  account_status_code: number | null
+  /** Pós-paga: gasto ainda não cobrado no cartão (não é dívida). */
+  unbilled_amount: number
+  /** Limite de gastos da conta (0 = sem limite). */
+  spend_cap: number
 }
 
 export type MetaConfig = { token: string; businessId: string; version: string }
@@ -85,6 +92,7 @@ const FIELDS = [
   'timezone_name',
   'business{id,name}',
   'funding_source_details',
+  'spend_cap',
 ].join(',')
 // O gasto do mês NÃO vem mais embutido aqui (field expansion de insights deixava a
 // listagem lenta a ponto de estourar o tempo em portfólios com muitas contas de clientes);
@@ -97,7 +105,7 @@ export class MetaError extends Error {
   }
 }
 
-type RawAccount = {
+export type RawAccount = {
   id: string
   name?: string
   currency?: string
@@ -107,9 +115,13 @@ type RawAccount = {
   amount_spent?: string
   timezone_name?: string
   business?: { id?: string; name?: string }
-  funding_source_details?: { display_string?: string }
+  funding_source_details?: { display_string?: string; type?: number }
+  spend_cap?: string
   insights?: { data?: { spend?: string }[] }
 }
+
+/** account_status 3 (pagamento pendente) e 9 (carência): a conta DEVE à Meta. */
+export const DEBTOR_STATUS = new Set([3, 9])
 
 // account_status da Meta: 1 ativa · 2 desativada · 3 pendente de pagamento · 7/8/9 revisão/acerto/carência · 100/101 encerrando/encerrada
 function mapStatus(s: number | undefined): MetaAdAccount['status'] {
@@ -131,23 +143,44 @@ function prepaidFunds(display: string | undefined): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-function mapAccount(a: RawAccount, access: MetaAdAccount['access_kind']): MetaAdAccount {
+/**
+ * Forma de abastecimento (funding_source_details.type da Meta):
+ *   1 = cartão de crédito/débito · 20 = saldo armazenado (pré-pago: Pix/boleto no Brasil)
+ * Conta pré-paga (is_prepay_account) é sempre "pix", mesmo sem o tipo.
+ */
+export function fundingKind(a: Pick<RawAccount, 'is_prepay_account' | 'funding_source_details'>): MetaAdAccount['funding_kind'] {
+  if (a.is_prepay_account === true || a.funding_source_details?.type === 20) return 'pix'
+  if (a.funding_source_details?.type === 1) return 'card'
+  if (a.is_prepay_account === false) return a.funding_source_details?.type ? 'other' : 'card'
+  return 'unknown'
+}
+
+export function mapAccount(a: RawAccount, access: MetaAdAccount['access_kind']): MetaAdAccount {
   const prepaid = a.is_prepay_account === true
   const owed = minor(a.balance)
   const funds = prepaid ? prepaidFunds(a.funding_source_details?.display_string) : null
+  const debtor = DEBTOR_STATUS.has(a.account_status ?? -1)
+  // Saldo exibido = SALDO DISPONÍVEL (pré-paga) ou DÍVIDA (negativo, só quando a Meta marca
+  // a conta como pendente de pagamento). Cartão em dia não tem saldo: o gasto não cobrado
+  // vai para unbilled_amount (antes aparecia, errado, como "Devedor").
+  const balance = debtor && owed > 0 ? -owed : prepaid ? (funds ?? 0) : 0
   return {
     external_account_id: a.id.startsWith('act_') ? a.id : `act_${a.id}`,
     name: (a.name || a.id).slice(0, 160),
     currency: /^[A-Z]{3}$/.test(a.currency ?? '') ? a.currency! : 'BRL',
     status: mapStatus(a.account_status),
     account_type: a.is_prepay_account === undefined ? 'unknown' : prepaid ? 'prepaid' : 'postpaid',
-    balance: funds ?? (owed > 0 ? -owed : 0),
+    balance,
     spend_month: Number(a.insights?.data?.[0]?.spend ?? 0) || 0,
     spend_total: minor(a.amount_spent),
     timezone: a.timezone_name ?? null,
     owner_business_id: a.business?.id ?? null,
     owner_business_name: a.business?.name?.slice(0, 160) ?? null,
     access_kind: access,
+    funding_kind: fundingKind(a),
+    account_status_code: typeof a.account_status === 'number' ? a.account_status : null,
+    unbilled_amount: prepaid ? 0 : Math.max(owed, 0),
+    spend_cap: minor(a.spend_cap),
   }
 }
 
@@ -223,4 +256,10 @@ export async function fetchBusinessAdAccounts(cfg: MetaConfig): Promise<MetaAdAc
     }
   }
   return Array.from(out.values())
+}
+
+/** Uma conta (para a atualização rápida das contas acompanhadas a cada 5 min). */
+export async function fetchAdAccount(token: string, version: string, actId: string, access: MetaAdAccount['access_kind'] = 'client'): Promise<MetaAdAccount> {
+  const raw = await graphGet<RawAccount>(`${graphBase()}/${version}/${actId}?${authParams(token, { fields: FIELDS })}`)
+  return mapAccount(raw, access)
 }

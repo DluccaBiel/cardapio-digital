@@ -45,6 +45,22 @@ export type MockClient = {
   /** Saúde (bolinha): risk vermelho · ok verde · unlinked azul (conta sem cliente) · none cinza. */
   health?: 'risk' | 'ok' | 'unlinked' | 'none'
   healthReason?: string
+  /** Forma de abastecimento das contas acompanhadas: pix (pré-paga) · card · mixed (as duas) · unknown. */
+  funding?: 'pix' | 'card' | 'mixed' | 'unknown'
+  /** Pós-paga (cartão): gasto ainda não cobrado no cartão — não é dívida. */
+  unbilled?: number
+  /** Gasto médio por dia (últimos 7 dias completos). */
+  dailySpend?: number
+  /** Só campanhas de vendas com compras do pixel (mês). */
+  salesSpend?: number
+  salesRevenue?: number
+  purchases?: number
+  /** Custo por resultado (compra) = gasto em vendas ÷ compras do pixel. */
+  costPerResult?: number | null
+  /** Conjuntos de anúncios ativos (campanhas rodando). */
+  activeAdsets?: number
+  /** Algum conjunto ativo sem data de término. */
+  runsContinuously?: boolean
 }
 
 export type MockAdAccount = {
@@ -54,6 +70,8 @@ export type MockAdAccount = {
   status: 'Ativa' | 'Pausada' | 'Desativada' | 'Pendente'
   type: 'Pré-paga' | 'Cartão'
   balance: number
+  /** Cartão (pós-paga): gasto ainda não cobrado — não é dívida. */
+  unbilled?: number
   spendTotal: number
   lastSync: string
   watched: boolean

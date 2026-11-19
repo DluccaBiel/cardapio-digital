@@ -319,6 +319,10 @@ export function AccountsScreen({
                     <div className="flex items-center gap-1.5">
                       {account.balance < 0 ? (
                         <span className="text-[13px] font-bold tabular-nums text-[#FF6A3D]">Devedor {formatBRL(-account.balance)}</span>
+                      ) : account.type === 'Cartão' ? (
+                        <span className="text-[12px] font-semibold tabular-nums text-[#ADA8A1]" title="Pós-paga: a Meta cobra no cartão; não é dívida">
+                          a cobrar {formatBRL(account.unbilled ?? 0)}
+                        </span>
                       ) : (
                         <span className="text-[13px] font-bold tabular-nums text-[#34D399]">{formatBRL(account.balance)}</span>
                       )}

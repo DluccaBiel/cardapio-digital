@@ -6,7 +6,7 @@ import { audit } from '../../../lib/audit'
 import { getWorkspaceBySlug } from '../../../lib/db/workspaces'
 import { fetchBusinesses } from '../../../lib/meta/api'
 import { MetaError } from '../../../lib/meta/graph'
-import { syncWorkspaceMeta, workspaceTokens, type SyncSummary } from '../../../lib/meta/sync'
+import { refreshWatchedMeta, syncWorkspaceMeta, workspaceTokens, type SyncSummary } from '../../../lib/meta/sync'
 import { createAdminClient } from '../../../lib/supabaseAdmin'
 import { createServerClient } from '../../../lib/supabaseServer'
 
@@ -46,6 +46,19 @@ export async function syncMetaAction(ws: string): Promise<({ ok: true } & SyncSu
     return { ok: true, ...summary }
   } catch (e) {
     return { ok: false, error: e instanceof MetaError ? e.message : 'Falha ao sincronizar com a Meta.' }
+  }
+}
+
+/** Atualização automática (a cada 5 min na Visão geral): só as contas acompanhadas. */
+export async function refreshWatchedAction(ws: string): Promise<{ ok: true; refreshed: number; errors: string[]; synced_at: string } | Fail> {
+  const c = await managerCtx(ws)
+  if ('error' in c) return { ok: false, error: c.error! }
+  try {
+    const r = await refreshWatchedMeta(c.db, c.workspace.id)
+    revalidatePath(`/a/${ws}/visao-geral`)
+    return { ok: true, ...r }
+  } catch (e) {
+    return { ok: false, error: e instanceof MetaError ? e.message : 'Falha ao atualizar as contas acompanhadas.' }
   }
 }
 

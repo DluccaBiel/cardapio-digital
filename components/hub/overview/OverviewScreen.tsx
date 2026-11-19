@@ -35,12 +35,14 @@ import { currentISOWeek, formatBRL, shortDate } from '@/lib/format'
 import type { MockClient, MockTag, Situation } from '@/lib/mock'
 import { cn, FieldLabel, Modal, TextInput, TextSelect, Toast, Toggle } from '@/components/hub/ui'
 import { useRouter } from 'next/navigation'
-import { syncMetaAction } from '@/app/a/[ws]/meta-actions'
+import { refreshWatchedAction, syncMetaAction } from '@/app/a/[ws]/meta-actions'
 import { setClientSituationAction } from '@/app/a/[ws]/visao-geral/actions'
-import { HEALTH_COLOR, HEALTH_LABEL } from '@/lib/health'
+import { daysUntil, HEALTH_COLOR, HEALTH_LABEL, RISK_DAYS } from '@/lib/health'
 
 /** Sincronização automática ao abrir a Visão geral: no máximo a cada N minutos. */
 const AUTO_SYNC_MIN = 5
+/** Atualização automática das contas acompanhadas enquanto a tela está aberta. */
+const REFRESH_MS = 5 * 60_000
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const DAY = 86_400_000
@@ -87,6 +89,7 @@ type ColumnId =
   | 'spend'
   | 'balance'
   | 'roas'
+  | 'cpr'
   | 'termination'
   | 'lastChange'
   | 'pix'
@@ -101,6 +104,8 @@ type SortKey =
   | 'spendMonth'
   | 'balance'
   | 'roas'
+  | 'costPerResult'
+  | 'dailySpend'
   | 'termination'
   | 'lastChange'
   | 'campaignState'
@@ -113,12 +118,13 @@ const COLUMNS: { id: ColumnId; label: string; width: number; sortKey?: SortKey }
   { id: 'situation', label: 'Situação', width: 148, sortKey: 'situation' },
   { id: 'tags', label: 'Tags', width: 168 },
   { id: 'spend', label: 'Gasto no mês', width: 148, sortKey: 'spendMonth' },
-  { id: 'balance', label: 'Saldo e dias', width: 198, sortKey: 'balance' },
-  { id: 'roas', label: 'ROAS (mês)', width: 110, sortKey: 'roas' },
-  { id: 'termination', label: 'Término', width: 105, sortKey: 'termination' },
+  { id: 'campaign', label: 'Campanhas', width: 170, sortKey: 'campaignState' },
+  { id: 'balance', label: 'Saldo · gasto/dia · dura', width: 236, sortKey: 'balance' },
+  { id: 'roas', label: 'ROAS vendas', width: 112, sortKey: 'roas' },
+  { id: 'cpr', label: 'Custo por resultado', width: 150, sortKey: 'costPerResult' },
+  { id: 'termination', label: 'Término', width: 128, sortKey: 'termination' },
   { id: 'lastChange', label: 'Última alteração', width: 140, sortKey: 'lastChange' },
   { id: 'pix', label: 'Status Pix', width: 140 },
-  { id: 'campaign', label: 'Estado da campanha', width: 164, sortKey: 'campaignState' },
   { id: 'routine', label: 'Rotina da semana', width: 240 },
   { id: 'creative', label: 'Status do criativo', width: 190, sortKey: 'creativeStatus' },
   { id: 'delivery', label: 'Entrega / Editor', width: 300, sortKey: 'editor' },
@@ -208,6 +214,41 @@ export function OverviewScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  useEffect(() => {
+    if (!ws) return
+    let alive = true
+    const tick = async () => {
+      if (document.hidden) return // aba em segundo plano: espera voltar
+      setRefreshing(true)
+      if (canSync) {
+        const res = await refreshWatchedAction(ws).catch(() => null)
+        if (alive && res && !res.ok) setToast(res.error)
+        else if (alive && res?.ok && res.errors.length) setToast(`Atualizado com avisos: ${res.errors[0]}`)
+      }
+      if (!alive) return
+      router.refresh()
+      setRefreshedAt(new Date())
+      setRefreshing(false)
+    }
+    const id = window.setInterval(tick, REFRESH_MS)
+    const onVisible = () => {
+      if (!document.hidden && refreshedAtRef.current && Date.now() - refreshedAtRef.current.getTime() > REFRESH_MS) tick()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      alive = false
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, canSync])
+  const refreshedAtRef = useRef<Date | null>(null)
+  useEffect(() => {
+    refreshedAtRef.current = refreshedAt ?? (lastSyncedAt ? new Date(lastSyncedAt) : new Date())
+  }, [refreshedAt, lastSyncedAt])
+
   const openClient = (client: MockClient) => {
     if (!ws) return setLinksFor(client)
     if (client.id.startsWith('conta:')) return router.push(`/a/${ws}/contas`)
@@ -225,6 +266,8 @@ export function OverviewScreen({
     } else setToast(`${client.name}: ${SITUATION_LABEL[value]} salvo.`)
   }
   const [clients, setClients] = useState<MockClient[]>(initialClients)
+  // Dados novos do servidor (atualização a cada 5 min) sem perder filtros/ordenação.
+  useEffect(() => setClients(initialClients), [initialClients])
   const [tags, setTags] = useState<MockTag[]>(initialTags)
   const [month, setMonth] = useState(() => `${new Date().toISOString().slice(0, 7)}-01`)
   const [query, setQuery] = useState(initialQuery)
@@ -314,8 +357,16 @@ export function OverviewScreen({
     })
   }, [filtered, sort])
 
-  const activeClients = clients.filter((client) => client.situation === 'ativo').length
+  // Ativo = cliente acompanhado com campanha rodando (conjunto de anúncios ativo na Meta).
+  const activeClients = clients.filter((client) => (client.activeAdsets ?? 0) > 0).length
   const watchedSpend = clients.reduce((total, client) => total + client.spendMonth, 0)
+  const salesSpend = clients.reduce((total, client) => total + (client.salesSpend ?? 0), 0)
+  const salesRevenue = clients.reduce((total, client) => total + (client.salesRevenue ?? 0), 0)
+  const avgRoas = salesSpend > 0 ? salesRevenue / salesSpend : null
+  const endingSoon = clients
+    .filter((client) => client.termination && daysUntil(client.termination) >= 0 && daysUntil(client.termination) <= 14)
+    .sort((a, b) => (a.termination ?? '').localeCompare(b.termination ?? ''))
+    .slice(0, 6)
   const pendingCount = clients.filter((client) => client.routine.length < ROUTINES.length).length
 
   const update = (clientId: string, patch: Partial<MockClient>) => {
@@ -396,18 +447,30 @@ export function OverviewScreen({
     <div className="mx-auto w-full max-w-[1720px] px-4 pb-10 pt-5 sm:px-6 md:px-[30px] md:pt-[26px]">
       <h1 className="sr-only">Visão geral — {workspaceName}</h1>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-7">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 xl:grid-cols-4">
         <KpiCard
           label="Clientes ativos"
           value={String(activeClients)}
-          sub={`${clients.length} no total cadastrado`}
+          sub={`com campanha rodando · ${clients.length} acompanhado(s)`}
           icon={<Users size={18} strokeWidth={1.8} />}
         />
         <KpiCard
           label={`Gasto (${monthTitle(month).toLowerCase()})`}
           value={formatBRL(watchedSpend)}
-          sub="Soma de contas monitoradas"
+          sub="Soma das contas acompanhadas"
           icon={<span className="text-[18px] font-bold">$</span>}
+        />
+        <KpiCard
+          label="Retorno (vendas)"
+          value={formatBRL(salesRevenue)}
+          sub={`Compras do pixel · ${formatBRL(salesSpend)} investidos em vendas`}
+          icon={<span className="text-[15px] font-bold">R$</span>}
+        />
+        <KpiCard
+          label="ROAS médio"
+          value={avgRoas == null ? '—' : `${avgRoas.toFixed(2).replace('.', ',')}x`}
+          sub="Só campanhas de vendas com pixel (retorno ÷ gasto)"
+          icon={<span className="text-[15px] font-bold">x</span>}
         />
       </div>
 
@@ -422,12 +485,40 @@ export function OverviewScreen({
             </span>
           )
         })}
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#222225] bg-[#111113] px-3 py-1 text-[#8E8A86]">
+          <Clock size={12} className={refreshing ? 'animate-pulse text-[#D7141F]' : ''} />
+          {refreshing
+            ? 'Atualizando contas acompanhadas…'
+            : `Atualiza sozinho a cada 5 min${refreshedAt ? ` · última ${refreshedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
+        </span>
         {autoSync === 'running' && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D7141F]/40 bg-[#D7141F]/10 px-3 py-1 text-[#FFB3B8]">
             <Clock size={12} className="animate-pulse" /> Puxando contas da Meta…
           </span>
         )}
       </div>
+
+      {endingSoon.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[#8E8A86]">Encerram em breve:</span>
+          {endingSoon.map((client) => {
+            const d = daysUntil(client.termination!)
+            return (
+              <button
+                key={client.id}
+                type="button"
+                onClick={() => openClient(client)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1',
+                  d <= RISK_DAYS ? 'border-[#FF3B47]/50 bg-[#FF3B47]/10 text-[#FFB3B8]' : 'border-[#222225] bg-[#111113] text-[#CFCBC4]',
+                )}
+              >
+                <b className="text-[#F7F5F1]">{client.name}</b> {d === 0 ? 'hoje' : `em ${d}d`} · {shortDate(client.termination)}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="mt-5 flex flex-col gap-4 xl:mt-6 xl:flex-row xl:items-start xl:justify-between">
         <div>
@@ -797,47 +888,10 @@ export function OverviewScreen({
                             )}
                           </div>
                         )}
-                        {id === 'balance' && (
-                          <div className="min-w-0">
-                            {client.balance === null ? (
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-[13px] text-[#8E8A86]">Sem conta</span>
-                                <button
-                                  type="button"
-                                  onClick={() => window.location.assign(window.location.pathname.replace(/\/visao-geral.*$/, '/contas'))}
-                                  className="rounded-md border border-[#D7141F]/45 bg-[#D7141F]/5 px-2 py-0.5 text-[10px] font-semibold text-[#F0333D] hover:bg-[#D7141F]/15"
-                                >
-                                  Vincular conta
-                                </button>
-                              </div>
-                            ) : client.balance < 0 ? (
-                              <div>
-                                <p className="truncate text-[14px] font-bold tabular-nums text-[#FF6A3D]">Devedor {formatBRL(-client.balance)}</p>
-                                <div className="mt-2 h-[5px] w-full rounded-full bg-[#1D1D20]">
-                                  <span className="block h-full w-[6%] rounded-full bg-[#FF6A3D]" />
-                                </div>
-                              </div>
-                            ) : (
-                              <div>
-                                <div className="flex items-baseline justify-between gap-2">
-                                  <p className="truncate text-[14px] font-bold tabular-nums text-[#F7F5F1]">{formatBRL(client.balance)}</p>
-                                  <span className={cn('shrink-0 text-[11px] tabular-nums', client.daysLeft !== null && client.daysLeft < 2 ? 'text-[#FF6A3D]' : 'text-[#8E8A86]')}>
-                                    {Math.max(0, Math.round(client.daysLeft ?? 0))}d
-                                  </span>
-                                </div>
-                                <div className="mt-2 h-[5px] w-full overflow-hidden rounded-full bg-[#1D1D20]">
-                                  <span
-                                    className={cn('block h-full rounded-full', client.daysLeft !== null && client.daysLeft < 2 ? 'bg-[#FF6A3D]' : 'bg-[#D7141F]')}
-                                    style={{ width: `${Math.min(100, Math.max(4, (client.daysLeft ?? 0) * 8))}%` }}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        {id === 'balance' && <BalanceCell client={client} />}
                         {id === 'roas' && (
                           <span
-                            title="Faturamento de compras ÷ gasto no mês (Meta)"
+                            title="Só campanhas de vendas: compras do pixel ÷ gasto em vendas no mês"
                             className={cn(
                               'font-mono text-[13px] font-bold tabular-nums',
                               client.roas == null ? 'text-[#6E6A66]' : client.roas >= 3 ? 'text-[#34D399]' : client.roas >= 1 ? 'text-[#FBBF24]' : 'text-[#FF6A3D]',
@@ -846,7 +900,17 @@ export function OverviewScreen({
                             {client.roas == null ? '—' : `${client.roas.toFixed(2).replace('.', ',')}x`}
                           </span>
                         )}
-                        {id === 'termination' && <span className="tabular-nums text-[#DCD8D1]">{shortDate(client.termination)}</span>}
+                        {id === 'cpr' && (
+                          <div className="min-w-0">
+                            <p className="truncate text-[13px] font-bold tabular-nums text-[#F7F5F1]">
+                              {client.costPerResult == null ? '—' : formatBRL(client.costPerResult)}
+                            </p>
+                            <p className="mt-0.5 truncate text-[10px] text-[#86827D]">
+                              {(client.purchases ?? 0) > 0 ? `${client.purchases} compra(s) no pixel` : 'sem compras de vendas'}
+                            </p>
+                          </div>
+                        )}
+                        {id === 'termination' && <TerminationCell client={client} />}
                         {id === 'lastChange' && (
                           <div>
                             {changeDays > 14 ? (
@@ -879,14 +943,7 @@ export function OverviewScreen({
                             )}
                           </div>
                         )}
-                        {id === 'campaign' && (
-                          <MiniSelect
-                            value={client.campaignState}
-                            onChange={(value) => update(client.id, { campaignState: value as MockClient['campaignState'] })}
-                            options={Object.entries(CAMPAIGN_LABEL).map(([value, label]) => ({ value, label }))}
-                            muted={client.campaignState === 'nao_definido'}
-                          />
-                        )}
+                        {id === 'campaign' && <CampaignCell client={client} />}
                         {id === 'routine' && (
                           <div className="flex items-center gap-1.5">
                             {ROUTINES.map((item) => {
@@ -1048,9 +1105,14 @@ function csvValue(client: MockClient, id: ColumnId): string {
     case 'spend':
       return client.spendMonth.toFixed(2).replace('.', ',')
     case 'balance':
-      return client.balance === null ? 'Sem conta' : client.balance.toFixed(2).replace('.', ',')
+      if (client.balance === null) return 'Sem conta'
+      if (client.balance < 0) return `Devedor ${(-client.balance).toFixed(2).replace('.', ',')}`
+      if (client.funding === 'card') return `Cartão (a cobrar ${(client.unbilled ?? 0).toFixed(2).replace('.', ',')})`
+      return `${client.balance.toFixed(2).replace('.', ',')}${client.daysLeft != null ? ` (${Math.floor(client.daysLeft)}d)` : ''}`
     case 'roas':
       return client.roas == null ? '' : client.roas.toFixed(2).replace('.', ',')
+    case 'cpr':
+      return client.costPerResult == null ? '' : client.costPerResult.toFixed(2).replace('.', ',')
     case 'termination':
       return client.termination ?? ''
     case 'lastChange':
@@ -1058,7 +1120,7 @@ function csvValue(client: MockClient, id: ColumnId): string {
     case 'pix':
       return client.pixPaidAt ? relativeLabel(client.pixPaidAt) : 'Pendente'
     case 'campaign':
-      return CAMPAIGN_LABEL[client.campaignState]
+      return (client.activeAdsets ?? 0) > 0 ? (client.health === 'risk' ? `Ativa · ${client.healthReason ?? 'atenção'}` : 'Ativa · tudo certo') : CAMPAIGN_LABEL[client.campaignState]
     case 'routine':
       return `${client.routine.length}/6`
     case 'creative':
@@ -1069,6 +1131,135 @@ function csvValue(client: MockClient, id: ColumnId): string {
       return ''
   }
 }
+
+/** Saldo conforme o abastecimento: Pix (saldo disponível + quantos dias dura) · cartão (a cobrar) · devedor. */
+function BalanceCell({ client }: { client: MockClient }) {
+  if (client.balance === null) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[13px] text-[#8E8A86]">Sem conta</span>
+        <button
+          type="button"
+          onClick={() => window.location.assign(window.location.pathname.replace(/\/visao-geral.*$/, '/contas'))}
+          className="rounded-md border border-[#D7141F]/45 bg-[#D7141F]/5 px-2 py-0.5 text-[10px] font-semibold text-[#F0333D] hover:bg-[#D7141F]/15"
+        >
+          Vincular conta
+        </button>
+      </div>
+    )
+  }
+  const daily = client.dailySpend ?? 0
+  const dailyLabel = daily > 0 ? `${formatBRL(daily)}/dia` : 'sem gasto nos últimos 7 dias'
+  const kind = client.funding ?? 'unknown'
+  const badge = (label: string, tone: 'pix' | 'card' | 'debt') => (
+    <span
+      className={cn(
+        'shrink-0 rounded px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.08em]',
+        tone === 'pix' ? 'bg-[#34D399]/12 text-[#34D399]' : tone === 'card' ? 'bg-[#60A5FA]/12 text-[#93C5FD]' : 'bg-[#FF6A3D]/15 text-[#FF6A3D]',
+      )}
+    >
+      {label}
+    </span>
+  )
+
+  if (client.balance < 0) {
+    return (
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          {badge('Devedor', 'debt')}
+          <p className="truncate text-[14px] font-bold tabular-nums text-[#FF6A3D]">{formatBRL(-client.balance)}</p>
+        </div>
+        <p className="mt-1 truncate text-[10px] text-[#FF9C7A]">Pagamento pendente na Meta · {dailyLabel}</p>
+      </div>
+    )
+  }
+
+  if (kind === 'card') {
+    return (
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          {badge('Cartão', 'card')}
+          <p className="truncate text-[13px] font-semibold tabular-nums text-[#F7F5F1]">a cobrar {formatBRL(client.unbilled ?? 0)}</p>
+        </div>
+        <p className="mt-1 truncate text-[10px] text-[#86827D]">{dailyLabel} · cobrança automática no cartão</p>
+      </div>
+    )
+  }
+
+  const low = client.daysLeft !== null && client.daysLeft <= RISK_DAYS
+  const days = client.daysLeft === null ? null : Math.max(0, Math.floor(client.daysLeft))
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          {badge(kind === 'mixed' ? 'Pix+cartão' : 'Pix', 'pix')}
+          <p className={cn('truncate text-[14px] font-bold tabular-nums', low ? 'text-[#FF6A3D]' : 'text-[#F7F5F1]')}>{formatBRL(client.balance)}</p>
+        </div>
+        <span className={cn('shrink-0 text-[11px] font-semibold tabular-nums', low ? 'text-[#FF6A3D]' : 'text-[#8E8A86]')}>
+          {days === null ? '—' : `dura ${days}d`}
+        </span>
+      </div>
+      <div className="mt-1.5 h-[5px] w-full overflow-hidden rounded-full bg-[#1D1D20]">
+        <span
+          className={cn('block h-full rounded-full', low ? 'bg-[#FF6A3D]' : 'bg-[#34D399]')}
+          style={{ width: `${Math.min(100, Math.max(4, (client.daysLeft ?? 0) * 7))}%` }}
+        />
+      </div>
+      <p className="mt-1 truncate text-[10px] text-[#86827D]">
+        {dailyLabel}
+        {kind === 'mixed' ? ` · cartão a cobrar ${formatBRL(client.unbilled ?? 0)}` : ''}
+      </p>
+    </div>
+  )
+}
+
+/** Situação real das campanhas: verde = rodando e tudo certo · vermelho = rodando com problema (saldo/término). */
+function CampaignCell({ client }: { client: MockClient }) {
+  const running = (client.activeAdsets ?? 0) > 0
+  const risk = client.health === 'risk'
+  if (!client.accountsCount) return <span className="text-[12px] text-[#6E6A66]">—</span>
+  if (!running) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#2A2A2E] bg-[#18181B] px-2.5 py-1 text-[11px] font-semibold text-[#8E8A86]">
+        <span className="h-2 w-2 rounded-full bg-[#6E6A66]" />
+        {client.campaignState === 'pausado' ? 'Pausada' : 'Sem campanha ativa'}
+      </span>
+    )
+  }
+  return (
+    <div className="min-w-0" title={client.healthReason}>
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold',
+          risk ? 'border-[#FF3B47]/50 bg-[#FF3B47]/12 text-[#FF6B73]' : 'border-[#34D399]/40 bg-[#34D399]/12 text-[#34D399]',
+        )}
+      >
+        <span className={cn('h-2 w-2 rounded-full', risk ? 'bg-[#FF3B47]' : 'bg-[#34D399]')} style={{ boxShadow: `0 0 8px ${risk ? '#FF3B47' : '#34D399'}` }} />
+        Ativa
+      </span>
+      <p className={cn('mt-1 truncate text-[10px]', risk ? 'text-[#FF9C7A]' : 'text-[#86827D]')}>
+        {risk ? client.healthReason : `Tudo certo · ${client.activeAdsets} conjunto(s)`}
+      </p>
+    </div>
+  )
+}
+
+/** Data de término mais próxima + quantos dias faltam (vermelho até 3 dias). */
+function TerminationCell({ client }: { client: MockClient }) {
+  if (!client.termination) {
+    return <span className="text-[12px] text-[#8E8A86]">{client.runsContinuously ? 'Contínua' : '—'}</span>
+  }
+  const d = daysUntil(client.termination)
+  return (
+    <div>
+      <p className="tabular-nums text-[13px] text-[#DCD8D1]">{shortDate(client.termination)}</p>
+      <p className={cn('mt-0.5 text-[10px] font-semibold', d < 0 ? 'text-[#6E6A66]' : d <= RISK_DAYS ? 'text-[#FF6A3D]' : 'text-[#86827D]')}>
+        {d < 0 ? 'encerrada' : d === 0 ? 'termina hoje' : `em ${d} dia(s)`}
+      </p>
+    </div>
+  )
+}
+
 
 function KpiCard({ label, value, sub, icon }: { label: string; value: string; sub: string; icon: React.ReactNode }) {
   return (
