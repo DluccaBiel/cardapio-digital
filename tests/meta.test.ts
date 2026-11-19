@@ -123,3 +123,39 @@ describe('origem do redirect_uri do OAuth da Meta', () => {
     expect(metaOAuthOrigin('https://orvia-abc.vercel.app', 'preview')).toBe('https://orvia-abc.vercel.app')
   })
 })
+
+describe('saldo da conta: Pix x cartão x devedor', () => {
+  it('pré-paga (Pix) usa o saldo disponível', async () => {
+    const { mapAccount } = await import('../lib/meta/graph')
+    const a = mapAccount({ id: 'act_1', account_status: 1, is_prepay_account: true, balance: '0', funding_source_details: { display_string: 'Saldo disponível (R$ 1.234,56 BRL)', type: 20 } }, 'client')
+    expect(a.funding_kind).toBe('pix')
+    expect(a.balance).toBe(1234.56)
+    expect(a.unbilled_amount).toBe(0)
+  })
+  it('cartão em dia NÃO é devedor: gasto vai para "a cobrar"', async () => {
+    const { mapAccount } = await import('../lib/meta/graph')
+    const a = mapAccount({ id: 'act_2', account_status: 1, is_prepay_account: false, balance: '2288', funding_source_details: { type: 1 } }, 'client')
+    expect(a.funding_kind).toBe('card')
+    expect(a.balance).toBe(0)
+    expect(a.unbilled_amount).toBe(22.88)
+  })
+  it('pagamento pendente na Meta (status 3) = devedor', async () => {
+    const { mapAccount } = await import('../lib/meta/graph')
+    const a = mapAccount({ id: 'act_3', account_status: 3, is_prepay_account: false, balance: '8118', funding_source_details: { type: 1 } }, 'client')
+    expect(a.balance).toBe(-81.18)
+    expect(a.account_status_code).toBe(3)
+  })
+})
+
+describe('ROAS só de campanhas de vendas com pixel', () => {
+  it('ignora tráfego e vendas sem compra; prioriza compra do pixel', async () => {
+    const { summarizeSales } = await import('../lib/meta/api')
+    const r = summarizeSales([
+      { objective: 'OUTCOME_SALES', spend: '100', actions: [{ action_type: 'offsite_conversion.fb_pixel_purchase', value: '5' }, { action_type: 'omni_purchase', value: '9' }], action_values: [{ action_type: 'offsite_conversion.fb_pixel_purchase', value: '500' }] },
+      { objective: 'CONVERSIONS', spend: '50.5', actions: [{ action_type: 'purchase', value: '2' }], action_values: [{ action_type: 'purchase', value: '150' }] },
+      { objective: 'OUTCOME_TRAFFIC', spend: '999', actions: [{ action_type: 'link_click', value: '300' }] },
+      { objective: 'OUTCOME_SALES', spend: '70', actions: [] },
+    ])
+    expect(r).toEqual({ spend: 150.5, revenue: 650, purchases: 7 })
+  })
+})

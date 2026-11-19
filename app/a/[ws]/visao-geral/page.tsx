@@ -26,7 +26,6 @@ export default async function VisaoGeralPage({
       ws={params.ws}
       canSync={['owner', 'coordenador'].includes(workspace.role)}
       lastSyncedAt={lastSyncedAt}
-      key={clients.map((c) => `${c.id}:${c.lastChange}:${c.spendMonth}:${c.balance}`).join('|')}
       initialClients={clients}
       initialTags={tags}
       initialQuery={typeof searchParams.q === 'string' ? searchParams.q : ''}

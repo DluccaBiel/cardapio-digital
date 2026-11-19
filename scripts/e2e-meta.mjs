@@ -101,6 +101,14 @@ const mock = createServer((req, res) => {
       action_values: [{ action_type: 'omni_purchase', value: String(400 * n) }, { action_type: 'purchase', value: String(400 * n) }],
     })
     if (q.get('time_increment') === '1') return send(200, { data: list.map((d) => ({ date_start: d, date_stop: d, ...dayRow(1) })) })
+    if (q.get('level') === 'campaign') {
+      // Vendas com pixel (entra no ROAS) + tráfego sem compra (fica de fora do ROAS de vendas).
+      const n = list.length
+      return send(200, { data: [
+        { campaign_id: 'C1', objective: 'OUTCOME_SALES', spend: String(100 * n), actions: [{ action_type: 'offsite_conversion.fb_pixel_purchase', value: String(4 * n) }], action_values: [{ action_type: 'offsite_conversion.fb_pixel_purchase', value: String(400 * n) }] },
+        { campaign_id: 'C9', objective: 'OUTCOME_TRAFFIC', spend: String(50 * n), actions: [{ action_type: 'link_click', value: String(80 * n) }] },
+      ] })
+    }
     if (q.get('level') === 'ad') {
       const ad = (id, name, spend, purchases) => ({ ad_id: id, ad_name: name, spend: String(spend), impressions: String(spend * 30), inline_link_clicks: String(spend / 2), actions: [{ action_type: 'omni_purchase', value: String(purchases) }, { action_type: 'omni_add_to_cart', value: String(purchases * 2) }], action_values: [{ action_type: 'omni_purchase', value: String(purchases * 100) }] })
       return send(200, { data: [ad('A1', 'Criativo Pizza Calabresa', 300, 9), ad('A2', 'Criativo Combo Família', 250, 14), ad('A3', 'Criativo Sobremesa', 150, 3)] })
@@ -209,26 +217,35 @@ try {
   await page.getByText(/2 conta\(s\) · última sincronização/).waitFor({ timeout: 30000 }).then(() => log(true, 'tela mostra "2 conta(s) · última sincronização"'), () => log(false, 'tela mostra "2 conta(s) · última sincronização"'))
   await shot('03-integracoes-sincronizado')
 
-  const acc = await (await rest(`ad_accounts?workspace_id=eq.${WS_ID}&external_account_id=in.(act_9001,act_9002,act_9003)&select=external_account_id,balance,spend_7d,spend_yesterday,roas_month,ends_at,runs_continuously,last_change_at,active_adsets,client_id,meta_business_id`)).json()
+  const acc = await (await rest(`ad_accounts?workspace_id=eq.${WS_ID}&external_account_id=in.(act_9001,act_9002,act_9003)&select=external_account_id,balance,unbilled_amount,funding_kind,sales_spend_month,sales_revenue_month,sales_purchases_month,spend_7d,spend_yesterday,roas_month,ends_at,runs_continuously,last_change_at,active_adsets,client_id,meta_business_id`)).json()
   const a1 = acc.find((a) => a.external_account_id === 'act_9001')
   const a2 = acc.find((a) => a.external_account_id === 'act_9002')
   log(acc.length === 2 && !acc.some((a) => a.external_account_id === 'act_9003'), 'conta do portfólio desligado não foi importada')
-  log(Number(a1?.balance) === 700 && Number(a2?.balance) === -150, 'saldo: pré-paga R$ 700 · pós-paga devendo R$ 150')
+  log(Number(a1?.balance) === 700 && a1?.funding_kind === 'pix', 'saldo: pré-paga (Pix) com R$ 700 disponíveis')
+  log(Number(a2?.balance) === 0 && Number(a2?.unbilled_amount) === 150 && a2?.funding_kind === 'card', 'cartão em dia: saldo 0 e R$ 150 a cobrar (NÃO é dívida)')
+  log(Number(a1?.sales_revenue_month) > 0 && Number(a1?.sales_revenue_month) === Number(a1?.sales_spend_month) * 4 && Number(a1?.sales_purchases_month) > 0, 'vendas: só campanha de vendas com pixel (tráfego fora) → retorno = 4× gasto')
   log(Number(a1?.spend_7d) === 700 && Number(a1?.spend_yesterday) === 100, 'gasto 7 dias (700) e ontem (100)')
   log(Number(a1?.roas_month) === 4, 'ROAS do mês = 4,00')
   log(a1?.ends_at?.startsWith('2026-12-21T02:59') && a1?.runs_continuously === true && a1?.active_adsets === 2, 'término = maior data dos conjuntos ATIVOS (20/12) + conjunto contínuo detectado')
   log(a1?.last_change_at?.startsWith('2026-11-16T12:30'), 'última alteração = updated_time mais recente (16/11 09:30)')
   log(a1?.client_id === 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1' && !!a1?.meta_business_id, 'conta vinculada automaticamente ao cliente pelo nome + ao portfólio')
 
-  // Visão geral
+  // Visão geral: só contas ACOMPANHADAS. Antes de marcar, nenhuma das duas aparece.
+  await page.goto(`${HUB}/a/${WS}/visao-geral`)
+  await page.getByText('Clientes ativos').first().waitFor({ timeout: 60000 })
+  const before = await page.locator('body').innerText()
+  log(!before.includes('Pizzaria do Ze (Demo)') && !before.includes('Conta Pos-paga E2E'), 'Visão geral: sem conta acompanhada, nenhum cliente aparece')
+  await rest(`ad_accounts?workspace_id=eq.${WS_ID}&external_account_id=in.(act_9001,act_9002)`, { method: 'PATCH', body: JSON.stringify({ is_watched: true }) })
   await page.goto(`${HUB}/a/${WS}/visao-geral`)
   const row = page.locator('div,tr').filter({ hasText: 'Pizzaria do Ze (Demo)' }).last()
   await page.getByText('Pizzaria do Ze (Demo)').first().waitFor({ timeout: 60000 })
   const body = await page.locator('body').innerText()
-  log(/4,00x/.test(body), 'Visão geral: coluna ROAS (mês) = 4,00x')
-  log(/R\$\s?700,00/.test(body) && /\b7d\b/.test(body), 'Visão geral: saldo R$ 700,00 com 7 dias')
+  log(/4,00x/.test(body), 'Visão geral: ROAS de vendas = 4,00x (tráfego não entra)')
+  log(/R\$\s?700,00/.test(body) && /dura 7d/.test(body) && /R\$\s?100,00\/dia/.test(body), 'Visão geral: Pix R$ 700,00 · R$ 100,00/dia · dura 7d')
   log(/20\/12/.test(body), 'Visão geral: término 20/12')
-  log(body.includes('Conta Pos-paga E2E') && /Devedor/.test(body), 'Visão geral: conta sem cliente aparece (pós-paga devedora)')
+  log(body.includes('Conta Pos-paga E2E') && /a cobrar R\$\s?150,00/.test(body) && !/Devedor/.test(body), 'Visão geral: conta no cartão mostra "a cobrar R$ 150" (sem "Devedor")')
+  log(/ROAS médio/i.test(body) && /Retorno \(vendas\)/i.test(body) && /Custo por resultado/i.test(body), 'Visão geral: cards de retorno e ROAS médio + coluna custo por resultado')
+  log(/Atualiza sozinho a cada 5 min/.test(body), 'Visão geral: atualização automática a cada 5 min anunciada')
   log(!/dados fictícios/.test(body), 'Visão geral: sem aviso de dados fictícios')
   void row
   await shot('04-visao-geral')

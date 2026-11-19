@@ -12,7 +12,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from '../supabaseAdmin'
 import { decryptToken } from './crypto'
 import { enrichAccount, type AccountEnrichment } from './api'
-import { fetchBusinessAdAccounts, graphVersion, MetaError, metaConfig, type MetaAdAccount } from './graph'
+import { fetchAdAccount, fetchBusinessAdAccounts, graphVersion, MetaError, metaConfig, type MetaAdAccount } from './graph'
 
 export type SyncSummary = {
   total: number
@@ -132,6 +132,9 @@ export async function syncWorkspaceMeta(db: SupabaseClient, workspaceId: string)
         runs_continuously: false,
         last_change_at: null,
         active_adsets: 0,
+        sales_spend_month: 0,
+        sales_revenue_month: 0,
+        sales_purchases_month: 0,
       }
       byExt.set(a.external_account_id, { ...a, ...(extra ?? base), meta_business_id: src.metaBusinessId })
     })
@@ -173,4 +176,65 @@ export async function syncWorkspaceMeta(db: SupabaseClient, workspaceId: string)
   }
 
   return { total: rows.length, created, updated: rows.length - created, linked, enriched, businesses: sources.length, errors, synced_at: now }
+}
+
+const EMPTY_ENRICHMENT: AccountEnrichment = {
+  spend_month: 0,
+  spend_yesterday: 0,
+  spend_7d: 0,
+  revenue_month: 0,
+  roas_month: null,
+  ends_at: null,
+  runs_continuously: false,
+  last_change_at: null,
+  active_adsets: 0,
+  sales_spend_month: 0,
+  sales_revenue_month: 0,
+  sales_purchases_month: 0,
+}
+
+/**
+ * Atualização RÁPIDA (a cada 5 min na Visão geral): só as contas ACOMPANHADAS.
+ * Busca cada conta direto (saldo, Pix/cartão, status) + gasto/vendas/término, sem listar
+ * o portfólio inteiro — bem mais leve para os limites de chamada da Meta.
+ */
+export async function refreshWatchedMeta(db: SupabaseClient, workspaceId: string): Promise<{ refreshed: number; errors: string[]; synced_at: string }> {
+  const now = new Date().toISOString()
+  const errors: string[] = []
+  const [{ data: watched }, { data: businesses }] = await Promise.all([
+    db.from('ad_accounts').select('id, name, external_account_id, meta_business_id').eq('workspace_id', workspaceId).eq('platform', 'meta').eq('is_watched', true),
+    db.from('meta_businesses').select('id, connection_id').eq('workspace_id', workspaceId),
+  ])
+  if (!watched || watched.length === 0) return { refreshed: 0, errors, synced_at: now }
+
+  const tokens = await workspaceTokens(workspaceId)
+  const anyToken = tokens.values().next().value ?? metaConfig()?.token ?? null
+  const connByBiz = new Map((businesses ?? []).map((b) => [b.id as string, b.connection_id as string]))
+  const tokenFor = (bizId: string | null) => (bizId && tokens.get(connByBiz.get(bizId) ?? '')) || anyToken
+
+  let refreshed = 0
+  await pool(watched, 4, async (row) => {
+    const token = tokenFor(row.meta_business_id as string | null)
+    if (!token) {
+      errors.push(`${row.name}: sem conexão ativa com o Facebook.`)
+      return
+    }
+    try {
+      const acc = await fetchAdAccount(token, graphVersion(), row.external_account_id as string)
+      const extra = acc.status === 'active' ? await enrichAccount(token, acc.external_account_id).catch(() => null) : EMPTY_ENRICHMENT
+      const { access_kind: _a, owner_business_id: _b, ...fields } = acc
+      const { error } = await db
+        .from('ad_accounts')
+        .update({ ...fields, ...(extra ?? {}), last_synced_at: now, sync_error: null })
+        .eq('workspace_id', workspaceId)
+        .eq('id', row.id)
+      if (error) errors.push(`${row.name}: não consegui salvar (${error.code ?? 'erro'}).`)
+      else refreshed += 1
+    } catch (e) {
+      const msg = e instanceof MetaError ? e.message : 'falha ao consultar a Meta'
+      errors.push(`${row.name}: ${msg}`)
+      await db.from('ad_accounts').update({ sync_error: msg.slice(0, 300) }).eq('workspace_id', workspaceId).eq('id', row.id)
+    }
+  })
+  return { refreshed, errors, synced_at: now }
 }
