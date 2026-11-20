@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Undercut · SDR WhatsApp</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body { margin: 0; width: 340px; background: #0b0b0c; color: #ece9e3; font: 13px/1.45 Archivo, system-ui, sans-serif; }
+      header { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #222225; }
+      header img { width: 22px; height: 22px; }
+      header b { font-size: 13px; letter-spacing: .02em; }
+      main { padding: 14px; }
+      label { display: block; margin: 0 0 10px; font: 700 10px/1.2 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: .12em; color: #8e8a86; }
+      input, select { width: 100%; margin-top: 5px; height: 34px; border: 1px solid #2a2a2e; border-radius: 5px; background: #111113; color: #ece9e3; padding: 0 10px; font: 13px Archivo, system-ui, sans-serif; }
+      input:focus, select:focus { outline: none; border-color: #d7141f; }
+      button { cursor: pointer; border: 0; border-radius: 5px; padding: 9px 12px; font: 600 13px Archivo, system-ui, sans-serif; }
+      .primary { width: 100%; background: #d7141f; color: #fff; }
+      .primary:hover { background: #b5121b; }
+      .ghost { background: transparent; color: #cfcbc4; border: 1px solid #2a2a2e; }
+      .err { color: #ff6a3d; font-size: 12px; margin: 8px 0 0; }
+      .muted { color: #8e8a86; font-size: 12px; }
+      .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+      .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 2px 9px; font: 700 10px 'JetBrains Mono', monospace; text-transform: uppercase; }
+      .ok { background: rgba(52, 211, 153, .12); color: #34d399; }
+      .bad { background: rgba(255, 59, 71, .12); color: #ff6b73; }
+      h3 { margin: 14px 0 6px; font: 700 10px 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: .12em; color: #8e8a86; }
+      ul { list-style: none; margin: 0; padding: 0; }
+      li { padding: 7px 9px; border: 1px solid #222225; border-radius: 5px; margin-bottom: 5px; background: #111113; }
+      li small { display: block; color: #8e8a86; }
+      details { margin-top: 14px; }
+      summary { cursor: pointer; color: #8e8a86; font-size: 12px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <header><img src="icons/icon48.png" alt="" /><b>Undercut · SDR WhatsApp</b></header>
+    <main>
+      <section id="login" hidden>
+        <p class="muted">Entre com sua conta do Undercut. A senha não fica salva: a extensão recebe uma chave própria, só do SDR.</p>
+        <label>E-mail<input id="email" type="email" autocomplete="username" /></label>
+        <label>Senha<input id="password" type="password" autocomplete="current-password" /></label>
+        <label id="wsWrap" hidden>Workspace<select id="ws"></select></label>
+        <button class="primary" id="doLogin">Entrar</button>
+        <p class="err" id="loginErr" hidden></p>
+      </section>
+
+      <section id="app" hidden>
+        <div class="row">
+          <div>
+            <b id="wsName"></b>
+            <div class="muted" id="who"></div>
+          </div>
+          <button class="ghost" id="logout">Sair</button>
+        </div>
+        <p class="row" style="margin-top: 10px">
+          <span class="muted">Robô do WhatsApp</span>
+          <span class="pill" id="robot"></span>
+        </p>
+        <h3>Precisam de você</h3>
+        <ul id="human"></ul>
+        <h3>Respostas da IA para aprovar</h3>
+        <ul id="approvals"></ul>
+        <h3>Lembretes</h3>
+        <ul id="reminders"></ul>
+        <p class="muted" style="margin-top: 12px">Abra a conversa no WhatsApp Web para ver a ficha do lead ao lado.</p>
+      </section>
+
+      <details>
+        <summary>Avançado</summary>
+        <label style="margin-top: 8px">Endereço do Undercut<input id="hub" placeholder="https://orvia-gestao.vercel.app" /></label>
+        <button class="ghost" id="saveHub">Salvar endereço</button>
+        <p class="err" id="hubErr" hidden></p>
+      </details>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

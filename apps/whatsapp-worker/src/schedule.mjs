@@ -65,3 +65,40 @@ export function brVariants(phone) {
   else if (d.startsWith('55') && d.length === 12 && /[6-9]/.test(d[4])) out.push(`${d.slice(0, 4)}9${d.slice(4)}`)
   return out
 }
+
+/** Janela das mensagens que NÓS iniciamos (sdr_settings: outreach_days/start/end). */
+export function inOutreachWindow(settings, now = new Date()) {
+  const p = spParts(now)
+  const days = settings?.outreach_days ?? [1, 2, 3, 4, 5, 6]
+  if (!days.includes(p.dow)) return false
+  const start = String(settings?.outreach_start ?? '09:00').slice(0, 5)
+  const end = String(settings?.outreach_end ?? '20:00').slice(0, 5)
+  return p.time >= start && p.time < end
+}
+
+/** Tempo de "digitando…" proporcional ao tamanho da mensagem (2 a 9 s). */
+export function typingMs(text, rnd = Math.random) {
+  const base = Math.min(9000, 1500 + String(text ?? '').length * 35)
+  return Math.round(base * (0.8 + rnd() * 0.4))
+}
+
+/** Texto legível de uma mensagem recebida do WhatsApp (Baileys). */
+export function messageText(message) {
+  if (!message) return ''
+  const m = message.ephemeralMessage?.message ?? message.viewOnceMessage?.message ?? message
+  return (
+    m.conversation ??
+    m.extendedTextMessage?.text ??
+    m.imageMessage?.caption ??
+    m.videoMessage?.caption ??
+    (m.audioMessage ? '[áudio]' : m.imageMessage ? '[imagem]' : m.videoMessage ? '[vídeo]' : m.documentMessage ? '[documento]' : m.stickerMessage ? '[figurinha]' : m.locationMessage ? '[localização]' : '')
+  )
+}
+
+/** Próximo passo da cadência: { done } ou { nextRunAt } (espera do passo seguinte a partir de agora). */
+export function advanceCadence(steps, stepIndex, now = new Date()) {
+  const next = stepIndex + 1
+  if (!Array.isArray(steps) || next >= steps.length) return { done: true, stepIndex: next, nextRunAt: null }
+  const wait = Math.max(0, Number(steps[next]?.wait_hours) || 0)
+  return { done: false, stepIndex: next, nextRunAt: new Date(now.getTime() + wait * 3_600_000).toISOString() }
+}

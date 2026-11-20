@@ -108,3 +108,32 @@ describe('agente de prospecção (OpenStreetMap)', () => {
     ])
   })
 })
+
+describe('SDR no robô: janela, cadência e texto', async () => {
+  const { inOutreachWindow, advanceCadence, messageText, typingMs } = await import('../apps/whatsapp-worker/src/schedule.mjs')
+  // 2026-11-21 é sábado; 23:00Z = 20:00 em SP; 2026-11-22 é domingo.
+  it('janela seg-sáb 9h-20h (fim exclusivo)', () => {
+    const s = { outreach_days: [1, 2, 3, 4, 5, 6], outreach_start: '09:00:00', outreach_end: '20:00:00' }
+    expect(inOutreachWindow(s, new Date('2026-11-21T22:59:00Z'))).toBe(true) // sáb 19:59
+    expect(inOutreachWindow(s, new Date('2026-11-21T23:00:00Z'))).toBe(false) // sáb 20:00
+    expect(inOutreachWindow(s, new Date('2026-11-22T15:00:00Z'))).toBe(false) // domingo
+    expect(inOutreachWindow(s, new Date('2026-11-20T11:59:00Z'))).toBe(false) // sex 08:59
+  })
+  it('cadência: próximo passo agenda a espera dele a partir do envio; último passo conclui', () => {
+    const steps = [{ wait_hours: 0 }, { wait_hours: 24 }, { wait_hours: 72 }]
+    const now = new Date('2026-11-20T12:00:00Z')
+    expect(advanceCadence(steps, 0, now)).toEqual({ done: false, stepIndex: 1, nextRunAt: '2026-11-21T12:00:00.000Z' })
+    expect(advanceCadence(steps, 2, now)).toEqual({ done: true, stepIndex: 3, nextRunAt: null })
+  })
+  it('texto de mensagens recebidas (texto, legenda, áudio, temporária)', () => {
+    expect(messageText({ conversation: 'oi' })).toBe('oi')
+    expect(messageText({ extendedTextMessage: { text: 'link' } })).toBe('link')
+    expect(messageText({ imageMessage: { caption: 'cardápio' } })).toBe('cardápio')
+    expect(messageText({ audioMessage: {} })).toBe('[áudio]')
+    expect(messageText({ ephemeralMessage: { message: { conversation: 'some' } } })).toBe('some')
+  })
+  it('"digitando…" proporcional ao texto, entre ~2 e 9 s', () => {
+    expect(typingMs('oi', () => 0.5)).toBeLessThan(2500)
+    expect(typingMs('x'.repeat(1000), () => 0.5)).toBe(9000)
+  })
+})

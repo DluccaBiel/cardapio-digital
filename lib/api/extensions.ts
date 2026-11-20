@@ -34,6 +34,14 @@ function cardapiowebIds(): string[] {
   return env.length ? env : DEFAULT_CARDAPIOWEB_IDS
 }
 
+/**
+ * Extensão do SDR no WhatsApp Web. NÃO é um canal de loja (sem cardápio/trava de loja):
+ * fica fora de EXTENSION_SLUGS/Platform e tem escopos próprios (sdr:*).
+ */
+export const SDR_EXTENSION_SLUG = 'undercut-sdr' as const
+export const LOGIN_EXTENSION_SLUGS = [...EXTENSION_SLUGS, SDR_EXTENSION_SLUG] as const
+export type LoginExtensionSlug = (typeof LOGIN_EXTENSION_SLUGS)[number]
+
 export function isExtensionSlug(v: unknown): v is ExtensionSlug {
   return typeof v === 'string' && (EXTENSION_SLUGS as readonly string[]).includes(v)
 }

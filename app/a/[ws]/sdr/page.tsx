@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
 import { listProspectClients } from '../../../../lib/db/prospects'
@@ -39,7 +40,19 @@ export default async function SdrPage({ params }: { params: { ws: string } }) {
   })
 
   return (
-    <SdrScreen
+    <>
+      <div className="mx-auto w-full max-w-[1400px] px-4 pt-5 sm:px-6 md:px-[30px]">
+        <Link
+          href={`/a/${workspace.slug}/sdr/whatsapp`}
+          className="flex items-center justify-between gap-3 rounded-[6px] border border-[#D7141F]/45 bg-[#1F0D0F]/70 px-4 py-3 text-[13px] text-[#FFD9DB] hover:border-[#D7141F]"
+        >
+          <span>
+            <b className="text-white">SDR WhatsApp</b> — funil, conversas com leads, IA respondendo 24h, cadências e Google Agenda
+          </span>
+          <span className="font-semibold text-[#F0333D]">Abrir →</span>
+        </Link>
+      </div>
+      <SdrScreen
       ws={workspace.slug}
       basePath={`/a/${workspace.slug}`}
       leads={clientLeads}
@@ -47,5 +60,6 @@ export default async function SdrPage({ params }: { params: { ws: string } }) {
       canManage={['owner', 'coordenador'].includes(workspace.role)}
       missingColumns={missingColumns}
     />
+    </>
   )
 }
