@@ -50,6 +50,10 @@ docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/rls_cro
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/checks.sql          # higiene (0 problemas)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/combos_ifood.sql    # 16 testes combos/iFood (16/0)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/disparos_rls.sql    # Disparos WhatsApp: RLS/grants/constraints (falhas = 0)
+docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/sdr_rls.sql         # SDR WhatsApp: RLS/constraints (33/33)
+# SDR WhatsApp (hub :3100 + Supabase local): node supabase/tests/api_sdr.mjs (32/32) · node supabase/tests/worker_sdr.mjs (17/17, WhatsApp simulado)
+#   · node supabase/tests/api_sdr_ai.mjs (8/8, Claude simulado em :4591 — hub com ANTHROPIC_BASE_URL=http://127.0.0.1:4591) · node scripts/e2e-sdr-extension.mjs (17/17)
+#   · LOCAL_API_URL/LOCAL_SERVICE_ROLE_KEY + npx vitest run tests/sdr-ai.test.ts (10/10; sem banco local os testes de integração pulam)
 # API + painel + extensão (hub local em :3100 apontando para o Supabase local, envs só no processo):
 #   node supabase/tests/api_menu.mjs (34/34) → node scripts/e2e-cardapio.mjs (9/9) → (apps/extensions/orvia-ifood) node scripts/e2e.mjs (15/15)
 # Integração Meta (simulador local da Graph API/OAuth — nunca a Meta real; hub com NEXT_DIST_DIR=.next-e2e,
@@ -147,6 +151,15 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 - Proteções do número: intervalo aleatório ≥ 20 s, janela de horário/dias em America/Sao_Paulo, limite diário do número, "digitando…", opt-out por "SAIR", pausa após 5 falhas.
 - Rede local do usuário: o Windows reserva 54212–54611 (Hyper-V) e o `supabase start` falha na 54322. Para testar local, troque as portas em `supabase/config.toml` temporariamente (ex.: 583xx) e **restaure antes do commit**.
 
+## 🤖 SDR no WhatsApp (extensão + robô + IA)
+
+- **Menu SDR → "SDR WhatsApp"** (`/a/{ws}/sdr/whatsapp`): funil (8 etapas, valor previsto), conversas (aprovar/editar sugestão da IA, enviar pelo robô, assumir conversa), configurações (IA, roteiro/preços/proibições, janela e limites, prospecção contínua por cidades, reuniões, cadências por etapa, respostas rápidas, Google Agenda).
+- **Extensão** `apps/extensions/undercut-sdr` (WhatsApp Web, MV3, JS puro, Shadow DOM): ficha/funil do lead da conversa aberta, atalhos `#etapa`, respostas rápidas no campo (nunca envia sozinha), notas/lembretes, aprovação da IA. Login gera chave só `sdr:ler`/`sdr:escrever` (slug `undercut-sdr`, fora de `EXTENSION_SLUGS`/Platform — não é canal de loja).
+- **Robô** (`apps/whatsapp-worker/src/sdr.mjs` + `ai-bridge.mjs`): só fala com LEADS (`prospect_leads`), ignora grupos/contatos pessoais; mensagens que nós iniciamos só na janela (`sdr_settings`, padrão seg–sáb 9h–20h, 50 novos/dia, intervalo 60–180 s, ritmo compartilhado com Disparos); respostas 24h; resposta sua pelo celular pausa a IA no lead; "SAIR" = opt-out. Cria a própria chave de API (sdr:*) a cada boot e chama `POST /api/v1/sdr/ai/reply` no hub (`HUB_URL`, padrão `https://undercuthub.vercel.app`).
+- **IA** (`lib/sdr/ai.ts`): `claude-opus-5-5`, effort `low`, `fallbacks: 'default'`; ferramentas `get_free_slots`/`book_meeting` (Google Agenda + Meet), `update_lead`, `handoff`; máx. N respostas/lead/dia; recusa/dúvida/pedido de humano → `needs_human`. Precisa de `ANTHROPIC_API_KEY` em Production.
+- **Google Agenda** (`lib/google/calendar.ts`): OAuth `/api/google/oauth/{start,callback}` (redirect fixo no endereço oficial em produção), refresh token criptografado com `META_TOKEN_KEY` em `google_tokens` (só service role). Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`; no Google Cloud: Calendar API ligada, redirect `https://undercuthub.vercel.app/api/google/oauth/callback`, app **publicado** (em "teste" o Google derruba o token em 7 dias).
+- Migrations: `20261120120000_sdr_whatsapp.sql`, `20261120130000_google_calendar.sql`.
+
 ## 🗺️ Roadmap
 
 `docs/roadmap-fase-1.md` — ordem de implementação da Fase 1 com critério de pronto. Fases futuras (cardápio público/pedidos, Meta Ads, relatórios, WhatsApp) ficam fora do escopo atual.
@@ -183,7 +196,8 @@ Usadas pelo app (Preview e Production têm cópia, configuradas em 04/11/2026):
 - `META_APP_ID` (id do app da Meta), `META_APP_SECRET` (secret) e `META_TOKEN_KEY` (secret, 32 bytes base64 — chave AES-256-GCM dos tokens) — **Configurações → Integrações → Conectar com o Facebook** (OAuth, vários portfólios; `lib/meta/api.ts`, `lib/meta/sync.ts`, migration `20261116210000_meta_integrations.sql`). No app da Meta: produto “Login do Facebook”, URL de redirecionamento `https://undercuthub.vercel.app/api/meta/oauth/callback`, permissões `ads_read` + `business_management`. Trocar `META_TOKEN_KEY` invalida as conexões (reconectar).
 - `META_ACCESS_TOKEN` + `META_BUSINESS_ID` (legado, opcional) — usados só se nenhum portfólio estiver conectado no painel (`lib/meta/graph.ts`, 0007)
 - `CRON_SECRET` (secret, gerado aleatório em 2026-11-09) — protege `/api/cron/keepalive` (cron diário em `vercel.json` que impede a pausa do Supabase gratuito por 7 dias sem uso)
-- `ANTHROPIC_API_KEY` (opcional) — sem ela, `/api/v1/analysis` usa o modo gratuito (regras + pesquisa pública)
+- `ANTHROPIC_API_KEY` (opcional) — sem ela, `/api/v1/analysis` usa o modo gratuito (regras + pesquisa pública) e a IA do SDR WhatsApp fica desligada (`/api/v1/sdr/ai/reply` responde erro)
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (secret) — Google Agenda da IA do SDR (marcar reuniões com Meet)
 - `CARDAPIOWEB_EXTENSION_IDS` (opcional) — id(s) do Chrome da extensão Cardápio Web (ver `docs/extensoes.md` §13 e `docs/integracao-extensoes-hub.md`)
 
 Regras:

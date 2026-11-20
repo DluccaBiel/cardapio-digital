@@ -12,7 +12,15 @@ Processo Node que roda **no seu computador** e faz três coisas para o menu **Di
                                      prospect_leads, broadcast_*                          └─▶ OpenStreetMap
 ```
 
-O robô só faz conexões de **saída** (Supabase, WhatsApp, mapas). Nada fica exposto na internet.
+O robô só faz conexões de **saída** (Supabase, WhatsApp, mapas, Undercut). Nada fica exposto na internet.
+
+### SDR no WhatsApp
+
+Além dos Disparos, o robô executa o **SDR** (menu SDR → SDR WhatsApp e a extensão `apps/extensions/undercut-sdr`):
+cadências de follow-up por etapa (só na janela de envio, com limite de novos contatos/dia), respostas 24h,
+prospecção contínua por cidades e a **IA** — quando um lead escreve, o robô espera 20 s e pede a resposta ao
+Undercut (`HUB_URL`, padrão `https://undercuthub.vercel.app`), que roda a IA e o Google Agenda no servidor.
+Para isso o robô cria a própria chave de API (só `sdr:*`) a cada vez que liga e revoga a anterior.
 
 ## Instalação (uma vez)
 

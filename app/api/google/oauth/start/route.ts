@@ -13,11 +13,11 @@ export async function GET(req: NextRequest) {
   if (!/^[a-z0-9-]{1,64}$/.test(ws)) return NextResponse.redirect(new URL('/login', req.nextUrl.origin))
   const origin = googleOrigin(req.nextUrl.origin)
   if (origin !== req.nextUrl.origin) return NextResponse.redirect(new URL(`/api/google/oauth/start?ws=${encodeURIComponent(ws)}`, origin))
-  const back = (status: string) => NextResponse.redirect(new URL(`/a/${encodeURIComponent(ws)}/sdr?google=${status}`, origin))
+  const back = (status: string) => NextResponse.redirect(new URL(`/a/${encodeURIComponent(ws)}/sdr/whatsapp?tab=config&google=${status}`, origin))
 
   const db = createServerClient()
   const { data: u } = await db.auth.getUser()
-  if (!u.user) return NextResponse.redirect(new URL(`/login?next=/a/${ws}/sdr`, origin))
+  if (!u.user) return NextResponse.redirect(new URL(`/login?next=/a/${ws}/sdr/whatsapp`, origin))
   const workspace = await getWorkspaceBySlug(ws)
   if (!workspace || !['owner', 'coordenador'].includes(workspace.role)) return back('sem_permissao')
   const app = googleAppConfig()

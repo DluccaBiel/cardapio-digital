@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
   const ws = /^[a-z0-9-]{1,64}$/.test(saved.ws ?? '') ? saved.ws! : ''
   const back = (status: string) => {
-    const res = NextResponse.redirect(new URL(ws ? `/a/${ws}/sdr?google=${status}` : '/', origin))
+    const res = NextResponse.redirect(new URL(ws ? `/a/${ws}/sdr/whatsapp?tab=config&google=${status}` : '/', origin))
     res.cookies.set(GOOGLE_STATE_COOKIE, '', { path: '/api/google/oauth', maxAge: 0 })
     return res
   }
