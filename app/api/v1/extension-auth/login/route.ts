@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { audit } from '@/lib/audit'
 import { err, ok, preflight, readJson } from '@/lib/api/http'
-import { detectExtensionSlug, EXTENSION_SLUGS, PLATFORM_LABEL, PLATFORM_OF } from '@/lib/api/extensions'
-import { generateApiKey, IFOOD_EXTENSION_SCOPES } from '@/lib/api/keys'
+import { detectExtensionSlug, LOGIN_EXTENSION_SLUGS, PLATFORM_LABEL, PLATFORM_OF, SDR_EXTENSION_SLUG } from '@/lib/api/extensions'
+import { generateApiKey, IFOOD_EXTENSION_SCOPES, SDR_EXTENSION_SCOPES } from '@/lib/api/keys'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 
 export const dynamic = 'force-dynamic'
@@ -22,7 +22,7 @@ const body = z.object({
   device_id: z.string().regex(/^[a-z0-9-]{8,64}$/i),
   device_label: z.string().trim().max(60).optional(),
   /** Qual extensão está entrando (opcional; sem ele, vale o Origin — ver lib/api/extensions). */
-  extension: z.enum(EXTENSION_SLUGS).optional(),
+  extension: z.enum(LOGIN_EXTENSION_SLUGS).optional(),
 })
 
 const ROLES = new Set(['owner', 'coordenador', 'editor'])
@@ -47,8 +47,9 @@ export async function POST(req: Request) {
   const parsed = body.safeParse(await readJson(req))
   if (!parsed.success) return err(req, 'validation_failed', 'Informe e-mail e senha válidos.')
   const { email, password, workspace_slug, device_id, device_label } = parsed.data
-  const slug = detectExtensionSlug(req, parsed.data.extension)
-  const platform = PLATFORM_OF[slug]
+  const isSdr = parsed.data.extension === SDR_EXTENSION_SLUG
+  const slug = isSdr ? SDR_EXTENSION_SLUG : detectExtensionSlug(req, parsed.data.extension)
+  const platform = isSdr ? null : PLATFORM_OF[slug as Exclude<typeof slug, typeof SDR_EXTENSION_SLUG>]
 
   const auth = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -80,7 +81,8 @@ export async function POST(req: Request) {
   }
 
   const device = device_id.slice(0, 8)
-  const name = `Extensão ${PLATFORM_LABEL[platform]} · ${email} · ${(device_label || 'Chrome').slice(0, 30)} · ${device}`
+  const label = platform ? PLATFORM_LABEL[platform] : 'SDR WhatsApp'
+  const name = `Extensão ${label} · ${email} · ${(device_label || 'Chrome').slice(0, 30)} · ${device}`
   // Mesmo dispositivo (device_id é por extensão instalada) fazendo login de novo:
   // revoga a chave anterior dele — inclusive a antiga, criada como iFood antes da 0006.
   await admin
@@ -99,7 +101,7 @@ export async function POST(req: Request) {
       name,
       key_hash: hash,
       key_prefix: prefix,
-      scopes: IFOOD_EXTENSION_SCOPES,
+      scopes: isSdr ? SDR_EXTENSION_SCOPES : IFOOD_EXTENSION_SCOPES,
       expires_at: new Date(Date.now() + 365 * 86_400_000).toISOString(),
       created_by: userId,
     })

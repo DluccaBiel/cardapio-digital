@@ -9,6 +9,8 @@ export const API_SCOPES = [
   'pesquisa:ler',
   'webhooks:gerenciar',
   'extensoes:ler',
+  'sdr:ler',
+  'sdr:escrever',
 ] as const
 export type ApiScope = (typeof API_SCOPES)[number]
 
@@ -17,6 +19,9 @@ export type ApiScope = (typeof API_SCOPES)[number]
  * `pesquisa:ler` permite pedir pesquisas ao agente do Undercut (somente leitura).
  */
 export const IFOOD_EXTENSION_SCOPES: ApiScope[] = ['clientes:ler', 'catalogo:ler', 'catalogo:escrever', 'pesquisa:ler']
+
+/** Extensão "Undercut · SDR WhatsApp": só o SDR (leads, funil, notas, fila de envio). */
+export const SDR_EXTENSION_SCOPES: ApiScope[] = ['sdr:ler', 'sdr:escrever']
 
 /**
  * Gera uma chave `ck_live_<43 chars base64url>` (256 bits aleatórios).
