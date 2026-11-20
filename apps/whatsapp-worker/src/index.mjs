@@ -16,6 +16,7 @@ import { createClient } from '@supabase/supabase-js'
 import pino from 'pino'
 import QRCode from 'qrcode'
 import { brVariants, canSendNow, isOptOut, nextDelayMs, renderMessage, spDayStartIso } from './schedule.mjs'
+import { createSdr } from './sdr.mjs'
 // Agente de prospecção compartilhado com o painel (TypeScript lido direto pelo Node ≥ 22.18).
 import { normalizeBrPhone, searchFoodBusinesses } from '../../../lib/sdr/providers/osm.ts'
 
@@ -244,6 +245,7 @@ async function start() {
     })
 
     current.ev.on('messages.upsert', (ev) => handleIncoming(ev).catch((e) => log('erro ao ler mensagem:', e.message)))
+    current.ev.on('messages.upsert', (ev) => sdr.handleUpsert(ev).catch((e) => log('SDR: erro ao ler mensagem:', e.message)))
   } catch (e) {
     sock = null
     status = 'error'
@@ -298,7 +300,8 @@ async function handleIncoming({ messages, type }) {
 // ---------------------------------------------------------------------------
 // Envio agendado (1 mensagem por vez, intervalo aleatório, limite diário do número)
 // ---------------------------------------------------------------------------
-let nextGlobalAt = 0
+/** Ritmo compartilhado entre Disparos e SDR: mensagens que NÓS iniciamos nunca saem coladas. */
+const pace = { nextAt: 0 }
 let consecutiveErrors = 0
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -311,7 +314,7 @@ async function resolveJid(phone) {
 }
 
 async function sendTick() {
-  if (!sock || status !== 'ready' || Date.now() < nextGlobalAt) return
+  if (!sock || status !== 'ready' || Date.now() < pace.nextAt) return
   const now = new Date()
   const { data: campaigns } = await db
     .from('broadcast_campaigns')
@@ -353,7 +356,7 @@ async function sendTick() {
         await db.from('broadcast_recipients').update({ status: 'falhou', error: 'número sem WhatsApp' }).eq('id', rec.id)
         await db.from('broadcast_campaigns').update({ failed_count: c.failed_count + 1 }).eq('id', c.id)
         if (rec.lead_id) await db.from('prospect_leads').update({ status: 'invalido' }).eq('id', rec.lead_id)
-        nextGlobalAt = Date.now() + 5000
+        pace.nextAt = Date.now() + 5000
         return
       }
       await sock.presenceSubscribe(jid).catch(() => {})
@@ -380,10 +383,24 @@ async function sendTick() {
       log(`Falha no envio: ${msg}${pause ? ' — disparo PAUSADO após 5 falhas seguidas.' : ''}`)
       if (pause) consecutiveErrors = 0
     }
-    nextGlobalAt = Date.now() + delay
+    pace.nextAt = Date.now() + delay
     return // 1 envio por ciclo
   }
 }
+
+// ---------------------------------------------------------------------------
+// SDR no WhatsApp (cadências, fila, prospecção contínua) — ver sdr.mjs
+// ---------------------------------------------------------------------------
+const sdr = createSdr({
+  db,
+  WS,
+  log,
+  getSock: () => sock,
+  isReady: () => status === 'ready',
+  resolveJid,
+  pace,
+  onInboundForAi: null, // Parte 4: a IA responde via hub
+})
 
 // ---------------------------------------------------------------------------
 // Pesquisas do agente de prospecção (fila prospect_searches)
@@ -494,6 +511,7 @@ async function loop() {
     }
     await searchTick()
     await sendTick()
+    await sdr.tick()
   } catch (e) {
     log('erro no ciclo:', e.message)
   } finally {
