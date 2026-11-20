@@ -17,6 +17,7 @@ import pino from 'pino'
 import QRCode from 'qrcode'
 import { brVariants, canSendNow, isOptOut, nextDelayMs, renderMessage, spDayStartIso } from './schedule.mjs'
 import { createSdr } from './sdr.mjs'
+import { createAiBridge } from './ai-bridge.mjs'
 // Agente de prospecção compartilhado com o painel (TypeScript lido direto pelo Node ≥ 22.18).
 import { normalizeBrPhone, searchFoodBusinesses } from '../../../lib/sdr/providers/osm.ts'
 
@@ -391,6 +392,10 @@ async function sendTick() {
 // ---------------------------------------------------------------------------
 // SDR no WhatsApp (cadências, fila, prospecção contínua) — ver sdr.mjs
 // ---------------------------------------------------------------------------
+const ai = await createAiBridge({ db, WS, log, hubUrl: process.env.HUB_URL }).catch((e) => {
+  log('IA: desligada —', e.message)
+  return { onInbound: async () => {}, tick: async () => {} }
+})
 const sdr = createSdr({
   db,
   WS,
@@ -399,7 +404,7 @@ const sdr = createSdr({
   isReady: () => status === 'ready',
   resolveJid,
   pace,
-  onInboundForAi: null, // Parte 4: a IA responde via hub
+  onInboundForAi: (lead) => ai.onInbound(lead), // a IA responde pelo Undercut (servidor)
 })
 
 // ---------------------------------------------------------------------------
@@ -512,6 +517,7 @@ async function loop() {
     await searchTick()
     await sendTick()
     await sdr.tick()
+    await ai.tick()
   } catch (e) {
     log('erro no ciclo:', e.message)
   } finally {
