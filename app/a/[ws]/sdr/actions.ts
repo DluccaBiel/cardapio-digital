@@ -5,9 +5,11 @@ import { z } from 'zod'
 import { audit } from '../../../../lib/audit'
 import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
 import { createServerClient } from '../../../../lib/supabaseServer'
-import { type ProspectLead } from '../../../../lib/db/disparos'
 import { icpFromLead } from '../../../../lib/sdr/score'
 import { startLocalWorkerAction } from '../disparos/actions'
+import type { SdrSearchView, SdrLeadView } from '../../../../lib/sdr/types'
+
+export type { SdrSearchView, SdrLeadView }
 
 type Fail = { ok: false; error: string }
 const MANAGERS = ['owner', 'coordenador']
@@ -34,22 +36,6 @@ const searchSchema = z.object({
   niche: z.enum(['food', 'health']).default('food'),
 })
 
-export type SdrSearchView = {
-  id: string
-  status: 'pendente' | 'buscando' | 'concluida' | 'erro'
-  city: string
-  uf: string | null
-  label: string | null
-  found: number
-  created_count: number
-  detail: string | null
-}
-
-export type SdrLeadView = ProspectLead & {
-  icpScore: number
-  icpBand: string
-  icpEvidencias: string[]
-}
 
 const SEARCH_FIELDS = 'id, status, city, uf, label, found, created_count, detail'
 

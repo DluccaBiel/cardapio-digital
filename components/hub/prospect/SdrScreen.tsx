@@ -19,7 +19,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { ProspectClient } from '../../../lib/db/prospects'
-import type { SdrLeadView, SdrSearchView } from '../../../app/a/[ws]/sdr/actions'
+import type { SdrLeadView, SdrSearchView } from '../../../lib/sdr/types'
 import {
   sdrRequestSearchAction,
   sdrSearchStatusAction,
