@@ -1,7 +1,7 @@
 // Ponte robô → IA do Undercut. A IA roda no servidor (chave da Anthropic e Google Agenda ficam
 // na Vercel); o robô só avisa "este lead escreveu" e depois envia a resposta que cair na fila.
 //
-// Autenticação: ao ligar, o robô cria a PRÓPRIA chave de API (escopos sdr:ler/sdr:escrever,
+// Autenticação: ao ligar, o robô cria a PRÓPRIA chave de API (escopos sdr:* e relatorios:*,
 // 30 dias), revoga as chaves antigas do robô e guarda a nova só em memória (nunca em disco).
 
 import { createHash, randomBytes } from 'node:crypto'
@@ -29,7 +29,7 @@ export async function createAiBridge({ db, WS, log, hubUrl }) {
     name: `${NAME_PREFIX} · ${os.hostname().slice(0, 40)}`,
     key_hash: createHash('sha256').update(key, 'utf8').digest('hex'),
     key_prefix: key.slice(0, 12),
-    scopes: ['sdr:ler', 'sdr:escrever'],
+    scopes: ['sdr:ler', 'sdr:escrever', 'relatorios:ler', 'relatorios:escrever'],
     rate_limit_per_minute: 120,
     expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
   })
@@ -103,5 +103,5 @@ export async function createAiBridge({ db, WS, log, hubUrl }) {
   }
 
   log(`IA: conectada ao Undercut (${base}).`)
-  return { onInbound, tick }
+  return { onInbound, tick, hub: { key, base } }
 }

@@ -18,6 +18,7 @@ import QRCode from 'qrcode'
 import { brVariants, canSendNow, isOptOut, nextDelayMs, renderMessage, spDayStartIso } from './schedule.mjs'
 import { createSdr } from './sdr.mjs'
 import { createAiBridge } from './ai-bridge.mjs'
+import { createReports } from './reports.mjs'
 // Agente de prospecção compartilhado com o painel (TypeScript lido direto pelo Node ≥ 22.18).
 import { normalizeBrPhone, searchFoodBusinesses } from '../../../lib/sdr/providers/osm.ts'
 
@@ -406,6 +407,8 @@ const sdr = createSdr({
   pace,
   onInboundForAi: (lead) => ai.onInbound(lead), // a IA responde pelo Undercut (servidor)
 })
+// Relatórios nos grupos do WhatsApp (grupos, disparo automático e fila de envio) — ver reports.mjs
+const reports = createReports({ db, WS, log, getSock: () => sock, isReady: () => status === 'ready', hub: ai.hub ?? null, pace })
 
 // ---------------------------------------------------------------------------
 // Pesquisas do agente de prospecção (fila prospect_searches)
@@ -518,6 +521,7 @@ async function loop() {
     await sendTick()
     await sdr.tick()
     await ai.tick()
+    await reports.tick()
   } catch (e) {
     log('erro no ciclo:', e.message)
   } finally {
