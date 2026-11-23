@@ -11,6 +11,8 @@ export const API_SCOPES = [
   'extensoes:ler',
   'sdr:ler',
   'sdr:escrever',
+  'relatorios:ler',
+  'relatorios:escrever',
 ] as const
 export type ApiScope = (typeof API_SCOPES)[number]
 
@@ -22,6 +24,9 @@ export const IFOOD_EXTENSION_SCOPES: ApiScope[] = ['clientes:ler', 'catalogo:ler
 
 /** Extensão "Undercut · SDR WhatsApp": só o SDR (leads, funil, notas, fila de envio). */
 export const SDR_EXTENSION_SCOPES: ApiScope[] = ['sdr:ler', 'sdr:escrever']
+
+/** Chave que o robô local cria a cada boot: SDR + relatórios (PNG e disparo automático nos grupos). */
+export const WORKER_SCOPES: ApiScope[] = ['sdr:ler', 'sdr:escrever', 'relatorios:ler', 'relatorios:escrever']
 
 /**
  * Gera uma chave `ck_live_<43 chars base64url>` (256 bits aleatórios).

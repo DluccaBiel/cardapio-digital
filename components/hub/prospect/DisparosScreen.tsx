@@ -371,7 +371,7 @@ function RobotControlBanner({
 // ===========================================================================
 // 1) Conexão WhatsApp (QR → vinculado → sincronização)
 // ===========================================================================
-function WhatsAppCard({
+export function WhatsAppCard({
   ws,
   session,
   setSession,

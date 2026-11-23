@@ -30,6 +30,9 @@ A API **valida a chave contra o hash** (`api_keys.key_hash`), checa `revoked_at`
 | `pesquisa:ler` | POST em `/research` (agente de pesquisa, somente fontes públicas) |
 | `webhooks:gerenciar` | CRUD em `/webhooks*` |
 | `extensoes:ler` | GET em `/extensions*` (diagnóstico) |
+| `sdr:ler` / `sdr:escrever` | SDR WhatsApp (`/sdr/*`) — extensão Undercut SDR e robô local |
+| `relatorios:ler` | GET em `/reports/{id}/card` (PNG do relatório) — robô local |
+| `relatorios:escrever` | POST em `/reports/run` (disparo automático) — robô local |
 
 Chaves sem o escopo exigido recebem `403 forbidden_scope`. Escopos são concedidos na criação da chave e não podem ser ampliados depois (só criando chave nova).
 
@@ -253,6 +256,15 @@ Rate limit: janela de 1 min por chave, **em memória por instância** (ver decis
 | GET | `/optimizations?client_id=` | `catalogo:ler` | Últimas 20 otimizações do cliente, prints com URL assinada (10 min) |
 
 POST de criação não usa If-Match (não há versão anterior a proteger). Tabelas: `menu_optimizations`, `menu_optimization_evidence` (migration 0005). Testes: `supabase/tests/api_clients_ensure.mjs` (12 checks).
+
+## 7.3 Relatórios nos grupos do WhatsApp — robô local (2026-11-23)
+
+| Método | Rota | Escopo | Descrição |
+|---|---|---|---|
+| GET | `/reports/{id}/card` | `relatorios:ler` | PNG 1080×1350 do relatório salvo (`reports.payload`), para o robô enviar no grupo com a mensagem como legenda |
+| POST | `/reports/run` | `relatorios:escrever` | `{ schedule_id }` — agendamento vencido (`next_run_at <= agora`): avança `next_run_at` de forma atômica (não roda duas vezes), consulta a Meta de cada conta e enfileira em `reports` (`status = agendado`, horários escalonados pelo intervalo do agendamento). Resposta `{ action: "queued", queued, errors, next_run_at }` ou `{ action: "skip" }` |
+
+O robô cria a própria chave a cada boot (`sdr:*` + `relatorios:*`, 30 dias). Fora da API pública (sessão do painel): `POST /api/reports/card` (PNG da prévia, corpo = relatório) e `GET /api/reports/{id}/card` (PNG do histórico, RLS). Tabelas: `whatsapp_groups`, `report_targets`, `report_settings`, `report_schedules`, `reports` (migration `20261122120000_reports_whatsapp.sql`). Testes: `supabase/tests/reports_rls.sql` (35/35) e `scripts/e2e-relatorios.mjs` (30/30).
 
 ## 8. Fora de escopo da Fase 1 (Fases futuras)
 

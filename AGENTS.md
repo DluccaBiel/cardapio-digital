@@ -51,6 +51,11 @@ docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/checks.
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/combos_ifood.sql    # 16 testes combos/iFood (16/0)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/disparos_rls.sql    # Disparos WhatsApp: RLS/grants/constraints (falhas = 0)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/sdr_rls.sql         # SDR WhatsApp: RLS/constraints (33/33)
+docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/reports_rls.sql     # Relatórios nos grupos: RLS/grants/constraints (35/35)
+# Relatórios (hub :3100 com NEXT_DIST_DIR=.next-e2e, META_GRAPH_BASE_URL=http://127.0.0.1:4590, META_ACCESS_TOKEN=e2e-token,
+#   META_BUSINESS_ID=111111111111): node scripts/e2e-relatorios.mjs (30/30 — Meta e WhatsApp simulados; PNG, fila, agenda, robô)
+#   ⚠ Windows + `next dev`: o next/og do Next 14.2 quebra (path.join em import.meta.url → "Invalid URL"); na Vercel (Linux) funciona.
+#   Para testar o PNG localmente, ajuste temporariamente node_modules/next/dist/compiled/@vercel/og/index.node.js e RESTAURE depois.
 # SDR WhatsApp (hub :3100 + Supabase local): node supabase/tests/api_sdr.mjs (32/32) · node supabase/tests/worker_sdr.mjs (17/17, WhatsApp simulado)
 #   · node supabase/tests/api_sdr_ai.mjs (8/8, Claude simulado em :4591 — hub com ANTHROPIC_BASE_URL=http://127.0.0.1:4591) · node scripts/e2e-sdr-extension.mjs (17/17)
 #   · LOCAL_API_URL/LOCAL_SERVICE_ROLE_KEY + npx vitest run tests/sdr-ai.test.ts (10/10; sem banco local os testes de integração pulam)
@@ -159,6 +164,14 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 - **IA** (`lib/sdr/ai.ts`): `claude-opus-5-5`, effort `low`, `fallbacks: 'default'`; ferramentas `get_free_slots`/`book_meeting` (Google Agenda + Meet), `update_lead`, `handoff`; máx. N respostas/lead/dia; recusa/dúvida/pedido de humano → `needs_human`. Precisa de `ANTHROPIC_API_KEY` em Production.
 - **Google Agenda** (`lib/google/calendar.ts`): OAuth `/api/google/oauth/{start,callback}` (redirect fixo no endereço oficial em produção), refresh token criptografado com `META_TOKEN_KEY` em `google_tokens` (só service role). Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`; no Google Cloud: Calendar API ligada, redirect `https://undercuthub.vercel.app/api/google/oauth/callback`, app **publicado** (em "teste" o Google derruba o token em 7 dias).
 - Migrations: `20261120120000_sdr_whatsapp.sql`, `20261120130000_google_calendar.sql`.
+
+## 📊 Relatórios nos grupos do WhatsApp
+
+- **Menu Relatórios** (`/a/{ws}/relatorios`): status real do WhatsApp (conectar pelo QR aqui mesmo), **Gerador** com todas as contas Meta conectadas e prévia real de cada uma, **Histórico**, **Agendamentos** e **Modelos**.
+- Métricas por **objetivo** (`lib/reports/blocks.ts`, puro): vendas → compras do PIXEL + faturamento/ROAS; mensagens → conversas iniciadas; perfil → visitas ao perfil; tráfego → visualizações da página; cadastros; engajamento; alcance. O tipo vem do objetivo + metas/destinos dos conjuntos. Conta com várias campanhas: **juntar** (um bloco por objetivo) ou **separar** (um por campanha) e escolher campanhas — salvo em `report_targets` junto com o **grupo do cliente**.
+- Consulta à Meta: `lib/meta/reports.ts` (`fetchAccountReport`); montagem/mensagem/agenda: `lib/reports/format.ts`; geração/fila: `lib/reports/generate.ts`; PNG: `lib/reports/card.tsx` (next/og).
+- Envio: o painel coloca em `reports` (`status = agendado`) com horários escalonados (intervalo aleatório; mínimo 20 s; presets 1–3 min / 2–5 min / 30–90 s). O **robô** (`apps/whatsapp-worker/src/reports.mjs`) lê os grupos (`groupFetchAllParticipating` → `whatsapp_groups`, quando o painel pede e a cada 6 h), executa agendamentos vencidos chamando `POST /api/v1/reports/run` e envia cada relatório no grupo (imagem PNG de `/api/v1/reports/{id}/card` + legenda). Ritmo compartilhado com Disparos/SDR.
+- Migration: `20261122120000_reports_whatsapp.sql` (grupos, alvos, modelo, agendamentos, histórico; `ad_accounts` ganha `unique (workspace_id, id)`).
 
 ## 🗺️ Roadmap
 

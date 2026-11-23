@@ -806,6 +806,55 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenScope' }
         '422': { $ref: '#/components/responses/ValidationFailed' }
 
+  /reports/{id}/card:
+    get:
+      tags: [reports]
+      summary: PNG do relatório (robô local envia no grupo do WhatsApp) — escopo relatorios:ler
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Imagem 1080×1350
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /reports/run:
+    post:
+      tags: [reports]
+      summary: Executa um agendamento vencido e enfileira os relatórios — escopo relatorios:escrever
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schedule_id]
+              properties:
+                schedule_id: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      action: { type: string, enum: [queued, skip] }
+                      queued: { type: integer }
+                      errors: { type: array, items: { type: string } }
+                      next_run_at: { type: string, format: date-time, nullable: true }
+                      reason: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
 components:
   securitySchemes:
     ApiKeyAuth:
