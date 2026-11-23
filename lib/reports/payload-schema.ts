@@ -41,6 +41,7 @@ export const payloadSchema = z
           roas: num.nullable(),
           deltaResult: num.nullable(),
           deltaCost: num.nullable(),
+          metrics: z.record(z.string(), num).optional(),
         }),
       )
       .max(60),

@@ -68,7 +68,7 @@ const mock = createServer((req, res) => {
     if (level === 'campaign')
       return json({
         data: [
-          { campaign_id: '9001', campaign_name: 'Vendas Pizza', spend: prev ? '200' : '300', reach: '4000', impressions: '9000', inline_link_clicks: '120', actions: act(prev ? 8 : 12), action_values: [{ action_type: 'offsite_conversion.fb_pixel_purchase', value: prev ? '900' : '1500' }] },
+          { campaign_id: '9001', campaign_name: 'Vendas Pizza', spend: prev ? '200' : '300', reach: '4000', impressions: '9000', clicks: '400', inline_link_clicks: '120', outbound_clicks: [{ action_type: 'outbound_click', value: '110' }], video_p50_watched_actions: [{ action_type: 'video_view', value: '800' }], actions: [...act(prev ? 8 : 12), { action_type: 'landing_page_view', value: '90' }, { action_type: 'offsite_conversion.fb_pixel_add_to_cart', value: '30' }, { action_type: 'post_reaction', value: '55' }, { action_type: 'video_view', value: '2100' }], action_values: [{ action_type: 'offsite_conversion.fb_pixel_purchase', value: prev ? '900' : '1500' }] },
           { campaign_id: '9002', campaign_name: 'Conversas WhatsApp', spend: '100', reach: '2500', impressions: '5000', actions: [{ action_type: 'onsite_conversion.messaging_conversation_started_7d', value: prev ? '30' : '40' }] },
           { campaign_id: '9003', campaign_name: 'Visitas Perfil IG', spend: '50', reach: '3000', impressions: '6000', actions: [{ action_type: 'instagram_profile_visit', value: '210' }, { action_type: 'link_click', value: '90' }] },
         ],
@@ -122,6 +122,9 @@ try {
   await page.getByRole('heading', { name: 'Relatórios' }).waitFor({ timeout: 60000 })
   log(await page.getByText('Pronto', { exact: true }).waitFor({ timeout: 15000 }).then(() => true, () => false), 'WhatsApp: status real "Pronto" + número')
   log(await page.getByText(/2 grupo\(s\)/).isVisible(), 'WhatsApp: mostra os grupos sincronizados')
+  await page.getByRole('button', { name: /Grupos \(2\)/ }).click()
+  log(await page.getByText('Outro cliente').first().isVisible(), 'lista dos grupos do número conectado aparece no Relatórios')
+  await page.getByRole('button', { name: 'Ocultar grupos' }).click()
 
   const row = page.locator('li', { hasText: 'Pizzaria do Ze (Demo)' })
   const loaded = await row.getByText(/12 compras/).waitFor({ timeout: 60000 }).then(() => true, () => false)
@@ -158,7 +161,11 @@ try {
   await card.getByRole('button', { name: /Copiar mensagem/ }).click()
   log(await toast(/Mensagem copiada/), 'Copiar mensagem')
   const clip = await page.evaluate(() => navigator.clipboard.readText())
-  log(clip.includes('Compras: *12*') && clip.includes('Conversas iniciadas: *40*') && clip.includes('Visitas ao perfil: *210*'), 'mensagem com resultado por objetivo')
+  log(
+    clip.includes('📊 *RELATÓRIO DE RESULTADOS — Pizzaria do Ze (Demo)*') && clip.includes('• Compras: 12') && clip.includes('• Conversas iniciadas: 40') && clip.includes('• Visitas ao perfil: 210'),
+    'mensagem nova: uma seção por objetivo',
+  )
+  log(/• Cliques no link: 120/.test(clip) && /• Adicionar ao carrinho: 30/.test(clip) && /• Visualizações: 2\.100/.test(clip) && /✅ \*Pontos fortes:\*/.test(clip), 'mensagem nova: cliques, conversões, vídeo e pontos fortes')
   log((await card.getByRole('link', { name: /Abrir no WhatsApp/ }).getAttribute('href'))?.startsWith('https://api.whatsapp.com/send?text=') ?? false, 'Abrir no WhatsApp com o texto')
 
   await card.getByRole('button', { name: /Salvar relatório/ }).click()
@@ -241,8 +248,13 @@ const { data: groups } = await db.from('whatsapp_groups').select('jid, participa
 log(groups.length === 2 && groups.some((g) => g.jid === G1 && g.participants === 6) && !groups.some((g) => g.jid === G2), 'robô: grupos atualizados (novo entra, quem saiu some)')
 const { data: after } = await db.from('reports').select('status').eq('workspace_id', WS)
 const done = after.filter((r) => r.status === 'enviado').length
-log(done === 4 && sent.length === 3, `robô: fila enviada (${sent.length} envios; ${done} enviados no total)`)
-log(sent.every((s) => s.jid === G1 && Buffer.isBuffer(s.content.image) && s.content.caption.includes('*Relatório de tráfego')), 'robô: imagem PNG + legenda no grupo do cliente')
+const images = sent.filter((s) => Buffer.isBuffer(s.content.image))
+const texts = sent.filter((s) => typeof s.content.text === 'string')
+log(done === 4 && images.length === 3, `robô: fila enviada (${images.length} relatórios; ${done} enviados no total)`)
+log(
+  sent.every((s) => s.jid === G1) && images.every((s) => s.content.caption.includes('RELATÓRIO DE RESULTADOS')) && texts.length === 3 && texts.every((s) => s.content.text.includes('Pontos fortes') || s.content.text.includes('Investimento')),
+  'robô: imagem PNG + relatório completo em texto (legenda longa não é cortada)',
+)
 
 // limpeza
 await db.from('reports').delete().eq('workspace_id', WS)

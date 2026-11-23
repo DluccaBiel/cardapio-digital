@@ -144,23 +144,42 @@ export function ReportsScreen({
     }
   }, [ws, canManageWhatsapp])
   const waiting = Boolean(groupsRequestedAt && (!groupsSyncedAt || Date.parse(groupsRequestedAt) > Date.parse(groupsSyncedAt)))
+  const ready = session?.status === 'ready'
+  // Grupos do número conectado (em Disparos ou aqui): o robô lê sozinho ao conectar; a tela acompanha.
   useEffect(() => {
-    if (!waiting) return
-    const id = window.setInterval(async () => {
+    let alive = true
+    const tick = async () => {
       const r = await groupsAction(ws).catch(() => null)
-      if (!r || !r.ok) return
+      if (!alive || !r || !r.ok) return
       setGroups(r.groups)
       setGroupsSyncedAt(r.syncedAt)
       setGroupsRequestedAt(r.requestedAt)
-    }, 3000)
-    return () => window.clearInterval(id)
-  }, [ws, waiting])
-  const requestGroups = async () => {
-    const r = await requestGroupsSyncAction(ws)
-    if (!r.ok) return flash(r.error)
-    setGroupsRequestedAt(new Date().toISOString())
-    flash('Pedido enviado ao robô — os grupos aparecem em instantes.')
-  }
+    }
+    tick()
+    const id = window.setInterval(tick, waiting || (ready && groups.length === 0) ? 3000 : 20000)
+    return () => {
+      alive = false
+      window.clearInterval(id)
+    }
+  }, [ws, waiting, ready, groups.length])
+  const requestGroups = useCallback(
+    async (quiet = false) => {
+      const r = await requestGroupsSyncAction(ws)
+      if (!r.ok) return quiet ? undefined : flash(r.error)
+      setGroupsRequestedAt(new Date().toISOString())
+      if (!quiet) flash('Pedido enviado ao robô — os grupos aparecem em instantes.')
+    },
+    [ws, flash],
+  )
+  // Acabou de conectar (ou ainda sem grupos): pede a leitura uma vez, sem clique.
+  const autoAsked = useRef(false)
+  useEffect(() => {
+    if (!ready || !canManageWhatsapp || !canWrite || autoAsked.current) return
+    if (groups.length === 0 || !groupsSyncedAt) {
+      autoAsked.current = true
+      requestGroups(true)
+    }
+  }, [ready, canManageWhatsapp, canWrite, groups.length, groupsSyncedAt, requestGroups])
 
   // ---- Modelo (blocos, período, intervalo) ----------------------------------------------
   const [settings, setSettings] = useState<SettingsView>(data.settings)
@@ -292,10 +311,15 @@ export function ReportsScreen({
         session={session}
         setSession={setSession}
         workerOnline={workerOnline}
-        groups={groups.length}
+        groups={groups}
+        linkedTo={(jid) =>
+          data.accounts
+            .filter((a) => targets.get(a.id)?.group_jid === jid)
+            .map((a) => a.clientName ?? a.name)
+        }
         groupsSyncedAt={groupsSyncedAt}
         waiting={waiting}
-        onRequestGroups={requestGroups}
+        onRequestGroups={() => requestGroups()}
         canWrite={canWrite}
         flash={flash}
       />
@@ -369,7 +393,8 @@ function WhatsappBar(props: {
   session: WhatsappSession | null
   setSession: React.Dispatch<React.SetStateAction<WhatsappSession | null>>
   workerOnline: boolean | null
-  groups: number
+  groups: GroupView[]
+  linkedTo: (jid: string) => string[]
   groupsSyncedAt: string | null
   waiting: boolean
   onRequestGroups: () => void
@@ -380,15 +405,57 @@ function WhatsappBar(props: {
   const ready = st === 'ready'
   const linked = ready || st === 'syncing'
   const [open, setOpen] = useState(false)
+  const [showGroups, setShowGroups] = useState(false)
+  const [q, setQ] = useState('')
   useEffect(() => {
     if (ready) setOpen(false)
   }, [ready])
 
+  const groupList = (
+    <section className={cn(CARD, 'mb-5')}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="uc-title flex items-center gap-2 text-[16px] text-[#F7F5F1]">
+          <Users size={16} className="text-[#D7141F]" /> Grupos do WhatsApp ({props.groups.length})
+        </h2>
+        <input className={cn(SELECT, 'w-[240px]')} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar grupo" aria-label="Buscar grupo" />
+      </div>
+      {props.groups.length === 0 ? (
+        <p className="text-[12px] text-[#8E8A86]">
+          {props.waiting ? 'O robô está lendo os grupos do número conectado…' : 'Nenhum grupo ainda. Conecte o WhatsApp (aqui ou em Disparos) com o robô ligado — os grupos aparecem sozinhos.'}
+        </p>
+      ) : (
+        <ul className="grid max-h-[320px] gap-1 overflow-y-auto md:grid-cols-2">
+          {props.groups
+            .filter((g) => g.name.toLowerCase().includes(q.trim().toLowerCase()))
+            .map((g) => {
+              const who = props.linkedTo(g.jid)
+              return (
+                <li key={g.jid} className="flex items-center justify-between gap-2 rounded-[5px] border border-[#1C1C1F] bg-[#0B0B0C] px-3 py-2 text-[12px]">
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-[#ECE9E3]">{g.name || g.jid}</span>
+                    <span className="font-mono text-[10px] text-[#85817C]">{g.participants} participante(s)</span>
+                  </span>
+                  {who.length ? <span className="truncate text-[11px] text-[#4ADE80]">→ {who.join(', ')}</span> : <span className="text-[11px] text-[#85817C]">sem cliente</span>}
+                </li>
+              )
+            })}
+        </ul>
+      )}
+      <p className="mt-2 text-[11px] text-[#85817C]">Para vincular, escolha o grupo na linha do cliente, no Gerador.</p>
+    </section>
+  )
+
   if (!props.canManage) {
     return (
-      <div className="mb-5 rounded-[6px] border border-[#2A2A2E] bg-[#111113] px-4 py-3 text-[12px] text-[#8E8A86]">
-        {props.groups} grupo(s) do WhatsApp disponíveis. Somente dono ou coordenador conectam o WhatsApp.
-      </div>
+      <>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-[6px] border border-[#2A2A2E] bg-[#111113] px-4 py-3 text-[12px] text-[#8E8A86]">
+          <span>{props.groups.length} grupo(s) do WhatsApp disponíveis. Somente dono ou coordenador conectam o WhatsApp.</span>
+          <button type="button" className={BTN_GHOST} onClick={() => setShowGroups((v) => !v)}>
+            <Users size={13} /> {showGroups ? 'Ocultar grupos' : 'Ver grupos'}
+          </button>
+        </div>
+        {showGroups && groupList}
+      </>
     )
   }
 
@@ -403,7 +470,9 @@ function WhatsappBar(props: {
             </p>
             <p className="text-[11px] text-[#8E8A86]">
               {ready
-                ? `${props.groups} grupo(s) · atualizados ${props.groupsSyncedAt ? fmtDateTime(props.groupsSyncedAt) : 'ainda não'}`
+                ? props.waiting && props.groups.length === 0
+                  ? 'Lendo os grupos do número…'
+                  : `${props.groups.length} grupo(s) · atualizados ${props.groupsSyncedAt ? fmtDateTime(props.groupsSyncedAt) : 'ainda não'}`
                 : st === 'syncing'
                   ? session?.sync_detail || 'Sincronizando conversas…'
                   : st === 'qr'
@@ -416,6 +485,9 @@ function WhatsappBar(props: {
           {workerOnline && <Pill tone="green">Robô online</Pill>}
         </div>
         <div className="flex flex-wrap gap-2">
+          <button type="button" className={BTN_GHOST} onClick={() => setShowGroups((v) => !v)}>
+            <Users size={13} /> {showGroups ? 'Ocultar grupos' : `Grupos (${props.groups.length})`}
+          </button>
           {ready && props.canWrite && (
             <button type="button" className={BTN_GHOST} onClick={props.onRequestGroups} disabled={props.waiting || !workerOnline}>
               {props.waiting ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} {props.waiting ? 'Lendo grupos…' : 'Atualizar grupos'}
@@ -427,6 +499,7 @@ function WhatsappBar(props: {
         </div>
       </section>
       {open && <WhatsAppCard ws={props.ws} session={session} setSession={props.setSession} workerOnline={workerOnline} flash={props.flash} />}
+      {showGroups && groupList}
     </>
   )
 }

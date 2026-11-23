@@ -11,6 +11,7 @@ const GROUPS_EVERY_MS = 6 * 3_600_000
 const SCHEDULE_EVERY_MS = 60_000
 const MIN_GAP_MS = 20_000
 const STALE_SENDING_MS = 10 * 60_000
+const CAPTION_MAX = 1000
 
 export function createReports({ db, WS, log, getSock, isReady, hub, pace }) {
   let lastGroups = 0
@@ -115,8 +116,13 @@ export function createReports({ db, WS, log, getSock, isReady, hub, pace }) {
         throw new Error('O número conectado não está mais neste grupo.')
       })
       const png = await fetchCard(r.id)
-      if (png) await sock.sendMessage(r.group_jid, { image: png, mimetype: 'image/png', caption: r.message })
-      else await sock.sendMessage(r.group_jid, { text: r.message })
+      // Legenda de imagem longa é cortada no WhatsApp: relatório completo vai como texto logo depois.
+      if (png && r.message.length <= CAPTION_MAX) await sock.sendMessage(r.group_jid, { image: png, mimetype: 'image/png', caption: r.message })
+      else {
+        if (png) await sock.sendMessage(r.group_jid, { image: png, mimetype: 'image/png', caption: r.message.split('\n')[0] })
+        if (png) await new Promise((ok) => setTimeout(ok, 2500 + Math.random() * 2500))
+        await sock.sendMessage(r.group_jid, { text: r.message })
+      }
       await db.from('reports').update({ status: 'enviado', sent_at: new Date().toISOString(), error: png ? null : 'Enviado só o texto (imagem indisponível).' }).eq('workspace_id', WS).eq('id', r.id)
       log(`Relatórios: "${r.title}" enviado no grupo${png ? ' (imagem + texto)' : ' (só texto)'}.`)
     } catch (e) {

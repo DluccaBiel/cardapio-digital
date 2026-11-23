@@ -50,7 +50,90 @@ export function classifyCampaign(objective: string | null | undefined, goals: st
   return 'other'
 }
 
-export type Raw = { spend?: string; reach?: string; impressions?: string; inline_link_clicks?: string; actions?: ActionValue[]; action_values?: ActionValue[] }
+export type Raw = {
+  spend?: string
+  reach?: string
+  impressions?: string
+  clicks?: string
+  inline_link_clicks?: string
+  outbound_clicks?: ActionValue[]
+  actions?: ActionValue[]
+  action_values?: ActionValue[]
+  video_p50_watched_actions?: ActionValue[]
+  video_p75_watched_actions?: ActionValue[]
+  video_p100_watched_actions?: ActionValue[]
+}
+
+/** Métricas detalhadas (somáveis) da campanha no período — base da mensagem completa. */
+export type Metrics = {
+  impressions: number
+  reach: number
+  clicks: number // cliques (todos)
+  linkClicks: number
+  outboundClicks: number
+  engagements: number
+  reactions: number
+  comments: number
+  saves: number
+  shares: number
+  follows: number // curtidas da página / novos seguidores
+  profileVisits: number
+  landingViews: number
+  purchases: number
+  revenue: number
+  addToCart: number
+  checkout: number
+  conversations: number
+  leads: number
+  videoViews: number
+  video50: number
+  video75: number
+  video100: number
+}
+export const METRIC_KEYS = [
+  'impressions', 'reach', 'clicks', 'linkClicks', 'outboundClicks', 'engagements', 'reactions', 'comments', 'saves', 'shares', 'follows',
+  'profileVisits', 'landingViews', 'purchases', 'revenue', 'addToCart', 'checkout', 'conversations', 'leads', 'videoViews', 'video50', 'video75', 'video100',
+] as const satisfies readonly (keyof Metrics)[]
+export const emptyMetrics = (): Metrics => Object.fromEntries(METRIC_KEYS.map((k) => [k, 0])) as Metrics
+
+const sumList = (list: ActionValue[] | undefined) => (list ?? []).reduce((t, a) => t + (Number(a.value) || 0), 0)
+
+/** Extrai as métricas detalhadas de uma linha de insights da Meta. */
+export function metricsOf(r: Raw | undefined): Metrics {
+  if (!r) return emptyMetrics()
+  const a = r.actions
+  return {
+    impressions: Number(r.impressions ?? 0) || 0,
+    reach: Number(r.reach ?? 0) || 0,
+    clicks: Number(r.clicks ?? 0) || 0,
+    linkClicks: Number(r.inline_link_clicks ?? 0) || firstAction(a, ['link_click']),
+    outboundClicks: firstAction(r.outbound_clicks, ['outbound_click']) || sumList(r.outbound_clicks),
+    engagements: firstAction(a, ENGAGEMENT),
+    reactions: firstAction(a, ['post_reaction']),
+    comments: firstAction(a, ['comment']),
+    saves: firstAction(a, ['onsite_conversion.post_save', 'post_save']),
+    shares: firstAction(a, ['post']),
+    follows: firstAction(a, ['like', 'onsite_conversion.instagram_follow', 'follow']),
+    profileVisits: firstAction(a, PROFILE.filter((t) => t !== 'link_click')),
+    landingViews: firstAction(a, ['landing_page_view', 'omni_landing_page_view']),
+    purchases: firstAction(a, PURCHASE),
+    revenue: firstAction(r.action_values, PURCHASE),
+    addToCart: firstAction(a, ['offsite_conversion.fb_pixel_add_to_cart', 'add_to_cart', 'omni_add_to_cart']),
+    checkout: firstAction(a, ['offsite_conversion.fb_pixel_initiate_checkout', 'initiate_checkout', 'omni_initiated_checkout']),
+    conversations: firstAction(a, MESSAGES),
+    leads: firstAction(a, LEADS),
+    videoViews: firstAction(a, ['video_view']),
+    video50: sumList(r.video_p50_watched_actions),
+    video75: sumList(r.video_p75_watched_actions),
+    video100: sumList(r.video_p100_watched_actions),
+  }
+}
+
+export function sumMetrics(list: (Metrics | undefined)[]): Metrics {
+  const out = emptyMetrics()
+  for (const m of list) if (m) for (const k of METRIC_KEYS) out[k] += Number(m[k]) || 0
+  return out
+}
 
 /** Resultado da campanha conforme o tipo. */
 export function resultOf(kind: Kind, r: Raw | undefined): { result: number; revenue: number } {
@@ -89,6 +172,8 @@ export type CampaignResult = {
   result: number
   revenue: number
   prev: { spend: number; result: number; revenue: number } | null
+  /** Ausente em relatórios salvos antes da mensagem detalhada. */
+  metrics?: Metrics
 }
 
 export type Block = {
@@ -105,6 +190,7 @@ export type Block = {
   roas: number | null
   deltaResult: number | null // % vs período anterior
   deltaCost: number | null
+  metrics?: Metrics
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -134,6 +220,7 @@ function toBlock(key: string, kind: Kind, title: string, list: CampaignResult[])
     roas: kind === 'sales' && spend > 0 ? r2(revenue / spend) : null,
     deltaResult: hasPrev ? pct(result, pResult) : null,
     deltaCost: hasPrev && rawCost != null && pCost > 0 ? pct(rawCost, pCost) : null,
+    metrics: list.some((c) => c.metrics) ? sumMetrics(list.map((c) => c.metrics)) : undefined,
   }
 }
 

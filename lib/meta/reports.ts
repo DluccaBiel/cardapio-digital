@@ -13,7 +13,7 @@
  * pronto por campanha). Ao juntar campanhas, só se somam resultados do MESMO tipo.
  */
 import { authParams, graphBase, graphGet, graphVersion, isGraphUrl } from './graph'
-import { classifyCampaign, resultOf, type CampaignResult, type Range, type Raw, type TopAd } from '../reports/blocks'
+import { classifyCampaign, metricsOf, resultOf, type CampaignResult, type Range, type Raw, type TopAd } from '../reports/blocks'
 
 export * from '../reports/blocks'
 
@@ -53,7 +53,8 @@ export async function fetchAccountReport(
   cur: Range,
   prev: Range | null,
 ): Promise<{ campaigns: CampaignResult[]; reach: number; impressions: number; topAds: TopAd[] }> {
-  const fields = 'campaign_id,campaign_name,objective,spend,reach,impressions,inline_link_clicks,actions,action_values'
+  const fields =
+    'campaign_id,campaign_name,objective,spend,reach,impressions,clicks,inline_link_clicks,outbound_clicks,actions,action_values,video_p50_watched_actions,video_p75_watched_actions,video_p100_watched_actions'
   const ins = (r: Range) =>
     listAll<Raw & { campaign_id?: string; campaign_name?: string; objective?: string }>(
       `${G()}/${actId}/insights?${authParams(token, { level: 'campaign', fields, time_range: JSON.stringify(r), limit: '200' })}`,
@@ -103,6 +104,7 @@ export async function fetchAccountReport(
       result: res.result,
       revenue: r2(res.revenue),
       prev: prev ? { spend: Number(pr?.spend ?? 0) || 0, ...resultOf(kind, pr) } : null,
+      metrics: metricsOf(r),
     })
   }
 

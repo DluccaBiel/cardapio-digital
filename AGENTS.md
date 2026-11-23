@@ -53,7 +53,7 @@ docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/disparo
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/sdr_rls.sql         # SDR WhatsApp: RLS/constraints (33/33)
 docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/reports_rls.sql     # Relatórios nos grupos: RLS/grants/constraints (35/35)
 # Relatórios (hub :3100 com NEXT_DIST_DIR=.next-e2e, META_GRAPH_BASE_URL=http://127.0.0.1:4590, META_ACCESS_TOKEN=e2e-token,
-#   META_BUSINESS_ID=111111111111): node scripts/e2e-relatorios.mjs (30/30 — Meta e WhatsApp simulados; PNG, fila, agenda, robô)
+#   META_BUSINESS_ID=111111111111): node scripts/e2e-relatorios.mjs (32/32 — Meta e WhatsApp simulados; mensagem completa por objetivo, grupos, PNG, fila, agenda, robô)
 #   ⚠ Windows + `next dev`: o next/og do Next 14.2 quebra (path.join em import.meta.url → "Invalid URL"); na Vercel (Linux) funciona.
 #   Para testar o PNG localmente, ajuste temporariamente node_modules/next/dist/compiled/@vercel/og/index.node.js e RESTAURE depois.
 # SDR WhatsApp (hub :3100 + Supabase local): node supabase/tests/api_sdr.mjs (32/32) · node supabase/tests/worker_sdr.mjs (17/17, WhatsApp simulado)
@@ -154,7 +154,7 @@ Você está rodando **no computador do usuário**, com acesso ao filesystem e ao
 - O WhatsApp exige processo sempre ligado → **não roda na Vercel**: `apps/whatsapp-worker` roda no PC do usuário (`npm run worker`), fala só com o Supabase (service role em `apps/whatsapp-worker/.env`, nunca commitado). Sessão em `apps/whatsapp-worker/auth/` (gitignored).
 - Tabelas: `whatsapp_sessions` (painel só altera `desired_state` — grant por coluna), `prospect_searches` (fila de pesquisa executada pelo robô), `prospect_leads`, `broadcast_campaigns`, `broadcast_recipients` (migration `20261118120000_whatsapp_disparos.sql`).
 - Proteções do número: intervalo aleatório ≥ 20 s, janela de horário/dias em America/Sao_Paulo, limite diário do número, "digitando…", opt-out por "SAIR", pausa após 5 falhas.
-- Rede local do usuário: o Windows reserva 54212–54611 (Hyper-V) e o `supabase start` falha na 54322. Para testar local, troque as portas em `supabase/config.toml` temporariamente (ex.: 583xx) e **restaure antes do commit**.
+- Rede local do usuário: o Windows reserva 54212–54611 (Hyper-V) e o `supabase start` falha na 54322. Para testar local, troque as portas em `supabase/config.toml` temporariamente (ex.: 613xx — a faixa reservada muda após reiniciar; confira com `netsh interface ipv4 show excludedportrange protocol=tcp`) e **restaure antes do commit**.
 
 ## 🤖 SDR no WhatsApp (extensão + robô + IA)
 
