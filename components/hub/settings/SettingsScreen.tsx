@@ -7,6 +7,7 @@ import {
   Check,
   Copy,
   ExternalLink,
+  Link2,
   KeyRound,
   Loader2,
   Lock,
@@ -30,8 +31,17 @@ import {
   removeMemberAction,
   updateMemberRoleAction,
 } from '@/app/a/[ws]/configuracoes/actions'
+import { createInviteLinkAction, revokeInviteLinkAction } from '@/app/a/[ws]/configuracoes/invites'
 
-export type SettingsMember = { id: string; user_id: string; role: string; created_at: string; email: string | null }
+export type SettingsMember = { id: string; user_id: string; role: string; created_at: string; email: string | null; last_sign_in_at?: string | null }
+export type SettingsInvite = {
+  id: string
+  label: string
+  created_at: string
+  expires_at: string
+  state: 'pending' | 'used' | 'revoked' | 'expired'
+  used_email: string | null
+}
 export type SettingsClient = {
   id: string
   name: string
@@ -47,7 +57,19 @@ export type SettingsClient = {
 type InstallKey = { revoked_at?: string | null; expires_at?: string | null }
 type Install = { extension_id: string; version: string | null; last_seen_at: string | null; status: string; api_keys?: InstallKey | InstallKey[] | null }
 
-const ROLE_LABEL: Record<string, string> = { owner: 'OWNER', coordenador: 'SUPORTE', editor: 'EDITOR', visualizador: 'VISUALIZADOR' }
+const ROLE_LABEL: Record<string, string> = { owner: 'OWNER', coordenador: 'SUPORTE', editor: 'EDITOR', visualizador: 'VISUALIZADOR', colaborador: 'COLABORADOR' }
+
+const INVITE_STATE: Record<SettingsInvite['state'], { label: string; cls: string }> = {
+  pending: { label: 'aguardando', cls: 'border-[#FBBF24]/40 bg-[#FBBF24]/10 text-[#FDE68A]' },
+  used: { label: 'conta criada', cls: 'border-[#34D399]/40 bg-[#34D399]/10 text-[#A7F3D0]' },
+  revoked: { label: 'cancelado', cls: 'border-white/10 bg-white/[0.03] text-[#85817C]' },
+  expired: { label: 'vencido', cls: 'border-white/10 bg-white/[0.03] text-[#85817C]' },
+}
+
+/** Data e hora em America/Sao_Paulo (último acesso do colaborador). */
+function dateTime(iso: string | null | undefined) {
+  return iso ? new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }) : 'nunca entrou'
+}
 
 /** Data fixa em America/Sao_Paulo: servidor (UTC) e navegador renderizam o mesmo texto. */
 function date(iso: string) {
@@ -83,6 +105,7 @@ export function SettingsScreen({
   canManage,
   shortUrl,
   members,
+  invites = [],
   clients,
   extensions,
   installs,
@@ -98,6 +121,7 @@ export function SettingsScreen({
   canManage: boolean
   shortUrl: string
   members: SettingsMember[]
+  invites?: SettingsInvite[]
   clients: SettingsClient[]
   extensions: HubExtension[]
   installs: Install[]
@@ -115,6 +139,7 @@ export function SettingsScreen({
   const [tab, setTab] = useState<Tab>(() => (TABS.some((t) => t.id === initialTab) ? (initialTab as Tab) : 'geral'))
   const [toast, setToast] = useState<string | null>(null)
   const [invite, setInvite] = useState(false)
+  const [inviteLink, setInviteLink] = useState(false)
   const [newClient, setNewClient] = useState(false)
   const [busyMember, setBusyMember] = useState<string | null>(null)
   const onlineIds = new Set(extensions.filter((e) => isOnline(installs.find((i) => i.extension_id === e.id))).map((e) => e.id))
@@ -244,9 +269,14 @@ export function SettingsScreen({
               <p className="mt-1 text-[12px] text-[#85817C]">OWNER cria e altera acessos. SUPORTE (coordenador) vê todos os clientes e extensões.</p>
             </div>
             {canAdmin && (
-              <Btn variant="primary" onClick={() => setInvite(true)}>
-                <UserPlus size={14} /> Novo acesso
-              </Btn>
+              <div className="flex flex-wrap gap-2">
+                <Btn variant="primary" onClick={() => setInviteLink(true)}>
+                  <Link2 size={14} /> Link para colaborador
+                </Btn>
+                <Btn variant="secondary" onClick={() => setInvite(true)}>
+                  <UserPlus size={14} /> Novo acesso por e-mail
+                </Btn>
+              </div>
             )}
           </div>
           {members.length === 0 ? (
@@ -255,12 +285,13 @@ export function SettingsScreen({
             </div>
           ) : (
             <div className="mt-4 overflow-x-auto rounded-2xl border border-white/[0.07]">
-              <table className="w-full min-w-[560px] border-collapse text-left">
+              <table className="w-full min-w-[680px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-white/[0.06] bg-black/30 font-mono text-[10px] uppercase tracking-[0.1em] text-[#8E8A86]">
                     <th className="px-3 py-2.5">E-mail</th>
                     <th className="px-3 py-2.5">Papel</th>
                     <th className="px-3 py-2.5">Desde</th>
+                    <th className="px-3 py-2.5">Último acesso</th>
                     <th className="px-3 py-2.5" />
                   </tr>
                 </thead>
@@ -280,12 +311,14 @@ export function SettingsScreen({
                             <option value="coordenador">SUPORTE</option>
                             <option value="editor">EDITOR</option>
                             <option value="visualizador">VISUALIZADOR</option>
+                            <option value="colaborador">COLABORADOR · só Extensões</option>
                           </select>
                         ) : (
                           <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 font-mono text-[10px] text-[#CFCBC4]">{ROLE_LABEL[m.role] ?? m.role}</span>
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-[#8E8A86]">{date(m.created_at)}</td>
+                      <td className="px-3 py-2.5 text-[#8E8A86]">{canAdmin ? dateTime(m.last_sign_in_at) : '—'}</td>
                       <td className="px-3 py-2.5 text-right">
                         {canAdmin && (
                           <button
@@ -302,6 +335,47 @@ export function SettingsScreen({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {canAdmin && (
+            <p className="mt-3 text-[11px] leading-relaxed text-[#85817C]">
+              Por segurança ninguém vê a senha de ninguém: cada pessoa cria a própria pelo link e o sistema guarda só o hash. Aqui você vê o e-mail, o papel e o último acesso.
+            </p>
+          )}
+          {canAdmin && invites.length > 0 && (
+            <div className="mt-5">
+              <h3 className="text-[13px] font-bold text-[#F7F5F1]">Links de acesso enviados</h3>
+              <ul className="mt-2 space-y-2">
+                {invites.map((i) => (
+                  <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                    <span className="min-w-0">
+                      <span className="block truncate text-[12px] font-semibold text-[#ECE9E3]">{i.label || 'Colaborador'}</span>
+                      <span className="font-mono text-[10px] text-[#85817C]">
+                        criado {date(i.created_at)} · {i.state === 'used' ? `conta: ${i.used_email ?? '—'}` : `vale até ${date(i.expires_at)}`}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className={cn('rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em]', INVITE_STATE[i.state].cls)}>{INVITE_STATE[i.state].label}</span>
+                      {i.state === 'pending' && (
+                        <button
+                          type="button"
+                          disabled={busyMember === i.id}
+                          onClick={async () => {
+                            setBusyMember(i.id)
+                            const res = await revokeInviteLinkAction(ws, i.id)
+                            setBusyMember(null)
+                            flash(res.ok ? 'Link cancelado.' : res.error)
+                            if (res.ok) router.refresh()
+                          }}
+                          className="inline-flex h-7 items-center gap-1 rounded-lg border border-[#FF6A3D]/30 px-2 text-[11px] font-semibold text-[#FFB199] hover:bg-[#FF6A3D]/10 disabled:opacity-50"
+                        >
+                          <Trash2 size={11} /> Cancelar
+                        </button>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           {!canAdmin && <p className="mt-3 text-[11px] text-[#85817C]">Somente o OWNER cria/remove acessos. Você pode ver a equipe e todos os clientes.</p>}
@@ -421,6 +495,15 @@ export function SettingsScreen({
         </section>
       )}
 
+      {inviteLink && (
+        <InviteLinkModal
+          ws={ws}
+          onClose={() => {
+            setInviteLink(false)
+            router.refresh()
+          }}
+        />
+      )}
       {invite && (
         <InviteModal
           ws={ws}
@@ -518,6 +601,7 @@ function InviteModal({ ws, onClose, onDone }: { ws: string; onClose: () => void;
             { value: 'coordenador', label: 'SUPORTE · vê todos os clientes e extensões' },
             { value: 'editor', label: 'EDITOR · opera cardápio e conexões' },
             { value: 'visualizador', label: 'VISUALIZADOR · somente leitura' },
+            { value: 'colaborador', label: 'COLABORADOR · só o menu Extensões' },
             { value: 'owner', label: 'OWNER · controle total' },
           ]}
         />
@@ -609,6 +693,59 @@ function NewClientModal({ ws, onClose, onDone }: { ws: string; onClose: () => vo
         <Btn variant="primary" disabled={busy || name.trim().length < 1} onClick={submit}>
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} {busy ? 'Salvando…' : 'Cadastrar cliente'}
         </Btn>
+      </div>
+    </Modal>
+  )
+}
+
+function InviteLinkModal({ ws, onClose }: { ws: string; onClose: () => void }) {
+  const [label, setLabel] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<{ link: string; expiresAt: string } | null>(null)
+
+  const submit = async () => {
+    setBusy(true)
+    setError(null)
+    const res = await createInviteLinkAction(ws, { label })
+    setBusy(false)
+    if (!res.ok) return setError(res.error)
+    setResult({ link: res.link, expiresAt: res.expiresAt })
+  }
+
+  return (
+    <Modal title="Link para colaborador" description="A pessoa abre o link e cria o próprio e-mail e senha. O acesso dela é só o menu Extensões." onClose={onClose} width="max-w-lg">
+      {!result ? (
+        <>
+          <label className="block">
+            <FieldLabel>Quem vai usar?</FieldLabel>
+            <TextInput value={label} onChange={setLabel} autoFocus placeholder="Ex.: Ana — design" />
+          </label>
+          <ul className="mt-3 space-y-1 text-[11px] leading-relaxed text-[#85817C]">
+            <li>· O link vale por 7 dias e só pode ser usado uma vez.</li>
+            <li>· O colaborador só enxerga Extensões: baixar, instalar e conectar. Clientes, contas e relatórios ficam fora.</li>
+          </ul>
+        </>
+      ) : (
+        <div>
+          <p className="text-[12px] text-[#A7F3D0]">Link criado. Copie e envie agora — por segurança ele não aparece de novo.</p>
+          <div className="mt-3 flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-black/30 p-3">
+            <span className="min-w-0 flex-1 break-all font-mono text-[11px] text-[#DAD6CF]">{result.link}</span>
+            <CopyButton value={result.link} />
+          </div>
+          <p className="mt-2 text-[11px] text-[#85817C]">Vale até {new Date(result.expiresAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.</p>
+        </div>
+      )}
+      {error && <p className="mt-3 rounded-xl border border-[#FF6A3D]/40 bg-[#FF6A3D]/10 px-3 py-2 text-[12px] text-[#FFB199]">{error}</p>}
+      <div className="mt-5 flex justify-end gap-2 border-t border-[#1C1C1F] pt-4">
+        <Btn variant="ghost" onClick={onClose}>
+          {result ? 'Fechar' : 'Cancelar'}
+        </Btn>
+        {!result && (
+          <Btn variant="primary" disabled={busy || label.trim().length < 2} onClick={submit}>
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />} {busy ? 'Gerando…' : 'Gerar link'}
+          </Btn>
+        )}
       </div>
     </Modal>
   )
