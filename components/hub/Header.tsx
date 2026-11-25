@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { syncMetaAction } from '@/app/a/[ws]/meta-actions'
 import { useEffect, useRef, useState } from 'react'
 import { brand } from '@undercut/brand'
+import { homePath } from '@/lib/workspace-role'
 import {
   Building2,
   Check,
@@ -20,7 +21,7 @@ import {
 export const SYNC_EVENT = 'undercut:sync'
 
 const roleLabel =(role: string) =>
-  ({ owner: 'OWNER', coordenador: 'COORDENADOR', editor: 'EDITOR', visualizador: 'VISUALIZADOR' })[role] ?? role.toUpperCase()
+  ({ owner: 'OWNER', coordenador: 'COORDENADOR', editor: 'EDITOR', visualizador: 'VISUALIZADOR', colaborador: 'COLABORADOR' })[role] ?? role.toUpperCase()
 
 export function Header({
   workspace,
@@ -142,7 +143,7 @@ export function Header({
                   <Link
                     key={item.slug}
                     role="menuitem"
-                    href={`/a/${item.slug}/visao-geral`}
+                    href={homePath(item)}
                     onClick={() => setSwitcherOpen(false)}
                     className="flex items-center justify-between gap-2 rounded-[5px] px-3 py-2 text-sm text-[#CFCBC4] no-underline hover:bg-[#18181B] hover:text-white hover:no-underline"
                   >
@@ -160,6 +161,7 @@ export function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-2 xl:gap-3">
+        {role !== 'colaborador' && (<>
         <div className="hidden items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] lg:flex">
           {live ? (
             <>
@@ -211,6 +213,8 @@ export function Header({
             ctrl K
           </kbd>
         </button>
+
+        </>)}
 
         <span className="hidden rounded-[3px] border border-[#2A2A2E] bg-[#111113] px-2.5 py-1.5 font-mono text-[10px] font-semibold font-mono uppercase tracking-[0.18em] text-[#CFCBC4] xl:inline-block">
           {roleLabel(role)}
