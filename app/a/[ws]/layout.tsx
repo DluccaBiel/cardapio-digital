@@ -51,13 +51,15 @@ export default async function WorkspaceLayout({
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) redirect('/login')
 
-  const current = await getWorkspaceBySlug(ws)
+  const current = await getWorkspaceBySlug(ws, { allowCollaborator: true })
   if (!current) notFound()
 
+  const isCollaborator = current.role === 'colaborador'
   const [workspaces, live, clientIndex] = await Promise.all([
     getUserWorkspaces(),
     allExtensionsLive(current.id, current.role),
-    loadClientIndex(supabase, current.id),
+    // O colaborador não vê clientes (RLS devolveria vazio de qualquer forma).
+    isCollaborator ? Promise.resolve([]) : loadClientIndex(supabase, current.id),
   ])
   const initial = (userData.user.email ?? '?').charAt(0).toUpperCase()
 

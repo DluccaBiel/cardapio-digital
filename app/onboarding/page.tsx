@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getUserWorkspaces } from '../../lib/db/workspaces'
+import { homePath } from '../../lib/workspace-role'
 import { createServerClient } from '../../lib/supabaseServer'
 import { OnboardingForm } from './OnboardingForm'
 
@@ -11,7 +12,7 @@ export default async function OnboardingPage() {
   if (!data.user) redirect('/login')
 
   const workspaces = await getUserWorkspaces()
-  if (workspaces.length > 0) redirect(`/a/${workspaces[0].slug}/visao-geral`)
+  if (workspaces.length > 0) redirect(homePath(workspaces[0]))
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#070708] px-4 text-[#F2F0EC]">
