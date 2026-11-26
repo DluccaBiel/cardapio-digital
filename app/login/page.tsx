@@ -7,10 +7,32 @@ import { createClient } from '../../lib/supabase'
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [mode, setMode] = useState<'chave' | 'senha'>('chave')
+  const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const supabase = createClient()
+
+  async function handleToken(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/token-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(json.error ?? 'Não foi possível entrar.')
+        setLoading(false)
+        return
+      }
+      const next = new URLSearchParams(window.location.search).get('next')
+      window.location.href = next && next.startsWith('/') && !next.startsWith('//') ? next : '/'
+    } catch {
+      setError('Sem conexão com o servidor. Tente de novo.')
+      setLoading(false)
+    }
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -43,8 +65,21 @@ export default function Login() {
           <img className="wordmark" src={brand.logos.logoWhite} alt={brand.name} width={248} height={44} />
         </div>
         <div className="tagline">{brand.tagline}</div>
-        <h2>Login</h2>
+        <h2>{mode === 'chave' ? 'Acesso ADM' : 'Login'}</h2>
         {error && <div className="flash error">{error}</div>}
+        {mode === 'chave' ? (
+          <form onSubmit={handleToken}>
+            <label>Chave de acesso</label>
+            <input type="password" required autoComplete="off" spellCheck={false} value={token} onChange={e => setToken(e.target.value)} placeholder="Cole a chave do administrador" />
+            <button type="submit" className="btn btn-primary" disabled={loading || token.trim().length < 32} style={{ width: '100%', marginTop: '0.5rem' }}>
+              {loading ? 'Entrando...' : 'Entrar com a chave'}
+            </button>
+            <p className="alt">
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => { setError(''); setMode('senha') }}>Entrar com e-mail e senha (equipe)</button>
+            </p>
+          </form>
+        ) : (
+        <>
         <form onSubmit={handleLogin}>
           <label>E-mail</label>
           <input type="email" required value={email} onChange={e => setEmail(e.target.value)} />
@@ -54,6 +89,11 @@ export default function Login() {
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
+        <p className="alt">
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => { setError(''); setMode('chave') }}>Voltar para a chave do ADM</button>
+        </p>
+        </>
+        )}
         <p className="alt">
           Não tem conta?{' '}
           <a href="/cadastro" className="btn btn-outline btn-sm">Cadastrar</a>
