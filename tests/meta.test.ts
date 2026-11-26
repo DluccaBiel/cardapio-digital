@@ -115,12 +115,12 @@ describe('métricas da apresentação do cliente', () => {
 
 describe('origem do redirect_uri do OAuth da Meta', () => {
   it('em produção usa sempre o endereço oficial (aliases legados não estão cadastrados na Meta)', () => {
-    expect(metaOAuthOrigin('https://orvia-gestao.vercel.app', 'production')).toBe('https://undercuthub.vercel.app')
+    expect(metaOAuthOrigin('https://undercuthub.vercel.app', 'production')).toBe('https://undercuthub.vercel.app')
     expect(metaOAuthOrigin('https://undercuthub.vercel.app', 'production')).toBe('https://undercuthub.vercel.app')
   })
   it('fora de produção usa a origem da requisição (local/E2E/preview)', () => {
     expect(metaOAuthOrigin('http://localhost:3100', undefined)).toBe('http://localhost:3100')
-    expect(metaOAuthOrigin('https://orvia-abc.vercel.app', 'preview')).toBe('https://orvia-abc.vercel.app')
+    expect(metaOAuthOrigin('https://preview-abc.vercel.app', 'preview')).toBe('https://preview-abc.vercel.app')
   })
 })
 

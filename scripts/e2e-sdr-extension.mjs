@@ -53,7 +53,7 @@ const waPage = (name, withId) => `<!doctype html><html><head><meta charset="utf-
 </script></body></html>`
 
 // --- Usuário + chave da extensão SDR (login real pela API) -------------------------------------
-const email = `sdr-ext-${Date.now()}@orvia-demo.example`
+const email = `sdr-ext-${Date.now()}@undercut-demo.example`
 const password = randomBytes(18).toString('base64url')
 const user = await (await fetch(`${SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email, password, email_confirm: true }) })).json()
 await rest('members', { method: 'POST', body: JSON.stringify({ workspace_id: WS_ID, user_id: user.id, role: 'owner' }) })
@@ -87,7 +87,7 @@ try {
   await popup.click('#doLogin')
   await popup.waitForSelector('#app:not([hidden])', { timeout: 30000 })
   const stored = await sw.evaluate(() => chrome.storage.local.get(['apiKey', 'workspace']))
-  log(/^ck_live_/.test(stored.apiKey ?? '') && stored.workspace?.slug === 'orvia-demo', 'login no popup guarda a chave (senha não fica salva)')
+  log(/^ck_live_/.test(stored.apiKey ?? '') && stored.workspace?.slug === 'undercut-demo', 'login no popup guarda a chave (senha não fica salva)')
   const pwdStored = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)))
   log(!pwdStored.includes(password), 'senha não aparece no armazenamento da extensão')
 

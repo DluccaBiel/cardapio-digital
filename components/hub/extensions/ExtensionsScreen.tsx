@@ -84,9 +84,9 @@ const KEY_PROBLEM: Record<Exclude<ExtensionLiveStatus['key'], 'active'>, string>
   expired: 'a chave de acesso expirou',
   missing: 'a chave de acesso foi excluída',
 }
-const PORTAL: Record<string, string> = { 'orvia-ifood': 'o portal do iFood', 'orvia-cardapioweb': 'o Portal do Cardápio Web', 'orvia-anotaai': 'o painel do Anota AI' }
-const SHORT: Record<string, string> = { 'orvia-ifood': 'iFood', 'orvia-cardapioweb': 'Cardápio Web', 'orvia-anotaai': 'Anota AI' }
-const ORDER = ['orvia-ifood', 'orvia-cardapioweb', 'orvia-anotaai']
+const PORTAL: Record<string, string> = { 'undercut-ifood': 'o portal do iFood', 'undercut-cardapioweb': 'o Portal do Cardápio Web', 'undercut-anotaai': 'o painel do Anota AI' }
+const SHORT: Record<string, string> = { 'undercut-ifood': 'iFood', 'undercut-cardapioweb': 'Cardápio Web', 'undercut-anotaai': 'Anota AI' }
+const ORDER = ['undercut-ifood', 'undercut-cardapioweb', 'undercut-anotaai']
 const rank = (slug: string) => (ORDER.includes(slug) ? ORDER.indexOf(slug) : ORDER.length)
 function connText(s: ExtensionLiveStatus, slug?: string): string {
   const c = connOf(s)
@@ -226,7 +226,7 @@ export function ExtensionsScreen({
   /** "Sincronizar" (header) nesta tela: consulta agora se TODAS as extensões seguem conectadas. */
   const checkConnection = useCallback(async () => {
     setSync({ kind: 'busy', text: 'Consultando todas as extensões cadastradas…' })
-    const inBrowser = document.documentElement.dataset.orviaIfood ?? null
+    const inBrowser = document.documentElement.dataset.undercutIfood ?? null
     const res = await checkExtensionsAction(ws)
     router.refresh() // relê chaves, instalações e relatório (renova os links dos prints)
     if (!res.ok) return setSync({ kind: 'err', text: res.error })
@@ -832,7 +832,7 @@ function Metric({ label, value, tone, icon }: { label: string; value: string; to
 }
 
 function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: Extension[]; onClose: () => void }) {
-  const ifood = extensions.find((e) => e.slug === 'orvia-ifood')
+  const ifood = extensions.find((e) => e.slug === 'undercut-ifood')
   const [name, setName] = useState('')
   const [extensionId, setExtensionId] = useState(ifood?.id ?? '')
   const [scopes, setScopes] = useState<string[]>(DEFAULT_SCOPES)
@@ -1077,7 +1077,7 @@ function ConnectionPanel({
           <p className="mt-3 text-[12px] text-[#8E8A86]">Somente dono ou suporte (coordenador) geram o código de conexão.</p>
         ) : (
           <>
-            {ext.slug === 'orvia-ifood' && <OneClickPair ws={ws} onDone={onDone} />}
+            {ext.slug === 'undercut-ifood' && <OneClickPair ws={ws} onDone={onDone} />}
             <ConnectionCode
               key={ext.id}
               ws={ws}
@@ -1267,7 +1267,7 @@ function ManualSetup({ hubAddress }: { hubAddress: string }) {
 
 /**
  * "Conectar com um clique" (só a extensão iFood tem a ponte): ela injeta uma ponte nesta página
- * (marca data-orvia-ifood no <html> e responde por window.postMessage, mesma origem).
+ * (marca data-undercut-ifood no <html> e responde por window.postMessage, mesma origem).
  * O painel gera a chave no servidor e a entrega direto à extensão — ninguém vê/cola a chave.
  * Sem a ponte neste navegador, não aparece: vale o código de conexão.
  */
@@ -1277,7 +1277,7 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
   const [conn, setConn] = useState<{ configured: boolean; workspace?: string } | null>(null)
 
   useEffect(() => {
-    const read = () => setVersion(document.documentElement.dataset.orviaIfood ?? null)
+    const read = () => setVersion(document.documentElement.dataset.undercutIfood ?? null)
     read()
     const timer = setTimeout(read, 1000)
     const onMessage = (event: MessageEvent) => {
@@ -1285,11 +1285,11 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
       const data = event.data as
         | { source?: string; type?: string; version?: string; ok?: boolean; error?: string; workspace?: string; data?: { configured: boolean; workspace?: { name: string } } }
         | null
-      if (!data || data.source !== 'orvia-ext') return
+      if (!data || data.source !== 'undercut-ext') return
       if (data.type === 'hello' && data.version) {
         setVersion(data.version)
         // Solicita o status da conexão (chave/endereço salvos no service worker).
-        window.postMessage({ source: 'orvia-hub', type: 'status' }, window.location.origin)
+        window.postMessage({ source: 'undercut-hub', type: 'status' }, window.location.origin)
       }
       if (data.type === 'status') {
         setConn(data.ok && data.data ? { configured: data.data.configured, workspace: data.data.workspace?.name } : null)
@@ -1314,9 +1314,9 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
 
   const connect = async () => {
     setState({ kind: 'busy', text: 'Gerando acesso e entregando à extensão…' })
-    const res = await pairExtensionAction(ws, 'orvia-ifood')
+    const res = await pairExtensionAction(ws, 'undercut-ifood')
     if (!res.ok) return setState({ kind: 'err', text: res.error })
-    window.postMessage({ source: 'orvia-hub', type: 'pair', key: res.key, hubUrl: window.location.origin }, window.location.origin)
+    window.postMessage({ source: 'undercut-hub', type: 'pair', key: res.key, hubUrl: window.location.origin }, window.location.origin)
     setTimeout(
       () => setState((cur) => (cur.kind === 'busy' ? { kind: 'err', text: 'A extensão não respondeu. Recarregue esta página (F5) e tente de novo, ou use o código de conexão.' } : cur)),
       15000,

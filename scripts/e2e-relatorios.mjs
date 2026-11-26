@@ -89,7 +89,7 @@ await new Promise((r) => mock.listen(4590, '127.0.0.1', r))
 const H = { apikey: SR, Authorization: `Bearer ${SR}`, 'Content-Type': 'application/json', Prefer: 'return=representation' }
 const rest = (p, init = {}) => fetch(`${SB}/rest/v1/${p}`, { headers: H, ...init })
 const db = createClient(SB, SR, { auth: { persistSession: false } })
-const email = `e2e-rel-${Date.now()}@orvia-demo.example`
+const email = `e2e-rel-${Date.now()}@undercut-demo.example`
 const password = randomBytes(18).toString('base64url')
 const user = await (await fetch(`${SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email, password, email_confirm: true }) })).json()
 await rest('members', { method: 'POST', body: JSON.stringify({ workspace_id: WS, user_id: user.id, role: 'owner' }) })
@@ -118,7 +118,7 @@ try {
   await page.keyboard.press('Enter')
   await page.waitForURL(/\/a\//, { timeout: 30000 })
 
-  await page.goto(`${HUB}/a/orvia-demo/relatorios`)
+  await page.goto(`${HUB}/a/undercut-demo/relatorios`)
   await page.getByRole('heading', { name: 'Relatórios' }).waitFor({ timeout: 60000 })
   log(await page.getByText('Pronto', { exact: true }).waitFor({ timeout: 15000 }).then(() => true, () => false), 'WhatsApp: status real "Pronto" + número')
   log(await page.getByText(/2 grupo\(s\)/).isVisible(), 'WhatsApp: mostra os grupos sincronizados')

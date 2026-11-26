@@ -31,12 +31,12 @@ const log = (ok, m) => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${m}`)
 }
 
-const email = `${TAG}@orvia-demo.example`
+const email = `${TAG}@undercut-demo.example`
 const password = randomBytes(18).toString('base64url')
 const u = await (await fetch(`${SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email, password, email_confirm: true }) })).json()
 await rest('members', { method: 'POST', body: JSON.stringify({ workspace_id: WS, user_id: u.id, role: 'owner' }) })
 
-const ext = (await rest('extensions?slug=eq.orvia-ifood&select=id')).body[0]
+const ext = (await rest('extensions?slug=eq.undercut-ifood&select=id')).body[0]
 async function makeKey(name, extensionId = null) {
   const key = `ck_live_${randomBytes(32).toString('base64url')}`
   const r = await rest('api_keys', {
@@ -97,7 +97,7 @@ try {
   await page.fill('input[type=password]', password)
   await page.keyboard.press('Enter')
   await page.waitForURL(/\/a\//, { timeout: 30000 })
-  await page.goto(`${HUB}/a/orvia-demo/extensoes`)
+  await page.goto(`${HUB}/a/undercut-demo/extensoes`)
   await page.getByRole('heading', { name: 'Extensões', exact: true }).waitFor()
 
   // Relatório + prints
@@ -168,7 +168,7 @@ try {
 
   // Mobile
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(`${HUB}/a/orvia-demo/extensoes`)
+  await page.goto(`${HUB}/a/undercut-demo/extensoes`)
   await page.getByRole('heading', { name: 'Extensões', exact: true }).waitFor()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
   log(!overflow, 'sem rolagem horizontal em 390px')

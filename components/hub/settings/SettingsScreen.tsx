@@ -486,7 +486,7 @@ export function SettingsScreen({
               <li>· Dê acesso de SUPORTE apenas a quem precisa ver todos os clientes.</li>
               <li>· Nunca cole a chave em chat/e-mail; use o botão de copiar do painel.</li>
               <li>· Mantenha a extensão atualizada pelo Hub (pacote do ADM).</li>
-              <li>· Configure ANTHROPIC_API_KEY só no servidor/Vercel para o agente de pesquisa com IA.</li>
+              <li>· A pesquisa das extensões é feita pelo próprio Undercut em fontes públicas: não precisa de chave de IA.</li>
             </ul>
             <div className="mt-4 rounded-2xl border border-[#FF6A3D]/20 bg-[#FF6A3D]/[0.05] px-3 py-2 text-[11px] leading-relaxed text-[#FFB199]">
               Encontrou algo estranho? Revogue as chaves do workspace, troque a senha e fale com o suporte.

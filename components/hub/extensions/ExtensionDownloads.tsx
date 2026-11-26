@@ -18,7 +18,7 @@ const INSTALL_STEPS: { title: string; text: string }[] = [
 
 /** Uso: passos de cada extensão (o que acontece na tela do portal da plataforma). */
 const USE_STEPS: Record<string, { portal: string; steps: string[] }> = {
-  'orvia-ifood': {
+  'undercut-ifood': {
     portal: 'Portal do Parceiro do iFood',
     steps: [
       'Entre no Portal do Parceiro do iFood com a conta da loja do cliente, como você já faz.',
@@ -29,7 +29,7 @@ const USE_STEPS: Record<string, { portal: string; steps: string[] }> = {
       'Aplique o que foi aprovado. No final a extensão envia o relatório com prints para o Undercut.',
     ],
   },
-  'orvia-cardapioweb': {
+  'undercut-cardapioweb': {
     portal: 'Portal do Cardápio Web',
     steps: [
       'Entre no Portal do Cardápio Web com a conta do cliente, como você já faz.',
@@ -40,7 +40,7 @@ const USE_STEPS: Record<string, { portal: string; steps: string[] }> = {
       'Aplique o que foi aprovado. No final a extensão envia o relatório com prints para o Undercut.',
     ],
   },
-  'orvia-anotaai': {
+  'undercut-anotaai': {
     portal: 'painel do Anota AI',
     steps: [
       'Entre no painel do Anota AI com a conta do cliente, como você já faz.',

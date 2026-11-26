@@ -37,7 +37,7 @@ describe('Extensões simples', () => {
     ;(globalThis as { React?: unknown }).React = React
     const { ExtensionsSimple } = await import('../components/hub/extensions/ExtensionsSimple')
     const slugs = availableExtensions().map((e) => e.slug)
-    expect(slugs).toEqual(['orvia-ifood', 'orvia-cardapioweb', 'orvia-anotaai'])
+    expect(slugs).toEqual(['undercut-ifood', 'undercut-cardapioweb', 'undercut-anotaai'])
     const html = renderToStaticMarkup(createElement(ExtensionsSimple, { workspaceName: 'Teste' }))
     for (const e of availableExtensions()) expect(html).toContain(`${e.downloadUrl}?v=${e.version}`)
     expect(html).toContain('Como instalar no Chrome')

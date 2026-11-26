@@ -14,12 +14,11 @@ export const brand = {
   description: 'Tráfego pago e estratégia para negócios que querem passar na frente: clientes, contas de anúncio, cardápio, relatórios e extensões.',
   pronunciation: 'ân-der-cât',
   // Endereço público (decidido em 2026-11-11, junto do rebrand): undercuthub.vercel.app — sem domínio
-  // próprio (".hub" não é TLD válido). orviahub.vercel.app segue como alias legado.
-  // As extensões continuam falando com `extensionHubUrl` (o único hub fixo em host_permissions);
-  // todos os endereços servem o mesmo deployment.
+  // próprio (".hub" não é TLD válido).
+  // As extensões falam com `extensionHubUrl` (o único hub fixo em host_permissions).
   domain: 'undercuthub.vercel.app',
   baseUrl: 'https://undercuthub.vercel.app',
-  extensionHubUrl: 'https://orvia-gestao.vercel.app',
+  extensionHubUrl: 'https://undercuthub.vercel.app',
   supportEmail: 'suporte@undercut.example', // placeholder: ainda não há caixa de e-mail própria
 
   version: '0.3.0',

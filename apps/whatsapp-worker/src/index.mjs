@@ -62,7 +62,9 @@ tryLoadEnv()
 
 // Um robô por pasta/computador: dois processos disputariam a sessão do WhatsApp e
 // poderiam enviar a mesma mensagem duas vezes. (Checado antes de qualquer rede.)
-const LOCK = path.join(HERE, '..', 'auth', 'worker.lock')
+// WORKER_DATA_DIR: pasta persistente (volume) quando o robô roda em servidor 24 h; padrão = ./auth
+const DATA_DIR = process.env.WORKER_DATA_DIR?.trim() || path.join(HERE, '..', 'auth')
+const LOCK = path.join(DATA_DIR, 'worker.lock')
 function acquireLock() {
   mkdirSync(path.dirname(LOCK), { recursive: true })
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -75,7 +77,8 @@ function acquireLock() {
       const pid = Number(readFileSync(LOCK, 'utf8')) || 0
       let alive = false
       try {
-        if (pid) {
+        if (pid && pid !== process.pid) {
+          // (em contêiner o PID se repete a cada reinício: o mesmo número não é outro robô)
           process.kill(pid, 0)
           alive = true
         }
@@ -128,7 +131,7 @@ const ws = await resolveWorkspace().catch((e) => {
   process.exit(1)
 })
 const WS = ws.id
-const AUTH_DIR = path.join(HERE, '..', 'auth', WS)
+const AUTH_DIR = path.join(DATA_DIR, WS)
 log(`Workspace: ${ws.name ?? ws.slug}`)
 
 

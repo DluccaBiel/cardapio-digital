@@ -393,3 +393,7 @@ a:hover { text-decoration: underline; }
 .uc-live-dot > i:first-child { animation: uc-live-ping 1.8s cubic-bezier(0,0,.2,1) infinite; }
 .uc-live-dot > i:last-child { box-shadow: 0 0 10px currentColor; }
 @media (prefers-reduced-motion: reduce) { .uc-live-dot, .uc-live-dot > i:first-child { animation: none; } }
+
+/* Menu lateral: rolagem sem barra visível */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }

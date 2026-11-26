@@ -53,19 +53,19 @@ const created = { leads: [], keys: [], user: null }
 
 try {
   // --- 1) Login pela extensão SDR → chave com escopos sdr:* -------------------------
-  const email = `sdr-api-${Date.now()}@orvia-demo.example`
+  const email = `sdr-api-${Date.now()}@undercut-demo.example`
   const password = randomBytes(18).toString('base64url')
   const user = await (await fetch(`${SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email, password, email_confirm: true }) })).json()
   created.user = user.id
   await rest('members', { method: 'POST', body: JSON.stringify({ workspace_id: WS, user_id: user.id, role: 'editor' }) })
-  const login = await api('/extension-auth/login', { method: 'POST', body: { email, password, workspace_slug: 'orvia-demo', device_id: 'sdrtest-0001', extension: 'undercut-sdr' } })
+  const login = await api('/extension-auth/login', { method: 'POST', body: { email, password, workspace_slug: 'undercut-demo', device_id: 'sdrtest-0001', extension: 'undercut-sdr' } })
   const KEY = login.json?.data?.key
   check('login da extensão SDR devolve chave', login.status === 200 && /^ck_live_/.test(KEY ?? ''), JSON.stringify(login.json).slice(0, 200))
   const me = await api('/me', { key: KEY })
   check('GET /me: extensão undercut-sdr com escopos sdr:ler + sdr:escrever (só)', me.json?.data?.extension === 'undercut-sdr' && JSON.stringify(me.json?.data?.scopes?.sort()) === JSON.stringify(['sdr:escrever', 'sdr:ler']), JSON.stringify(me.json?.data))
 
   // Chave de outra extensão (iFood) não acessa o SDR
-  const ifood = (await rest('extensions?slug=eq.orvia-ifood&select=id')).body[0].id
+  const ifood = (await rest('extensions?slug=eq.undercut-ifood&select=id')).body[0].id
   const otherKey = `ck_live_${randomBytes(32).toString('base64url')}`
   const ok2 = await rest('api_keys', { method: 'POST', body: JSON.stringify({ workspace_id: WS, extension_id: ifood, name: 'teste api_sdr (ifood)', key_hash: createHash('sha256').update(otherKey).digest('hex'), key_prefix: otherKey.slice(0, 12), scopes: ['clientes:ler', 'catalogo:ler'] }) })
   created.keys.push(ok2.body[0].id)

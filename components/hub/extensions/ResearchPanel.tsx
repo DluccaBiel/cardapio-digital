@@ -9,9 +9,8 @@ import { researchAction } from '@/app/a/[ws]/extensoes/actions'
 type Answer = Awaited<ReturnType<typeof researchAction>>
 
 /**
- * Agente de pesquisa do Undercut: as extensões (e o painel) perguntam e recebem
- * uma resposta com fontes públicas. Sem ANTHROPIC_API_KEY funciona no modo
- * gratuito (busca pública).
+ * Pesquisa do Undercut: as extensões (e o painel) perguntam e o próprio sistema
+ * busca em fontes públicas e devolve a resposta com os links. Sem IA, sem chave externa.
  */
 export function ResearchPanel({ ws, hubUrl }: { ws: string; hubUrl: string }) {
   const [question, setQuestion] = useState('')
@@ -53,10 +52,10 @@ export function ResearchPanel({ ws, hubUrl }: { ws: string; hubUrl: string }) {
             <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#D7141F]/30 bg-[#D7141F]/10 text-[#F0333D]">
               <Search size={16} />
             </span>
-            Agente de pesquisa
+            Pesquisa de mercado
           </h2>
           <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-[#8E8A86]">
-            Pergunte sobre mercado, concorrentes, preços e tendências. O agente responde com fontes públicas — e as extensões podem pedir a mesma pesquisa pela API.
+            Pergunte sobre mercado, concorrentes, preços e tendências. O Undercut busca em fontes públicas e entrega o resultado direto na tela — e as extensões recebem a mesma pesquisa pela API, sem IA.
           </p>
         </div>
         <Btn variant="secondary" onClick={() => setDocs(true)}>
@@ -117,7 +116,7 @@ export function ResearchPanel({ ws, hubUrl }: { ws: string; hubUrl: string }) {
                   <span className={cn('h-1.5 w-1.5 rounded-full', answer.status === 'ok' ? 'bg-[#34D399]' : 'bg-[#FBBF24]')} />
                   {answer.status === 'ok' ? 'resposta' : 'sem fontes'}
                 </span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#55555C]">{answer.mode === 'ia' ? 'IA + busca' : 'modo gratuito'}</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#55555C]">busca do sistema</span>
               </div>
               <div className="mt-2 max-h-[290px] overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-[#CFCBC4]">{answer.answer}</div>
               {answer.sources.length > 0 && (

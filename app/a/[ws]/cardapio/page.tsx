@@ -28,7 +28,7 @@ export default async function CardapioPage({
     .from('extension_installs')
     .select('status, version, last_seen_at, extensions!inner ( slug )')
     .eq('workspace_id', workspace.id)
-    .eq('extensions.slug', 'orvia-ifood')
+    .eq('extensions.slug', 'undercut-ifood')
     .maybeSingle()
   if (install) extension = { status: install.status, version: install.version, last_seen_at: install.last_seen_at }
 

@@ -69,7 +69,7 @@ export function IntegrationsSection({
     setAdding(true)
     const res = await saveExtensionAction(ws, {
       id: null,
-      slug: `orvia-${partner.slug}`,
+      slug: `undercut-${partner.slug}`,
       name: `${partner.name} · Extensão`,
       description: `Integração do sistema ${partner.name} com o Undercut: leitura, análise e aplicação de decisões aprovadas.`,
       homepage_url: '',
@@ -81,7 +81,7 @@ export function IntegrationsSection({
 
   const generateConnectionKey = async () => {
     setPairing(true)
-    const res = await pairExtensionAction(ws, `orvia-${partner.slug}`)
+    const res = await pairExtensionAction(ws, `undercut-${partner.slug}`)
     setPairing(false)
     if (res.ok) onToast(`Código de conexão ${partner.name} gerado — veja em Chaves de API.`)
     else onToast(res.error)

@@ -4,6 +4,7 @@ import { loadDisparos } from '../../../../lib/db/disparos'
 import { DisparosScreen } from '../../../../components/hub/prospect/DisparosScreen'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30 // dá tempo de ligar o robô remoto ao iniciar o disparo
 export const metadata = { title: 'Undercut — Disparos' }
 
 export default async function DisparosPage({ params }: { params: { ws: string } }) {

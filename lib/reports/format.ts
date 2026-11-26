@@ -155,21 +155,21 @@ function blockSections(b: Block, show: Show): string[] {
   const k = b.kind
   const main: Line[] = [`• Investimento: ${money(b.spend)}`]
   if (k === 'sales') {
+    // Padrão do relatório de vendas: Investimento, Receita Ads, ROAS, CPA (as compras ficam em "Conversões").
     main.push(item('Receita Ads', b.revenue, money), item('ROAS', b.roas, xTxt))
-    main.push(`• Compras: ${int(b.result)}${delta(b.deltaResult)}`, item('CPA', b.costPerResult, money, delta(b.deltaCost)))
+    if (!m) main.push(`• Compras: ${int(b.result)}`) // sem métricas detalhadas, a seção Conversões não existe
+    main.push(item('CPA', b.costPerResult, money))
   } else {
-    main.push(`• ${b.resultLabel}: ${int(b.result)}${delta(b.deltaResult)}`, item(b.costLabel, b.costPerResult, money, delta(b.deltaCost)))
+    main.push(`• ${b.resultLabel}: ${int(b.result)}`, item(b.costLabel, b.costPerResult, money))
   }
   const out = section(k === 'sales' ? '💰 *Investimento & Retorno*' : '💰 *Investimento & Resultado*', main)
   if (!m) return out
 
   if (show.general) {
-    const freq = m.reach > 0 ? m.impressions / m.reach : 0
     out.push(
       ...section('👥 *Alcance & Impressões*', [
         item('Alcance', m.reach, (v) => `${int(v)} pessoas`),
         item('Impressões', m.impressions),
-        item('Frequência', freq >= 1 ? freq : null, (v) => v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })),
       ]),
     )
   }
@@ -185,7 +185,6 @@ function blockSections(b: Block, show: Show): string[] {
       item('Reações', m.reactions),
       item('Comentários', m.comments),
       item('Salvamentos', m.saves),
-      item('Compartilhamentos', m.shares),
       item('Taxa de engajamento', pctOf(m.engagements, m.impressions), pctTxt),
     ]),
   )
@@ -200,7 +199,7 @@ function blockSections(b: Block, show: Show): string[] {
   )
   out.push(
     ...section('🎯 *Conversões*', [
-      k === 'sales' ? null : item('Compras', m.purchases),
+      item('Compras', k === 'sales' ? Math.max(m.purchases, b.result) : m.purchases),
       item('Adicionar ao carrinho', m.addToCart),
       item('Checkout iniciado', m.checkout),
       k === 'leads' ? null : item('Cadastros', m.leads),
@@ -251,12 +250,11 @@ export function reportMessage(p: ReportPayload): string {
   const lines: string[] = [
     `📊 *RELATÓRIO DE RESULTADOS — ${p.title}*`,
     `📅 Período: ${rangeLong(p.period)}`,
-    ...(p.previous ? [`↔️ Comparado a: ${rangeLong(p.previous)}`] : []),
     ...(objectives.length ? [`🎯 Objetivo: ${objectives.join(' + ')}`] : []),
   ]
   if (!p.show.byObjective && p.show.general) {
     lines.push(
-      ...section('💰 *Investimento*', [`• Investimento: ${money(p.totals.spend)}${delta(p.totals.spendDelta)}`, item('Alcance', p.totals.reach, (v) => `${int(v)} pessoas`), item('Impressões', p.totals.impressions)]),
+      ...section('💰 *Investimento*', [`• Investimento: ${money(p.totals.spend)}`, item('Alcance', p.totals.reach, (v) => `${int(v)} pessoas`), item('Impressões', p.totals.impressions)]),
     )
   }
   for (const b of blocks) {
@@ -264,7 +262,7 @@ export function reportMessage(p: ReportPayload): string {
     lines.push(...blockSections(b, p.show))
   }
   if (p.show.byObjective && blocks.length === 0) lines.push('', 'Sem campanhas com investimento no período.')
-  if (blocks.length > 1 && p.show.general) lines.push('', '━━━━━━━━━━━━━━', `💰 *Total investido:* ${money(p.totals.spend)}${delta(p.totals.spendDelta)}`)
+  if (blocks.length > 1 && p.show.general) lines.push('', '━━━━━━━━━━━━━━', `💰 *Total investido:* ${money(p.totals.spend)}`)
 
   if (p.show.topCreatives && p.topAds[0] && p.topAds[0].result > 0) {
     const a = p.topAds[0]
@@ -277,7 +275,6 @@ export function reportMessage(p: ReportPayload): string {
   const h = highlights(p)
   if (h.strong.length) lines.push('', '✅ *Pontos fortes:*', ...h.strong.map((s) => `• ${s}`))
   if (h.attention.length) lines.push('', '⚠️ *Pontos de atenção:*', ...h.attention.map((s) => `• ${s}`))
-  lines.push('', 'Qualquer dúvida, estou à disposição! 👊')
   return lines.join('\n').slice(0, 3900)
 }
 

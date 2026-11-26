@@ -42,7 +42,7 @@ async function rest(path, init = {}) {
 
 async function makeKey(scopes, extra = {}) {
   const key = `ck_live_${randomBytes(32).toString('base64url')}`
-  const ext = await rest('extensions?slug=eq.orvia-ifood&select=id')
+  const ext = await rest('extensions?slug=eq.undercut-ifood&select=id')
   const r = await rest('api_keys', {
     method: 'POST',
     body: JSON.stringify({

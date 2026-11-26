@@ -140,7 +140,7 @@ export function Sidebar({
       {!compact && (
         <p className="px-5 pb-2 font-mono text-[9px] font-mono uppercase tracking-[0.28em] text-[#55555C]">Painel · setores</p>
       )}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-1" aria-label="Navegação principal">
+      <nav className="no-scrollbar flex-1 space-y-1 overflow-y-auto px-3 py-1" aria-label="Navegação principal">
         {role === 'colaborador'
           ? items.filter((item) => item.key === 'extensoes').map((item) => renderNavItem(item, items.indexOf(item), compact, pathname, basePath, onNavigate))
           : items.map((item, index) => renderNavItem(item, index, compact, pathname, basePath, onNavigate))}

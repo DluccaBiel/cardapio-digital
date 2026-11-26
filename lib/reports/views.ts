@@ -44,12 +44,13 @@ export type ReportsData = {
   targets: TargetView[]
   groups: GroupView[]
   groupsSyncedAt: string | null
+  whatsapp: { status: string; workerOnline: boolean; phone: string | null }
   settings: SettingsView
   schedules: ScheduleView[]
   history: HistoryRow[]
 }
 
-export const DEFAULT_SETTINGS: SettingsView = { show: DEFAULT_SHOW, period: 'last', compare: true, intervalMin: 60, intervalMax: 180 }
+export const DEFAULT_SETTINGS: SettingsView = { show: DEFAULT_SHOW, period: '7d', compare: false, intervalMin: 60, intervalMax: 180 }
 
 export async function loadReportsData(db: SupabaseClient, workspaceId: string): Promise<ReportsData> {
   const [acc, tg, gr, st, sc, hi, se] = await Promise.all([
@@ -59,7 +60,7 @@ export async function loadReportsData(db: SupabaseClient, workspaceId: string): 
     db.from('report_settings').select('blocks, period_key, compare, interval_min_seconds, interval_max_seconds').eq('workspace_id', workspaceId).maybeSingle(),
     db.from('report_schedules').select('id, name, active, days_of_week, send_time, period_key, compare, target_ids, interval_min_seconds, interval_max_seconds, next_run_at, last_run_at, last_error').eq('workspace_id', workspaceId).order('created_at'),
     db.from('reports').select('id, title, period_since, period_until, status, group_name, scheduled_at, sent_at, error, created_at, message, schedule_id').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(100),
-    db.from('whatsapp_sessions').select('groups_synced_at').eq('workspace_id', workspaceId).maybeSingle(),
+    db.from('whatsapp_sessions').select('groups_synced_at, status, worker_seen_at, phone').eq('workspace_id', workspaceId).maybeSingle(),
   ])
   const accounts: AccountView[] = ((acc.data ?? []) as any[]).map((a) => {
     const c = Array.isArray(a.clients) ? a.clients[0] : a.clients
@@ -83,6 +84,10 @@ export async function loadReportsData(db: SupabaseClient, workspaceId: string): 
     targets: (tg.data ?? []) as TargetView[],
     groups: (gr.data ?? []) as GroupView[],
     groupsSyncedAt: (se.data as { groups_synced_at?: string | null } | null)?.groups_synced_at ?? null,
+    whatsapp: (() => {
+      const w = se.data as { status?: string; worker_seen_at?: string | null; phone?: string | null } | null
+      return { status: w?.status ?? 'disconnected', workerOnline: Boolean(w?.worker_seen_at && Date.now() - Date.parse(w.worker_seen_at) < 30_000), phone: w?.phone ?? null }
+    })(),
     settings,
     schedules: (sc.data ?? []) as ScheduleView[],
     history: (hi.data ?? []) as HistoryRow[],

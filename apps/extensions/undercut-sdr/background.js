@@ -2,7 +2,7 @@
 // Guarda a chave da extensão (chrome.storage.local) e é o ÚNICO ponto que fala com o hub.
 // O content script (WhatsApp Web) e o popup pedem tudo por mensagem: a chave nunca vai para a página.
 
-const DEFAULT_HUB = 'https://orvia-gestao.vercel.app' // brand.extensionHubUrl (fixo em host_permissions)
+const DEFAULT_HUB = 'https://undercuthub.vercel.app' // brand.extensionHubUrl (fixo em host_permissions)
 const EXTENSION_SLUG = 'undercut-sdr'
 const INBOX_ALARM = 'sdr-inbox'
 

@@ -4,7 +4,7 @@
 begin;
 create temp table r (teste text, ok boolean, detalhe text);
 
-insert into r select 'extensão orvia-cardapioweb no catálogo', count(*) = 1, count(*)::text from public.extensions where slug = 'orvia-cardapioweb';
+insert into r select 'extensão undercut-cardapioweb no catálogo', count(*) = 1, count(*)::text from public.extensions where slug = 'undercut-cardapioweb';
 insert into r select 'coluna clients.cardapioweb_store_id', count(*) = 1, count(*)::text
   from information_schema.columns where table_schema = 'public' and table_name = 'clients' and column_name = 'cardapioweb_store_id';
 insert into r select 'coluna menu_optimizations.platform default ifood', bool_and(column_default like '''ifood''%'), max(column_default)

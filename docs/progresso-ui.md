@@ -29,7 +29,7 @@ Testado:
 Pendências / notas:
 - **PREVIEW na Vercel aponta para o projeto NOVO** (NEXT_PUBLIC_SUPABASE_URL / ANON_KEY + SUPABASE_URL / SERVICE_ROLE_KEY / JWKS_URL atualizados no escopo Preview em 05/11/2026). **PRODUCTION continua apontando para o projeto antigo (AnjimBanco)** — não alterado sem aprovação.
 - Preview de `feat/ui-hub` na Vercel continuará atrás da autenticação Vercel (Deployment Protection) — verificação visual pelo usuário.
-- Auth (Site URL + redirects) no painel Supabase: **pendente** — o usuário precisa incluir `https://orvia-gestao.vercel.app` e a URL de preview do PR/branch em Authentication → URL Configuration (relatar por marco).
+- Auth (Site URL + redirects) no painel Supabase: **pendente** — o usuário precisa incluir `https://undercuthub.vercel.app` e a URL de preview do PR/branch em Authentication → URL Configuration (relatar por marco).
 - O usuário deve decidir se as envs de PRODUCTION passam ao projeto novo antes do merge final (Marco 6).
 
 ## Marco 1 — Banco novo conectado (em andamento)
@@ -66,10 +66,10 @@ Retomada da fase visual: **“Fase visual concluída”** — próxima etapa é 
 
 ## Marco 4 — Cardápio + API + extensão iFood ✅ local (06/11/2026)
 Branch: `feat/cardapio` (a partir de `feat/ui-visual`). **Ainda não aplicado no banco remoto nem deployado.**
-- Migration `0004_menu_combos_ifood.sql`: `menu_items.kind` (item/combo), `menu_combo_components` (RLS + FK composta + trigger de mesmo cliente), `ifood_*` + `ifood_synced_at` (fila de pendências), `clients.ifood_merchant_id` (trava de loja), RPC `mark_menu_items_ifood_synced`, extensão `orvia-ifood` no catálogo.
+- Migration `0004_menu_combos_ifood.sql`: `menu_items.kind` (item/combo), `menu_combo_components` (RLS + FK composta + trigger de mesmo cliente), `ifood_*` + `ifood_synced_at` (fila de pendências), `clients.ifood_merchant_id` (trava de loja), RPC `mark_menu_items_ifood_synced`, extensão `undercut-ifood` no catálogo.
 - Painel `/a/{ws}/cardapio` com dados reais: cliente, categorias (criar/renomear/ordenar/excluir), produtos (preço e status inline, modal completo com complementos), **combos** (montagem, desconto, preço sugerido terminando em ,90, economia, ativar/pausar), complementos (grupos/opções), **Sincronização iFood** (fila + "Já apliquei"). If-Match em toda edição (conflito → aviso + recarrega).
 - Painel `/a/{ws}/extensoes`: gerar e revogar chaves (hash, exibida uma vez) e ver o status da extensão.
-- API `/api/v1` (ver `docs/api.md` §7.1) e extensão reescrita em `apps/extensions/orvia-ifood` (ver o README dela).
+- API `/api/v1` (ver `docs/api.md` §7.1) e extensão reescrita em `apps/extensions/undercut-ifood` (ver o README dela).
 - **Conectar com um clique** (Extensões → Conectar extensão / `/conectar-extensao`): o painel gera a chave e entrega direto à extensão (content script `hub-bridge`), sem copiar nem colar.
 - Testes: RLS 70/0 · cross-link 20/0 · combos_ifood 16/0 · checks limpo · API 34/34 · painel E2E 9/9 · extensão vitest 25/25 + E2E Chromium 15/15 · `tsc` + `next build` ✅.
 - Decisão do usuário (06/11/2026): usar o banco **antigo AnjimBanco (zzdiefephohlyicgexkv)**, que é o de Produção, para o uso diário. A 0004 é aplicada nele após backup.

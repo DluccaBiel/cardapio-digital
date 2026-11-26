@@ -18,7 +18,7 @@ const bodySchema = z.object({
 })
 
 /**
- * Agente de pesquisa para as extensões.
+ * Pesquisa do sistema (sem IA) para as extensões.
  *
  * `POST /api/v1/research` com `X-API-Key` de escopo `pesquisa:ler`:
  *   { "question": "...", "context": "...", "max_sources": 5 }

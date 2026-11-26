@@ -235,7 +235,7 @@ const researchSchema = z.object({
   context: z.string().trim().max(1200).optional(),
 })
 
-/** Agente de pesquisa usado pelo painel (mesma engine do /api/v1/research). */
+/** Pesquisa (sem IA) usada pelo painel (mesma engine do /api/v1/research). */
 export async function researchAction(ws: string, input: unknown): Promise<{ ok: true; data: Awaited<ReturnType<typeof researchAnswer>> } | { ok: false; error: string }> {
   const workspace = await getWorkspaceBySlug(ws)
   if (!workspace) return { ok: false, error: 'Workspace não encontrado.' }
@@ -287,5 +287,5 @@ export async function pairExtensionAction(ws: string, slug: string): Promise<Cre
 
 /** Compatibilidade: conexão automática da extensão iFood. */
 export async function pairIfoodExtensionAction(ws: string): Promise<CreateResult> {
-  return pairExtensionAction(ws, 'orvia-ifood')
+  return pairExtensionAction(ws, 'undercut-ifood')
 }

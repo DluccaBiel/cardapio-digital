@@ -29,7 +29,7 @@
 | `package.json` | 2 | `"name": "cardapio-next"` | MARCA | Renomear para `@undercut/hub` (app continua na raiz — ver nota de estrutura abaixo) |
 | `package.json` | — | workspaces | MARCA | Adicionar `workspaces: ["packages/*", "apps/*"]`; `@undercut/brand` e `@undercut/api-types` como membros |
 | `app/layout.tsx` | 8–9 | `title: 'Cardápio Digital'`, `description: '...'` | MARCA | Metadata via `@undercut/brand` (title, description, OG, favicon) |
-| `app/login/page.tsx` | 33 | `<div class="brand">… Cardápio Digital</div>` | MARCA | Logo `orvia-mark` + palavra "Undercut" via `@undercut/brand` |
+| `app/login/page.tsx` | 33 | `<div class="brand">… Cardápio Digital</div>` | MARCA | Logo `undercut-mark` + palavra "Undercut" via `@undercut/brand` |
 | `app/cadastro/page.tsx` | 40 | `<div class="brand">… Cardápio Digital</div>` | MARCA | Idem |
 | `app/globals.css` | várias | destaque **vermelho** `#b91c1c` (não verde) | MARCA (cor de marca) | Paleta azul Undercut (ver Etapa 3); verde só p/ status "ok" |
 | `app/page.tsx` | — | `redirect('/login')` | NÃO TOCAR | Sem marca |
@@ -44,7 +44,7 @@
 | `docs/openapi.yaml` | 17 | `contact.name: Assessoria — Plataforma` | FUNCIONAL | Genérico; manter |
 | `docs/openapi.yaml` | 191 | `default: '#22c55e'` (cor default de tag) | FUNCIONAL | Default de conteúdo (tag), não cor de interface; manter |
 | `docs/roadmap-fase-1.md` | 18–19 | "tema escuro + neon", `#22ff88`/`#a3ff12` | MARCA (cor) | Atualizar para paleta azul Undercut |
-| `docs/webhooks.md` | 52 | `User-Agent: cardapio-hub-webhooks/1.0` | MARCA (identificador de doc) | `orvia-webhooks/1.0` — exemplo ainda não implementado; zero consumidores, sem impacto |
+| `docs/webhooks.md` | 52 | `User-Agent: cardapio-hub-webhooks/1.0` | MARCA (identificador de doc) | `undercut-webhooks/1.0` — exemplo ainda não implementado; zero consumidores, sem impacto |
 | `docs/extensoes.md` | 82 | `"name": "Cardápio Hub — Troca de Fotos"` (exemplo de esqueleto) | MARCA | `"Undercut — Troca de Fotos"` |
 | `docs/fotos-e-historico.md` | 1 | título `# Fotos e histórico de imagens — Cardápio` | FUNCIONAL | "Cardápio" = substantivo (módulo), manter |
 | `docs/decisoes-em-aberto.md` | 6 | "fotos de cardápio em WebP" | FUNCIONAL | Substantivo, manter |
@@ -62,7 +62,7 @@
 
 1. **App na raiz, monorepo vazio**: o app Next.js vive na raiz do repositório (`app/`, `lib/`, `actions/`); `apps/hub` está reservado-vazio. Mover os arquivos quebraria o projeto Vercel existente (root build + `vercel.json`) **e está fora de escopo do rebrand**. Decisão: a raiz passa a se chamar `@undercut/hub` (`private: true`); `apps/*` e `packages/*` entram como npm workspaces; quando o app for migrado para `apps/hub/` (roadmap), o nome `@undercut/hub` acompanha.
 2. **Tailwind ausente**: o app usa CSS vanilla (`app/globals.css`). As tokens Tailwind do Undercut entram via `brand.config.ts` + variáveis CSS `:root` (utilitários prontos para quando o shell com Tailwind existir); nenhuma dependência nova de UI será adicionada neste rebrand.
-3. **Nenhum prefixo técnico de marca existe** (`flyto_`, `X-FlyTo-*`, localStorage, eventos): nada a migrar; novos identificadores nascem `orvia-*` / `orvia_`.
+3. **Nenhum prefixo técnico de marca existe** (`flyto_`, `X-FlyTo-*`, localStorage, eventos): nada a migrar; novos identificadores nascem `undercut-*` / `undercut_`.
 4. **`.env.local` e segredos**: não lidos, não alterados, continuam ignorados.
 5. **Nenhum nome de variável de ambiente muda** nesta etapa (impacto zero em Vercel/local).
 6. **Migrations NÃO são alteradas** (nem a linha de cabeçalho de `0001_init.sql`); se um rótulo de comentário de banco for desejado no futuro, será nova migration `0003_*`.

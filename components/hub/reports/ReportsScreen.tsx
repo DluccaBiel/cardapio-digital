@@ -372,6 +372,7 @@ export function ReportsScreen({
           schedules={schedules}
           setSchedules={setSchedules}
           settings={settings}
+          whatsapp={data.whatsapp}
           canWrite={canWrite}
           flash={flash}
         />
@@ -1151,6 +1152,7 @@ function SchedulesTab({
   schedules,
   setSchedules,
   settings,
+  whatsapp,
   canWrite,
   flash,
 }: {
@@ -1161,10 +1163,11 @@ function SchedulesTab({
   schedules: ScheduleView[]
   setSchedules: React.Dispatch<React.SetStateAction<ScheduleView[]>>
   settings: SettingsView
+  whatsapp: ReportsData['whatsapp']
   canWrite: boolean
   flash: (t: string) => void
 }) {
-  const blank: Draft = { name: 'Relatório semanal', active: true, days: [1], time: '09:00', period: 'last', compare: true, accountIds: [], intervalMin: settings.intervalMin, intervalMax: settings.intervalMax }
+  const blank: Draft = { name: 'Relatório semanal', active: true, days: [1], time: '09:00', period: '7d', compare: false, accountIds: [], intervalMin: settings.intervalMin, intervalMax: settings.intervalMax }
   const [draft, setDraft] = useState<Draft | null>(null)
   const [busy, start] = useTransition()
   const byTargetId = useMemo(() => new Map(Array.from(targets.values()).map((t) => [t.id, t])), [targets])
@@ -1215,10 +1218,28 @@ function SchedulesTab({
           )}
         </div>
         <p className="text-[12px] text-[#8E8A86]">
-          No dia e hora marcados o robô pede ao Undercut os números da Meta, gera o relatório de cada cliente (com o grupo, juntar/separar e campanhas
-          configurados no Gerador) e envia nos grupos, um por vez, com o intervalo escolhido. O robô (<code>npm run worker</code>) e o WhatsApp precisam
-          estar ligados.
+          No dia e hora marcados o robô pede ao Undercut os números da Meta (por padrão, os <b className="text-[#CFCBC4]">últimos 7 dias</b>), gera o relatório
+          de cada cliente e envia no <b className="text-[#CFCBC4]">grupo de WhatsApp</b> vinculado a ele, um por vez, com o intervalo escolhido.
         </p>
+        <div
+          className={cn(
+            'mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[5px] border px-3 py-2 text-[12px]',
+            whatsapp.workerOnline && (whatsapp.status === 'ready' || whatsapp.status === 'syncing')
+              ? 'border-[#16A34A]/40 bg-[#0F291E]/60 text-[#86EFAC]'
+              : 'border-[#D7141F]/40 bg-[#1F0D0F]/60 text-[#FFB199]',
+          )}
+        >
+          <span>
+            {!whatsapp.workerOnline
+              ? 'Robô desligado — os relatórios agendados NÃO serão enviados até o robô ligar.'
+              : whatsapp.status === 'ready' || whatsapp.status === 'syncing'
+                ? `WhatsApp conectado${whatsapp.phone ? ` (${whatsapp.phone})` : ''} — os envios agendados sairão de verdade.`
+                : 'Robô ligado, mas o WhatsApp não está conectado — conecte pelo QR code.'}
+          </span>
+          <a href={`/a/${ws}/disparos`} className="font-semibold underline underline-offset-2 hover:text-white">
+            Conectar / ver status
+          </a>
+        </div>
       </section>
 
       {draft && (

@@ -1,11 +1,9 @@
 import { authenticate, isResponse } from '@/lib/api/auth'
 import { err, ok, preflight, readJson } from '@/lib/api/http'
 import { z } from 'zod'
-import { GOALS, suggestOptimizations } from '@/lib/ai/optimize'
-import { researchCompetitors } from '@/lib/ai/competitors'
+import { GOALS } from '@/lib/ai/goals'
 import { researchFree } from '@/lib/ai/free-research'
-import { freeSuggest, requestNotices, requiredComboIdeas, type FreeItem } from '@/lib/ai/free-core'
-import { parseRequest } from '@/lib/ai/request'
+import { freeSuggest, type FreeItem } from '@/lib/ai/free-core'
 import { loadCatalog } from '@/lib/menu/load'
 import { audit } from '@/lib/audit'
 
@@ -23,14 +21,15 @@ const bodySchema = z.object({
   strategy_brief: z.string().max(600).optional(),
   competitors: z.boolean().default(false),
   max_price_change_pct: z.number().min(0).max(30).default(10),
-  /** número da rodada (v1, v2…): faz as ideias do modo gratuito mudarem a cada rodada */
+  /** número da rodada (v1, v2…): faz as ideias mudarem a cada rodada */
   variant: z.number().int().min(1).max(50).default(1),
 })
 
 /**
- * Análise do cardápio (IA + concorrentes públicos da região). NÃO grava nada:
- * devolve sugestões no formato que a extensão converte em "o que será feito".
- * Falha da IA/concorrentes nunca derruba a resposta — vem com ai_status/competitors_status.
+ * Análise do cardápio feita pelo próprio sistema (regras + concorrentes públicos da região), SEM IA.
+ * NÃO grava nada: devolve sugestões no formato que a extensão converte em "o que será feito".
+ * Falha da pesquisa de concorrentes nunca derruba a resposta — vem com competitors_status.
+ * `ai_status` continua no contrato por compatibilidade e é sempre 'regras'.
  */
 export async function POST(req: Request) {
   const auth = await authenticate(req, 'catalogo:ler')
@@ -45,60 +44,21 @@ export async function POST(req: Request) {
 
   const notices: string[] = []
   let competitorsStatus: 'ok' | 'indisponivel' | 'desligado' = 'desligado'
-  let research = null as Awaited<ReturnType<typeof researchCompetitors>>
+  let research = null as Awaited<ReturnType<typeof researchFree>>
   if (b.competitors && b.city.trim()) {
-    // 1º a pesquisa com IA (se houver chave); sem chave ou se falhar → pesquisa pública gratuita (sem token)
-    research = (await researchCompetitors({ niche: b.niche, city: b.city, restaurant: catalog.client.name, strategy: b.strategy, strategyBrief: b.strategy_brief })) ?? (await researchFree({ niche: b.niche, city: b.city }))
+    // Pesquisa pública feita pelo sistema (sem IA)
+    research = await researchFree({ niche: b.niche, city: b.city })
     competitorsStatus = research ? 'ok' : 'indisponivel'
     if (!research) notices.push('Não consegui pesquisar concorrentes agora; a análise usou só o seu cardápio.')
   }
 
-  const notes = [b.strategy_brief ? `Estratégia escolhida pelo gestor: ${b.strategy_brief}` : null, b.notes, research ? `Referências públicas de concorrentes da região (use como contexto, não copie):\n${research.notes}` : null].filter(Boolean).join('\n\n')
   const freeItems: FreeItem[] = (catalog.items as any[]).map((i) => ({ id: String(i.id), ifood_id: i.ifood_id ?? null, name: String(i.name), price: Number(i.price ?? i.base_price ?? 0) || null, description: i.description ?? null, kind: i.kind, status: i.status }))
-  // Pedido do gestor ao "refazer" (ex.: "novos combos com coca cola 2l") → itens obrigatórios + ideias reprovadas
-  const request = parseRequest(b.notes, freeItems.filter((i) => (i.kind ?? 'item') === 'item' && (i.status ?? 'active') === 'active'), b.strategy)
-  // Sem chave da Anthropic: modo gratuito (regras + concorrentes públicos). Com chave: IA como antes (e, se a IA falhar, cai no gratuito).
-  const freeMode = !process.env.ANTHROPIC_API_KEY
-  let result: Awaited<ReturnType<typeof suggestOptimizations>>
-  let aiStatus: 'ok' | 'regras' = 'ok'
-  let understood: string[] = []
-  const freeResult = () => {
-    const data = freeSuggest(freeItems, research, { maxPct: b.max_price_change_pct, variant: b.variant, notes: b.notes, strategy: b.strategy })
-    understood = data.understood
-    return { ok: true as const, data: data as any } as Awaited<ReturnType<typeof suggestOptimizations>>
-  }
-  if (freeMode) {
-    result = freeResult()
-    aiStatus = 'regras'
-    notices.push('Modo gratuito: ideias por regras e pesquisa pública, sem IA. Para ideias mais criativas, configure ANTHROPIC_API_KEY.')
-  } else {
-    result = await suggestOptimizations(catalog, {
-      goal: b.goal,
-      notes: notes || undefined,
-      maxPriceChangePct: b.max_price_change_pct,
-      requiredItemIds: request.required.map((r) => r.id),
-      rejected: request.rejected || undefined,
-    })
-    if (!result.ok) {
-      result = freeResult()
-      aiStatus = 'regras'
-      notices.push('A IA não respondeu agora; usei o modo gratuito (regras + pesquisa pública).')
-    } else if (request.required.length) {
-      // A IA tem de respeitar o pedido: se nenhum combo trouxe o item pedido, completa com combos calculados por regra
-      const req = new Set(request.required.map((r) => r.id))
-      const hits = result.data.combos.filter((c) => c.components.some((k) => req.has(k.component_id))).length
-      if (!hits) {
-        const extra = requiredComboIdeas(freeItems, request.required, b.variant, request.rejected)
-        result.data.combos = [...extra, ...result.data.combos].slice(0, 5)
-      }
-      understood = requestNotices(request, hits || result.data.combos.filter((c) => c.components.some((k) => req.has(k.component_id))).length)
-    } else understood = requestNotices(request, 0)
-  }
+  // Ideias por regras + concorrentes públicos, sempre pelo próprio sistema.
+  const aiStatus = 'regras' as const
+  const freeData = freeSuggest(freeItems, research, { maxPct: b.max_price_change_pct, variant: b.variant, notes: b.notes, strategy: b.strategy })
+  const understood: string[] = freeData.understood
+  const result = { ok: true as const, data: freeData }
   notices.unshift(...understood)
-  if (!result.ok) {
-    await audit({ workspaceId: auth.workspaceId, actorType: 'api_key', actorId: auth.keyId, action: 'analysis.failed', entityType: 'client', entityId: b.client_id })
-    return err(req, 'internal', result.error)
-  }
 
   const byId = new Map(catalog.items.map((i) => [i.id, i]))
   const fromComp = (r: string) => Boolean(research) && /concorrent|regi[aã]o/i.test(r)

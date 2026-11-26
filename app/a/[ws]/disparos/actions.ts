@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { audit } from '../../../../lib/audit'
+import { parseManualContacts } from '../../../../lib/phone'
+import { ensureWorkerRunning, launchMessage, WORKER_TTL_MS as _TTL } from '../../../../lib/worker-launcher'
 import { SESSION_FIELDS, type ProspectLead, type WhatsappSession } from '../../../../lib/db/disparos'
 import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
 import { createServerClient } from '../../../../lib/supabaseServer'
@@ -10,7 +12,7 @@ import { createServerClient } from '../../../../lib/supabaseServer'
 type Fail = { ok: false; error: string }
 const MANAGERS = ['owner', 'coordenador']
 /** Robô considerado online se bateu ponto nos últimos 30 s. */
-const WORKER_TTL_MS = 30_000
+const WORKER_TTL_MS = _TTL
 
 async function ctx(ws: string) {
   const workspace = await getWorkspaceBySlug(ws)
@@ -50,75 +52,31 @@ export async function whatsappConnectAction(ws: string, connect: boolean): Promi
 }
 
 // ---------------------------------------------------------------------------
-// Público: agente de prospecção (empresas food novas, OpenStreetMap)
-// A pesquisa roda no robô local (os servidores públicos de mapas são lentos/instáveis
-// e não caberiam no limite de 60 s da Vercel). O painel cria o pedido e acompanha.
+// Público: números colados à mão (sem IA, sem busca externa)
 // ---------------------------------------------------------------------------
 
-const discoverSchema = z.object({
-  city: z.string().trim().min(2).max(80),
-  uf: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z]{2}$/)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
-})
-
-export type SearchView = {
-  id: string
-  status: 'pendente' | 'buscando' | 'concluida' | 'erro'
-  city: string
-  uf: string | null
-  label: string | null
-  found: number
-  created_count: number
-  detail: string | null
-}
-const SEARCH_FIELDS = 'id, status, city, uf, label, found, created_count, detail'
-
-export async function requestSearchAction(ws: string, input: unknown): Promise<{ ok: true; search: SearchView } | Fail> {
+export async function addManualLeadsAction(ws: string, text: string): Promise<{ ok: true; leads: ProspectLead[]; added: number; ignored: number } | Fail> {
   const c = await ctx(ws)
   if ('error' in c) return { ok: false, error: c.error! }
-  const parsed = discoverSchema.safeParse(input)
-  if (!parsed.success) return { ok: false, error: 'Informe a cidade (e a UF com 2 letras, se quiser).' }
+  if (typeof text !== 'string' || text.length > 60_000) return { ok: false, error: 'Texto inválido.' }
+  const contacts = parseManualContacts(text)
+  if (contacts.length === 0) return { ok: false, error: 'Não encontrei telefones. Use um contato por linha, ex.: Pizzaria do Zé; (11) 99999-8888.' }
 
-  const { count } = await c.db
-    .from('prospect_searches')
-    .select('id', { count: 'exact', head: true })
-    .eq('workspace_id', c.workspace.id)
-    .in('status', ['pendente', 'buscando'])
-  if ((count ?? 0) >= 3) return { ok: false, error: 'Já há pesquisas na fila — aguarde terminarem.' }
-
-  const { data, error } = await c.db
-    .from('prospect_searches')
-    .insert({ workspace_id: c.workspace.id, niche: 'food', city: parsed.data.city, uf: parsed.data.uf ?? null, created_by: c.userId })
-    .select(SEARCH_FIELDS)
-    .single()
-  if (error || !data) return { ok: false, error: 'Não consegui criar a pesquisa (migration aplicada?).' }
-  await audit({ workspaceId: c.workspace.id, actorType: 'user', actorId: c.userId, action: 'prospect_search.request', entityType: 'prospect_search', entityId: data.id, metadata: { niche: 'food' } })
-  return { ok: true, search: data as SearchView }
-}
-
-/** Andamento da pesquisa + leads novos que ela criou (quando concluída). */
-export async function searchStatusAction(ws: string, id: string): Promise<{ ok: true; search: SearchView; fresh: ProspectLead[] } | Fail> {
-  const c = await ctx(ws)
-  if ('error' in c) return { ok: false, error: c.error! }
-  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: 'Pesquisa inválida.' }
-  const { data } = await c.db.from('prospect_searches').select(SEARCH_FIELDS).eq('workspace_id', c.workspace.id).eq('id', id).maybeSingle()
-  if (!data) return { ok: false, error: 'Pesquisa não encontrada.' }
-  let fresh: ProspectLead[] = []
-  if (data.status === 'concluida') {
-    const { data: leads } = await c.db
-      .from('prospect_leads')
-      .select('id, name, phone, category, city, uf, address, website, status, found_at')
-      .eq('workspace_id', c.workspace.id)
-      .eq('search_id', id)
-      .order('name')
-    fresh = (leads ?? []) as ProspectLead[]
+  const phones = contacts.map((x) => x.phone)
+  const { data: existing } = await c.db.from('prospect_leads').select('phone').eq('workspace_id', c.workspace.id).in('phone', phones)
+  const known = new Set((existing ?? []).map((r: { phone: string }) => r.phone))
+  const fresh = contacts.filter((x) => !known.has(x.phone))
+  if (fresh.length) {
+    const { error } = await c.db.from('prospect_leads').insert(fresh.map((x) => ({ workspace_id: c.workspace.id, source: 'manual', name: x.name, phone: x.phone, niche: 'food', status: 'novo' })))
+    if (error) return { ok: false, error: 'Não consegui salvar os contatos (migration aplicada?).' }
   }
-  return { ok: true, search: data as SearchView, fresh }
+  const { data: rows } = await c.db
+    .from('prospect_leads')
+    .select('id, name, phone, category, city, uf, address, website, status, found_at')
+    .eq('workspace_id', c.workspace.id)
+    .in('phone', phones)
+  await audit({ workspaceId: c.workspace.id, actorType: 'user', actorId: c.userId, action: 'broadcast_audience.add_manual', entityType: 'prospect_lead', entityId: null, metadata: { added: fresh.length } })
+  return { ok: true, leads: (rows ?? []) as ProspectLead[], added: fresh.length, ignored: contacts.length - fresh.length }
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +222,8 @@ export async function triggerCampaignNowAction(ws: string, id: string): Promise<
     .eq('id', id)
   if (error) return { ok: false, error: 'Não consegui iniciar o disparo.' }
 
+  await c.db.from('whatsapp_sessions').upsert({ workspace_id: c.workspace.id, desired_state: 'connected' }, { onConflict: 'workspace_id', ignoreDuplicates: true })
+  await ensureWorkerRunning(c.db, c.workspace.id, 3_000).catch(() => undefined)
   await audit({ workspaceId: c.workspace.id, actorType: 'user', actorId: c.userId, action: 'broadcast_campaign.start_now', entityType: 'broadcast_campaign', entityId: id })
   revalidatePath(`/a/${ws}/disparos`)
   return { ok: true }
@@ -294,9 +254,12 @@ export async function triggerDisparosAction(ws: string): Promise<{ ok: true; mes
     return { ok: false, error: 'Nenhum disparo agendado. Monte o público e agende a mensagem abaixo para disparar.' }
   }
 
+  // Liga o robô sozinho se estiver desligado (servidor 24 h ou processo local).
+  const launch = await ensureWorkerRunning(c.db, c.workspace.id)
+
   const active = campaigns.find((x) => x.status === 'enviando')
   if (active) {
-    return { ok: true, message: `O robô já está disparando a campanha "${active.name}".` }
+    return { ok: true, message: `O robô já está disparando a campanha "${active.name}". ${launch.state === 'online' ? '' : launchMessage(launch)}`.trim() }
   }
 
   const target = campaigns[0]
@@ -321,7 +284,7 @@ export async function triggerDisparosAction(ws: string): Promise<{ ok: true; mes
 
   await audit({ workspaceId: c.workspace.id, actorType: 'user', actorId: c.userId, action: 'broadcast_campaign.start_now', entityType: 'broadcast_campaign', entityId: target.id })
   revalidatePath(`/a/${ws}/disparos`)
-  return { ok: true, message: `Disparos iniciados para "${target.name}"!` }
+  return { ok: true, message: `Disparos iniciados para "${target.name}"! ${launchMessage(launch)}`.trim() }
 }
 
 /** Tenta iniciar o robô localmente no computador do usuário ou registra o pedido na nuvem. */
@@ -338,28 +301,6 @@ export async function startLocalWorkerAction(ws: string): Promise<{ ok: true; is
     .update({ desired_state: 'connected' })
     .eq('workspace_id', c.workspace.id)
 
-  if (process.env.VERCEL === '1') {
-    return {
-      ok: true,
-      isVercel: true,
-      message: 'Pedido registrado! No seu computador, execute no terminal: npm run worker',
-    }
-  }
-
-  try {
-    const { spawn } = await import('node:child_process')
-    const path = await import('node:path')
-    const rootDir = process.cwd()
-    const scriptPath = path.join(rootDir, 'apps', 'whatsapp-worker', 'src', 'index.mjs')
-    const child = spawn(process.execPath, [scriptPath], {
-      cwd: path.join(rootDir, 'apps', 'whatsapp-worker'),
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true,
-    })
-    child.unref()
-    return { ok: true, isVercel: false, message: 'Robô iniciado com sucesso em segundo plano!' }
-  } catch (e: any) {
-    return { ok: false, error: `Falha ao spawnar robô local: ${e?.message ?? e}` }
-  }
+  const r = await ensureWorkerRunning(c.db, c.workspace.id)
+  return { ok: true, isVercel: r.state === 'manual', message: launchMessage(r) }
 }
