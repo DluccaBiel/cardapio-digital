@@ -7,19 +7,19 @@
  *   1) campo `extension` no corpo (versões novas das extensões), ou
  *   2) `Origin: chrome-extension://<id>` — a extensão Cardápio Web tem id fixo
  *      (campo `key` do manifest), configurável em CARDAPIOWEB_EXTENSION_IDS;
- *   3) senão, 'orvia-ifood' (comportamento anterior; o id dela varia por máquina).
+ *   3) senão, 'undercut-ifood' (comportamento anterior; o id dela varia por máquina).
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export const EXTENSION_SLUGS = ['orvia-ifood', 'orvia-cardapioweb', 'orvia-anotaai', 'orvia-flyto'] as const
+export const EXTENSION_SLUGS = ['undercut-ifood', 'undercut-cardapioweb', 'undercut-anotaai', 'undercut-flyto'] as const
 export type ExtensionSlug = (typeof EXTENSION_SLUGS)[number]
 export type Platform = 'ifood' | 'cardapioweb' | 'anotaai' | 'flyto'
 
 export const PLATFORM_OF: Record<ExtensionSlug, Platform> = {
-  'orvia-ifood': 'ifood',
-  'orvia-cardapioweb': 'cardapioweb',
-  'orvia-anotaai': 'anotaai',
-  'orvia-flyto': 'flyto',
+  'undercut-ifood': 'ifood',
+  'undercut-cardapioweb': 'cardapioweb',
+  'undercut-anotaai': 'anotaai',
+  'undercut-flyto': 'flyto',
 }
 export const PLATFORM_LABEL: Record<Platform, string> = { ifood: 'iFood', cardapioweb: 'Cardápio Web', anotaai: 'Anota AI', flyto: 'FlyTo' }
 
@@ -50,8 +50,8 @@ export function isExtensionSlug(v: unknown): v is ExtensionSlug {
 export function detectExtensionSlug(req: Request, declared?: string | null): ExtensionSlug {
   if (isExtensionSlug(declared)) return declared
   const m = /^chrome-extension:\/\/([a-p]{32})$/.exec(req.headers.get('origin') ?? '')
-  if (m && cardapiowebIds().includes(m[1]!)) return 'orvia-cardapioweb'
-  return 'orvia-ifood'
+  if (m && cardapiowebIds().includes(m[1]!)) return 'undercut-cardapioweb'
+  return 'undercut-ifood'
 }
 
 /** Canal da chave autenticada. Chave sem extensão (manual) ou desconhecida → iFood. */

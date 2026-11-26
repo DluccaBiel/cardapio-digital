@@ -118,7 +118,7 @@ insert into r select 'visualizador não marca sincronizado (RLS)', count(*) = 0,
 reset role;
 
 -- 12) Extensão registrada no catálogo
-insert into r select 'extensão orvia-ifood no catálogo', count(*) = 1, count(*)::text from public.extensions where slug = 'orvia-ifood';
+insert into r select 'extensão undercut-ifood no catálogo', count(*) = 1, count(*)::text from public.extensions where slug = 'undercut-ifood';
 
 select test, pass, left(coalesce(detail, ''), 90) as detail from r;
 select count(*) filter (where pass) as passed, count(*) filter (where not pass) as failed from r;

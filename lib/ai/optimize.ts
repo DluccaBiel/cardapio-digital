@@ -12,13 +12,9 @@ import { comboTotals, money, type MenuCatalog } from '../menu/model'
 
 export const AI_MODEL = 'claude-opus-5-5'
 
-export const GOALS = {
-  ticket: 'aumentar o ticket médio (combos, upsell, descrições que valorizam o produto)',
-  conversao: 'aumentar a conversão (descrições claras e apetitosas, preços competitivos, nomes fáceis)',
-  margem: 'melhorar a margem (ajustes de preço moderados onde houver espaço, combos com bom custo)',
-  organizacao: 'organizar e padronizar o cardápio (nomes consistentes, descrições completas, sem erros)',
-} as const
-export type Goal = keyof typeof GOALS
+import { GOALS, type Goal } from './goals'
+export { GOALS }
+export type { Goal }
 
 const SuggestionSchema = z.object({
   summary: z.string().describe('Resumo em português (2-4 frases) do diagnóstico e da estratégia'),

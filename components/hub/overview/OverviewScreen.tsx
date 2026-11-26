@@ -89,6 +89,8 @@ type ColumnId =
   | 'spend'
   | 'balance'
   | 'roas'
+  | 'revenue'
+  | 'purchases'
   | 'cpr'
   | 'termination'
   | 'lastChange'
@@ -105,6 +107,8 @@ type SortKey =
   | 'balance'
   | 'roas'
   | 'costPerResult'
+  | 'salesRevenue'
+  | 'purchases'
   | 'dailySpend'
   | 'termination'
   | 'lastChange'
@@ -121,6 +125,8 @@ const COLUMNS: { id: ColumnId; label: string; width: number; sortKey?: SortKey }
   { id: 'campaign', label: 'Campanhas', width: 170, sortKey: 'campaignState' },
   { id: 'balance', label: 'Saldo · gasto/dia · dura', width: 236, sortKey: 'balance' },
   { id: 'roas', label: 'ROAS vendas', width: 112, sortKey: 'roas' },
+  { id: 'revenue', label: 'Valor de conversão', width: 160, sortKey: 'salesRevenue' },
+  { id: 'purchases', label: 'Compras · ticket médio', width: 170, sortKey: 'purchases' },
   { id: 'cpr', label: 'Custo por resultado', width: 150, sortKey: 'costPerResult' },
   { id: 'termination', label: 'Término', width: 128, sortKey: 'termination' },
   { id: 'lastChange', label: 'Última alteração', width: 140, sortKey: 'lastChange' },
@@ -363,6 +369,10 @@ export function OverviewScreen({
   const salesSpend = clients.reduce((total, client) => total + (client.salesSpend ?? 0), 0)
   const salesRevenue = clients.reduce((total, client) => total + (client.salesRevenue ?? 0), 0)
   const avgRoas = salesSpend > 0 ? salesRevenue / salesSpend : null
+  const totalPurchases = clients.reduce((total, client) => total + (client.purchases ?? 0), 0)
+  const avgCpa = totalPurchases > 0 ? salesSpend / totalPurchases : null
+  const avgTicket = totalPurchases > 0 ? salesRevenue / totalPurchases : null
+  const dailySpendTotal = clients.reduce((total, client) => total + (client.dailySpend ?? 0), 0)
   const endingSoon = clients
     .filter((client) => client.termination && daysUntil(client.termination) >= 0 && daysUntil(client.termination) <= 14)
     .sort((a, b) => (a.termination ?? '').localeCompare(b.termination ?? ''))
@@ -461,9 +471,9 @@ export function OverviewScreen({
           icon={<span className="text-[18px] font-bold">$</span>}
         />
         <KpiCard
-          label="Retorno (vendas)"
+          label="Valor de conversão"
           value={formatBRL(salesRevenue)}
-          sub={`Compras do pixel · ${formatBRL(salesSpend)} investidos em vendas`}
+          sub={`Receita das compras do pixel · ${formatBRL(salesSpend)} investidos em vendas`}
           icon={<span className="text-[15px] font-bold">R$</span>}
         />
         <KpiCard
@@ -472,6 +482,13 @@ export function OverviewScreen({
           sub="Só campanhas de vendas com pixel (retorno ÷ gasto)"
           icon={<span className="text-[15px] font-bold">x</span>}
         />
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+        <MiniKpi label="Compras (pixel)" value={totalPurchases.toLocaleString('pt-BR')} sub="no mês, campanhas de vendas" />
+        <MiniKpi label="Custo por compra" value={avgCpa == null ? '—' : formatBRL(avgCpa)} sub="gasto em vendas ÷ compras" />
+        <MiniKpi label="Ticket médio" value={avgTicket == null ? '—' : formatBRL(avgTicket)} sub="valor de conversão ÷ compras" />
+        <MiniKpi label="Gasto médio por dia" value={formatBRL(dailySpendTotal)} sub="últimos 7 dias completos" />
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px]">
@@ -900,6 +917,19 @@ export function OverviewScreen({
                             {client.roas == null ? '—' : `${client.roas.toFixed(2).replace('.', ',')}x`}
                           </span>
                         )}
+                        {id === 'revenue' && (
+                          <span title="Receita das compras do pixel no mês (campanhas de vendas)" className="font-mono text-[13px] font-bold tabular-nums text-[#F7F5F1]">
+                            {(client.salesRevenue ?? 0) > 0 ? formatBRL(client.salesRevenue ?? 0) : '—'}
+                          </span>
+                        )}
+                        {id === 'purchases' && (
+                          <div className="min-w-0">
+                            <p className="truncate text-[13px] font-bold tabular-nums text-[#F7F5F1]">{(client.purchases ?? 0) > 0 ? client.purchases : '—'}</p>
+                            <p className="mt-0.5 truncate text-[10px] text-[#86827D]">
+                              {(client.purchases ?? 0) > 0 ? `ticket ${formatBRL((client.salesRevenue ?? 0) / (client.purchases ?? 1))}` : 'sem compras de vendas'}
+                            </p>
+                          </div>
+                        )}
                         {id === 'cpr' && (
                           <div className="min-w-0">
                             <p className="truncate text-[13px] font-bold tabular-nums text-[#F7F5F1]">
@@ -1111,6 +1141,10 @@ function csvValue(client: MockClient, id: ColumnId): string {
       return `${client.balance.toFixed(2).replace('.', ',')}${client.daysLeft != null ? ` (${Math.floor(client.daysLeft)}d)` : ''}`
     case 'roas':
       return client.roas == null ? '' : client.roas.toFixed(2).replace('.', ',')
+    case 'revenue':
+      return (client.salesRevenue ?? 0).toFixed(2).replace('.', ',')
+    case 'purchases':
+      return String(client.purchases ?? 0)
     case 'cpr':
       return client.costPerResult == null ? '' : client.costPerResult.toFixed(2).replace('.', ',')
     case 'termination':
@@ -1260,6 +1294,16 @@ function TerminationCell({ client }: { client: MockClient }) {
   )
 }
 
+
+function MiniKpi({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <section className="rounded-[8px] border border-[#222225] bg-[#111113] px-5 py-4">
+      <p className="text-[10px] font-bold font-mono uppercase tracking-[0.13em] text-[#8E8A86]">{label}</p>
+      <p className="mt-1.5 font-display text-[28px] leading-none tracking-[0.01em] text-[#F7F5F1]">{value}</p>
+      <p className="mt-1.5 text-[11px] text-[#86827D]">{sub}</p>
+    </section>
+  )
+}
 
 function KpiCard({ label, value, sub, icon }: { label: string; value: string; sub: string; icon: React.ReactNode }) {
   return (

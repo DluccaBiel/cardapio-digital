@@ -217,7 +217,7 @@ export function ProspectScreen({ ws, clients, missingColumns }: { ws: string; cl
             <div>
               <h2 className="uc-title text-[20px] text-[#F7F5F1]">Análise · {research.client.name}</h2>
               <p className="mt-0.5 text-[11px] text-[#8E8A86]">
-                Modo: {research.data.mode === 'ia' ? 'IA + pesquisa na web' : 'gratuito (regras + pesquisa pública)'} · {new Date(research.data.answered_at).toLocaleString('pt-BR')}
+                Pesquisa feita pelo Undercut em fontes públicas · {new Date(research.data.answered_at).toLocaleString('pt-BR')}
               </p>
             </div>
             <button type="button" onClick={() => setResearch(null)} aria-label="Fechar análise" className="rounded-md p-1 text-[#86827D] hover:bg-white/[0.05] hover:text-white">

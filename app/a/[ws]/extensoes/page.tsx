@@ -4,6 +4,7 @@ import { createServerClient } from '../../../../lib/supabaseServer'
 import { createAdminClient } from '../../../../lib/supabaseAdmin'
 import { shortUrlFor } from '../../../../lib/shortlink'
 import { ExtensionsScreen, type OptimizationReport } from '../../../../components/hub/extensions/ExtensionsScreen'
+import { ExtensionsSimple } from '../../../../components/hub/extensions/ExtensionsSimple'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Undercut — Extensões' }
@@ -75,10 +76,14 @@ async function loadReports(db: ReturnType<typeof createServerClient>, workspaceI
 }
 
 export default async function ExtensoesPage({ params, searchParams }: { params: { ws: string }; searchParams: { conectar?: string } }) {
-  const workspace = await getWorkspaceBySlug(params.ws)
+  const workspace = await getWorkspaceBySlug(params.ws, { allowCollaborator: true })
   if (!workspace) notFound()
 
   const canManage = ['owner', 'coordenador'].includes(workspace.role)
+  // Colaborador, editor e visualizador: visão simples (baixar + passo a passo).
+  // Status de conexão, chaves de API e relatórios são só do administrador.
+  if (!canManage) return <ExtensionsSimple workspaceName={workspace.name} />
+
   const db = createServerClient()
 
   const { data: extensions } = await db.from('extensions').select('id, slug, name, description, homepage_url').order('name')

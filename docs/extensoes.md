@@ -146,7 +146,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 - Tela **Extensões** (`/a/{ws}/extensoes`): gerar a chave (exibida uma única vez, com escopos e validade) e revogar. Só dono/coordenador (RLS).
 - Hash: `sha256(chave)` em `api_keys.key_hash`; prefixo `ck_live_xxxx` em `key_prefix` (ver decisoes-em-aberto #3).
-- Primeira extensão: `apps/extensions/orvia-ifood` (slug `orvia-ifood`, registrada na migration 0004). Fluxo e segurança no README dela.
+- Primeira extensão: `apps/extensions/undercut-ifood` (slug `undercut-ifood`, registrada na migration 0004). Fluxo e segurança no README dela.
 - CORS: a extensão chama pelo service worker (host_permissions), então não precisa de CORS. Preflight só para origens em `ALLOWED_EXTENSION_ORIGINS`.
 
 ## 13. Dois canais: iFood e Cardápio Web (2026-11-09)
@@ -154,8 +154,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 ```text
  extensão (login e-mail+senha)                hub
  ─────────────────────────────                ───────────────────────────────────────────
- orvia-ifood        ──POST /extension-auth/login──►  detectExtensionSlug(req, body.extension)
- orvia-cardapioweb  ──  (Origin chrome-extension://onolpce…)  1) body.extension  2) Origin  3) iFood
+ undercut-ifood        ──POST /extension-auth/login──►  detectExtensionSlug(req, body.extension)
+ undercut-cardapioweb  ──  (Origin chrome-extension://onolpce…)  1) body.extension  2) Origin  3) iFood
                                                      │
                                                      ▼
                                         api_keys.extension_id = extensão detectada
@@ -168,16 +168,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         cardapioweb_store_id                                                 "Baixar todos"
 ```
 
-- Migration `0006_cardapioweb_channel.sql`: extensão `orvia-cardapioweb` no catálogo, `clients.cardapioweb_store_id` (índice único por workspace) e `menu_optimizations.platform`. Teste: `supabase/tests/cardapioweb_channel.sql`.
-- Id do Chrome da extensão Cardápio Web 0.3.x (do `key` do manifest): `onolpcebolaabfapfnmemokkinncppok`. Outro id (nova chave de manifest) → env `CARDAPIOWEB_EXTENSION_IDS` (lista por vírgula). Versões novas das extensões devem mandar `extension: "orvia-cardapioweb" | "orvia-ifood"` no login (não depender do Origin) e corrigir o `manifest_name` do handshake (a 0.3.0 envia "Otimizador iFood").
+- Migration `0006_cardapioweb_channel.sql`: extensão `undercut-cardapioweb` no catálogo, `clients.cardapioweb_store_id` (índice único por workspace) e `menu_optimizations.platform`. Teste: `supabase/tests/cardapioweb_channel.sql`.
+- Id do Chrome da extensão Cardápio Web 0.3.x (do `key` do manifest): `onolpcebolaabfapfnmemokkinncppok`. Outro id (nova chave de manifest) → env `CARDAPIOWEB_EXTENSION_IDS` (lista por vírgula). Versões novas das extensões devem mandar `extension: "undercut-cardapioweb" | "undercut-ifood"` no login (não depender do Origin) e corrigir o `manifest_name` do handshake (a 0.3.0 envia "Otimizador iFood").
 - **Quem já tinha feito login na extensão Cardápio Web antes da 0006 precisa sair e entrar de novo** dentro dela: a chave antiga foi criada como iFood. O novo login revoga a chave antiga do mesmo dispositivo. Otimizações enviadas antes da 0006 ficam na aba iFood (não há como distinguir com segurança).
 - Contrato da API inalterado (campo aditivo `extension` no login; respostas com `extension`/`platform`). Para a extensão Cardápio Web, `ifood_merchant_id` em `GET /clients` e `POST /clients/ensure` significa "id da loja no canal da chave" — compatibilidade com a 0.3.x.
 - **Risco em aberto:** o cardápio importado (`menu_items`/`menu_categories`) ainda é **um por cliente**, sem canal. Se o mesmo cliente importa do iFood e do Cardápio Web, os itens se misturam (o vínculo usa `ifood_id`). Recomendação: na próxima migration, `menu_*.channel` ou ids por canal (`cardapioweb_id`), e a importação filtrar por canal. Até lá, use clientes distintos ou importe por um canal só.
 
 ## 14. Terceiro canal: Anota AI + painel de conexão (decidido em 2026-11-11)
 
-- Migration `0008_anotaai_channel.sql` (aditiva): registra `orvia-anotaai` no catálogo, cria `clients.anotaai_store_id` (trava de loja própria) e amplia `menu_optimizations.platform` para `ifood | cardapioweb | anotaai`.
-- `lib/api/extensions.ts`: slug `orvia-anotaai` → canal `anotaai` ("Anota AI"). O canal continua vindo da **chave** (`api_keys.extension_id`); a extensão Anota AI pode também mandar `extension: "orvia-anotaai"` no login.
+- Migration `0008_anotaai_channel.sql` (aditiva): registra `undercut-anotaai` no catálogo, cria `clients.anotaai_store_id` (trava de loja própria) e amplia `menu_optimizations.platform` para `ifood | cardapioweb | anotaai`.
+- `lib/api/extensions.ts`: slug `undercut-anotaai` → canal `anotaai` ("Anota AI"). O canal continua vindo da **chave** (`api_keys.extension_id`); a extensão Anota AI pode também mandar `extension: "undercut-anotaai"` no login.
 - Tela **Extensões** → painel **Conexão das extensões** com uma aba por extensão (iFood / Cardápio Web / Anota AI): mostra Conectada / sem contato recente / Não conectada (`extension_installs.last_seen_at`, renovado pelo `POST /extensions/handshake`).
 - Se não estiver conectada: **Gerar código de conexão** (`pairExtensionAction`) cria uma chave vinculada à extensão da aba (escopos mínimos, 365 dias) e mostra o código **uma vez** (Mostrar/Copiar) + o endereço do Undercut, para colar nas opções da extensão. O banco guarda só o hash.
 - A extensão Anota AI em si (Chrome MV3) ainda não existe no repositório: ela deve seguir o mesmo contrato das outras (`docs/integracao-extensoes-hub.md`), com `host_permissions` só do hub.
@@ -207,7 +207,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   vinculando à extensão escolhida) e só então revela o código (Mostrar/Copiar) + endereço
   do hub. O banco guarda apenas o hash; o valor aparece uma única vez.
 - **Agente de pesquisa:** `POST /api/v1/research` (escopo `pesquisa:ler`) e o cartão no
-  painel. Claude + busca quando `ANTHROPIC_API_KEY` existe; senão busca pública gratuita.
+  painel. Busca pública feita pelo próprio sistema (sem IA).
   Detalhes em `docs/pesquisas.md`.
 - **Segurança:** cabeçalhos HTTP em `next.config.js` (`nosniff`, `frame-ancestors 'self'`,
   HSTS, Referrer-Policy, Permissions-Policy); `.zip` servido como `attachment`; chaves com
@@ -233,12 +233,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   sistema ↔ extensão: status por parceiro, paleta, link de integração (configurado via
   `NEXT_PUBLIC_FLYTO_URL`). Hoje: FlyTo.
 - **Extensão persistida:** ponte “conectar com um clique” aceita os aliases do hub
-  (`orvia-gestao`, `undercuthub`, `orviahub`, `nextjs-cardapio` `.vercel.app`) via
+  (`undercuthub`, `nextjs-cardapio` `.vercel.app`) via
   `host_permissions`/`content_scripts.matches` atualizados; worker aceita `hub:status` de
   origem do hub e a ponte responde status (`configured`, `workspace`, `scopes`); `hello`
   dispara status automático.
 
-- **FlyTo (parceiro):** slug `orvia-flyto` incluído em `EXTENSION_SLUGS` (allowlist de
+- **FlyTo (parceiro):** slug `undercut-flyto` incluído em `EXTENSION_SLUGS` (allowlist de
   código de conexão/login); canal `flyto` (`PLATFORM_OF`, `PLATFORM_LABEL`, `STORE_COLUMN`);
   migration `0010_flyto_channel.sql` (catálogo + `clients.flyto_store_id` + CHECK de
   `menu_optimizations.platform`). Com isso, o botão “Gerar chave de conexão” do parceiro

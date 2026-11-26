@@ -29,7 +29,7 @@ import { Btn, Empty } from '@/components/hub/menu/shared'
 import { brand } from '@undercut/brand'
 import { SYNC_EVENT } from '@/components/hub/Header'
 import { ExtensionReport, type OptimizationReport } from '@/components/hub/extensions/ExtensionReport'
-import { ExtensionHub } from '@/components/hub/extensions/ExtensionHub'
+import { ExtensionDownloads } from '@/components/hub/extensions/ExtensionDownloads'
 import { IntegrationsSection } from '@/components/hub/extensions/IntegrationsSection'
 import { ResearchPanel } from '@/components/hub/extensions/ResearchPanel'
 import { PARTNERS, partnerOf } from '@/lib/extensions/partners'
@@ -84,9 +84,9 @@ const KEY_PROBLEM: Record<Exclude<ExtensionLiveStatus['key'], 'active'>, string>
   expired: 'a chave de acesso expirou',
   missing: 'a chave de acesso foi excluída',
 }
-const PORTAL: Record<string, string> = { 'orvia-ifood': 'o portal do iFood', 'orvia-cardapioweb': 'o Portal do Cardápio Web', 'orvia-anotaai': 'o painel do Anota AI' }
-const SHORT: Record<string, string> = { 'orvia-ifood': 'iFood', 'orvia-cardapioweb': 'Cardápio Web', 'orvia-anotaai': 'Anota AI' }
-const ORDER = ['orvia-ifood', 'orvia-cardapioweb', 'orvia-anotaai']
+const PORTAL: Record<string, string> = { 'undercut-ifood': 'o portal do iFood', 'undercut-cardapioweb': 'o Portal do Cardápio Web', 'undercut-anotaai': 'o painel do Anota AI' }
+const SHORT: Record<string, string> = { 'undercut-ifood': 'iFood', 'undercut-cardapioweb': 'Cardápio Web', 'undercut-anotaai': 'Anota AI' }
+const ORDER = ['undercut-ifood', 'undercut-cardapioweb', 'undercut-anotaai']
 const rank = (slug: string) => (ORDER.includes(slug) ? ORDER.indexOf(slug) : ORDER.length)
 function connText(s: ExtensionLiveStatus, slug?: string): string {
   const c = connOf(s)
@@ -179,6 +179,7 @@ export function ExtensionsScreen({
   const [autoBusy, setAutoBusy] = useState(false)
   const autoRef = useRef(false)
   const [tab, setTab] = useState('')
+  const [advOpen, setAdvOpen] = useState(highlightPair)
   const extName = useMemo(() => new Map(extensions.map((e) => [e.id, e.name])), [extensions])
   const extSlug = useMemo(() => new Map(extensions.map((e) => [e.id, e.slug])), [extensions])
 
@@ -225,7 +226,7 @@ export function ExtensionsScreen({
   /** "Sincronizar" (header) nesta tela: consulta agora se TODAS as extensões seguem conectadas. */
   const checkConnection = useCallback(async () => {
     setSync({ kind: 'busy', text: 'Consultando todas as extensões cadastradas…' })
-    const inBrowser = document.documentElement.dataset.orviaIfood ?? null
+    const inBrowser = document.documentElement.dataset.undercutIfood ?? null
     const res = await checkExtensionsAction(ws)
     router.refresh() // relê chaves, instalações e relatório (renova os links dos prints)
     if (!res.ok) return setSync({ kind: 'err', text: res.error })
@@ -318,13 +319,10 @@ export function ExtensionsScreen({
   const activeKeys = keys.filter((k) => !k.revoked_at && !(k.expires_at && new Date(k.expires_at).getTime() < Date.now())).length
   const hubAddress = origin && extensionCompatible(origin) ? origin : brand.extensionHubUrl
   const nav = [
-    { id: 'sec-conexoes', label: 'Conexões' },
-    { id: 'sec-hub', label: 'Hub' },
-    ...(showReport ? [{ id: 'sec-relatorio', label: 'Relatório' }] : []),
-    { id: 'sec-pesquisa', label: 'Pesquisa' },
-    { id: 'sec-manual', label: 'Manual' },
-    { id: 'sec-chaves', label: 'Chaves' },
-    { id: 'sec-integracoes', label: 'Integrações' },
+    { id: 'sec-baixar', label: 'Baixar' },
+    { id: 'sec-conexoes', label: 'Status' },
+    { id: 'sec-chaves', label: 'Chaves de API' },
+    { id: 'sec-avancado', label: 'Avançado' },
   ]
 
   return (
@@ -350,7 +348,7 @@ export function ExtensionsScreen({
             </div>
             <h1 id="ext-page-title" className="uc-title mt-3 text-[34px] text-[#F7F5F1] md:text-[44px]">Extensões</h1>
             <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-[#8E8A86]">
-              Conecte as extensões do Chrome ao Undercut com chaves de acesso por escopo. O status é conferido automaticamente enquanto esta tela estiver aberta.
+              Baixe as extensões, veja se estão conectadas e gerencie as chaves de API. Só o administrador vê o status e as chaves.
             </p>
           </div>
 
@@ -435,6 +433,8 @@ export function ExtensionsScreen({
         </div>
       )}
 
+      <ExtensionDownloads conns={Object.fromEntries(rows.map((r) => [r.ext.slug, r.conn]))} />
+
       <ConnectionsOverview
         rows={rows}
         online={onlineCount}
@@ -445,30 +445,10 @@ export function ExtensionsScreen({
         checkedAt={sync.at ?? autoAt}
         onManage={(id) => {
           setTab(id)
-          document.getElementById('ext-conn-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          setAdvOpen(true)
+          window.setTimeout(() => document.getElementById('ext-conn-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80)
         }}
       />
-
-      <ConnectionPanel
-        ws={ws}
-        extensions={sorted}
-        status={status}
-        canManage={canManage}
-        highlight={highlightPair}
-        hubAddress={hubAddress}
-        workspaceName={workspaceName}
-        tab={tab}
-        onTab={setTab}
-        onDone={refresh}
-      />
-
-      <ExtensionHub ws={ws} extensions={extensions} onlineIds={onlineIds} canManage={canManage} onToast={setToast} />
-
-      {showReport && <ExtensionReport reports={reports} unavailable={reportsUnavailable} />}
-
-      <ResearchPanel ws={ws} hubUrl={origin || brand.baseUrl} />
-
-      <ManualSetup hubAddress={hubAddress} />
 
       {/* Chaves */}
       <section id="sec-chaves" className="mt-6 scroll-mt-24 rounded-3xl border border-white/[0.08] bg-[#0C0C0E] p-4 sm:p-5">
@@ -597,6 +577,35 @@ export function ExtensionsScreen({
         )}
       </section>
 
+      {/* Avançado: tudo que antes poluía a tela fica aqui, fechado por padrão. */}
+      <details
+        id="sec-avancado"
+        open={advOpen}
+        onToggle={(e) => setAdvOpen((e.currentTarget as HTMLDetailsElement).open)}
+        className="mt-6 scroll-mt-24 rounded-3xl border border-white/[0.08] bg-[#0C0C0E] px-4 py-3 sm:px-5"
+      >
+        <summary className="cursor-pointer list-none text-[14px] font-bold text-[#DAD6CF] hover:text-white">
+          Opções avançadas <span className="ml-2 font-mono text-[10px] font-normal uppercase tracking-[0.12em] text-[#85817C]">código de conexão · relatório · pesquisa · manual · integrações</span>
+        </summary>
+      <ConnectionPanel
+        ws={ws}
+        extensions={sorted}
+        status={status}
+        canManage={canManage}
+        highlight={highlightPair}
+        hubAddress={hubAddress}
+        workspaceName={workspaceName}
+        tab={tab}
+        onTab={setTab}
+        onDone={refresh}
+      />
+
+      {showReport && <ExtensionReport reports={reports} unavailable={reportsUnavailable} />}
+
+      <ResearchPanel ws={ws} hubUrl={origin || brand.baseUrl} />
+
+      <ManualSetup hubAddress={hubAddress} />
+
       <IntegrationsSection
         ws={ws}
         partners={PARTNERS}
@@ -604,6 +613,8 @@ export function ExtensionsScreen({
         canManage={canManage}
         onToast={setToast}
       />
+
+      </details>
 
       {creating && (
         <CreateKeyModal
@@ -821,7 +832,7 @@ function Metric({ label, value, tone, icon }: { label: string; value: string; to
 }
 
 function CreateKeyModal({ ws, extensions, onClose }: { ws: string; extensions: Extension[]; onClose: () => void }) {
-  const ifood = extensions.find((e) => e.slug === 'orvia-ifood')
+  const ifood = extensions.find((e) => e.slug === 'undercut-ifood')
   const [name, setName] = useState('')
   const [extensionId, setExtensionId] = useState(ifood?.id ?? '')
   const [scopes, setScopes] = useState<string[]>(DEFAULT_SCOPES)
@@ -1066,7 +1077,7 @@ function ConnectionPanel({
           <p className="mt-3 text-[12px] text-[#8E8A86]">Somente dono ou suporte (coordenador) geram o código de conexão.</p>
         ) : (
           <>
-            {ext.slug === 'orvia-ifood' && <OneClickPair ws={ws} onDone={onDone} />}
+            {ext.slug === 'undercut-ifood' && <OneClickPair ws={ws} onDone={onDone} />}
             <ConnectionCode
               key={ext.id}
               ws={ws}
@@ -1256,7 +1267,7 @@ function ManualSetup({ hubAddress }: { hubAddress: string }) {
 
 /**
  * "Conectar com um clique" (só a extensão iFood tem a ponte): ela injeta uma ponte nesta página
- * (marca data-orvia-ifood no <html> e responde por window.postMessage, mesma origem).
+ * (marca data-undercut-ifood no <html> e responde por window.postMessage, mesma origem).
  * O painel gera a chave no servidor e a entrega direto à extensão — ninguém vê/cola a chave.
  * Sem a ponte neste navegador, não aparece: vale o código de conexão.
  */
@@ -1266,7 +1277,7 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
   const [conn, setConn] = useState<{ configured: boolean; workspace?: string } | null>(null)
 
   useEffect(() => {
-    const read = () => setVersion(document.documentElement.dataset.orviaIfood ?? null)
+    const read = () => setVersion(document.documentElement.dataset.undercutIfood ?? null)
     read()
     const timer = setTimeout(read, 1000)
     const onMessage = (event: MessageEvent) => {
@@ -1274,11 +1285,11 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
       const data = event.data as
         | { source?: string; type?: string; version?: string; ok?: boolean; error?: string; workspace?: string; data?: { configured: boolean; workspace?: { name: string } } }
         | null
-      if (!data || data.source !== 'orvia-ext') return
+      if (!data || data.source !== 'undercut-ext') return
       if (data.type === 'hello' && data.version) {
         setVersion(data.version)
         // Solicita o status da conexão (chave/endereço salvos no service worker).
-        window.postMessage({ source: 'orvia-hub', type: 'status' }, window.location.origin)
+        window.postMessage({ source: 'undercut-hub', type: 'status' }, window.location.origin)
       }
       if (data.type === 'status') {
         setConn(data.ok && data.data ? { configured: data.data.configured, workspace: data.data.workspace?.name } : null)
@@ -1303,9 +1314,9 @@ function OneClickPair({ ws, onDone }: { ws: string; onDone: () => void }) {
 
   const connect = async () => {
     setState({ kind: 'busy', text: 'Gerando acesso e entregando à extensão…' })
-    const res = await pairExtensionAction(ws, 'orvia-ifood')
+    const res = await pairExtensionAction(ws, 'undercut-ifood')
     if (!res.ok) return setState({ kind: 'err', text: res.error })
-    window.postMessage({ source: 'orvia-hub', type: 'pair', key: res.key, hubUrl: window.location.origin }, window.location.origin)
+    window.postMessage({ source: 'undercut-hub', type: 'pair', key: res.key, hubUrl: window.location.origin }, window.location.origin)
     setTimeout(
       () => setState((cur) => (cur.kind === 'busy' ? { kind: 'err', text: 'A extensão não respondeu. Recarregue esta página (F5) e tente de novo, ou use o código de conexão.' } : cur)),
       15000,

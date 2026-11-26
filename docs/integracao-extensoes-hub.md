@@ -9,11 +9,11 @@
 ## 1. Prompt (copie e cole para o Claude da extensão)
 
 ```text
-Adapte a extensão "<NOME DA EXTENSÃO>" (slug: <orvia-cardapioweb | orvia-ifood>) para ficar
+Adapte a extensão "<NOME DA EXTENSÃO>" (slug: <undercut-cardapioweb | undercut-ifood>) para ficar
 sempre sincronizada com o servidor Undercut, seguindo o arquivo docs/integracao-extensoes-hub.md
 (contrato + cliente prontos). Requisitos:
 
-1. Substitua o cliente HTTP atual pelo `OrviaHub` da seção 4 do arquivo (service worker).
+1. Substitua o cliente HTTP atual pelo `UndercutHub` da seção 4 do arquivo (service worker).
    Constante EXTENSION_SLUG = '<slug>' e MANIFEST_NAME = nome exato do manifest.json.
 2. Login: o POST /api/v1/extension-auth/login DEVE mandar `extension: EXTENSION_SLUG`.
    Depois do login, chame GET /api/v1/me e confira `data.extension === EXTENSION_SLUG`;
@@ -34,8 +34,8 @@ sempre sincronizada com o servidor Undercut, seguindo o arquivo docs/integracao-
    If-Match = esse ETag. Em 409/412, releia e tente 1×.
 8. Prints: evidence = até 6 PNG (nome ^[A-Za-z0-9 ._()-]{1,76}\.png$, cada ≤ 2,5 MB, total do
    corpo ≤ 4,5 MB). Comprima/reduza antes se passar.
-9. host_permissions: mantenha https://orvia-gestao.vercel.app/* e adicione
-   https://www.orviahub.com.br/* (domínio oficial — o cliente tenta os dois, nessa ordem
+9. host_permissions: mantenha https://undercuthub.vercel.app/* e adicione
+   https://www.undercut.example/* (domínio oficial — o cliente tenta os dois, nessa ordem
    de preferência: o salvo pelo usuário → vercel → domínio oficial).
 10. Nunca registre a chave/senha em console/log. Chave só em chrome.storage.local.
 11. Atualize testes (vitest) do cliente: login com extension, /me com extensão errada → pede
@@ -47,13 +47,13 @@ Ao final, gere o zip da extensão com a versão incrementada no manifest.
 
 ## 2. Contrato (servidor → extensão)
 
-Base: `{HUB}/api/v1` · `HUB` = `https://orvia-gestao.vercel.app` (ou `https://www.orviahub.com.br` quando o DNS estiver ativo).
+Base: `{HUB}/api/v1` · `HUB` = `https://undercuthub.vercel.app` (ou `https://www.undercut.example` quando o DNS estiver ativo).
 Todas as respostas: sucesso `{ "data": ... }` · erro `{ "error": { "code", "message", "details"? } }`.
 Autenticação (exceto login): header `X-API-Key: ck_live_…`.
 
 | Rota | Escopo | Corpo / query | Resposta `data` |
 |---|---|---|---|
-| `POST /extension-auth/login` | — (e-mail+senha) | `{ email, password, workspace_slug?, device_id (8–64 [a-z0-9-]), device_label?, extension: "orvia-ifood" \| "orvia-cardapioweb" }` | `{ key, workspace{name,slug}, user{email}, extension, platform }` **ou** `{ needs_workspace: true, workspaces[{slug,name}] }` (repita com `workspace_slug`) |
+| `POST /extension-auth/login` | — (e-mail+senha) | `{ email, password, workspace_slug?, device_id (8–64 [a-z0-9-]), device_label?, extension: "undercut-ifood" \| "undercut-cardapioweb" }` | `{ key, workspace{name,slug}, user{email}, extension, platform }` **ou** `{ needs_workspace: true, workspaces[{slug,name}] }` (repita com `workspace_slug`) |
 | `GET /me` | qualquer | — | `{ workspace{id,name,slug}, scopes[], extension_id, extension, platform }` |
 | `POST /extensions/handshake` | qualquer (chave de extensão) | `{ version, manifest_name }` | `{ id, version, status, last_seen_at }` |
 | `GET /clients` | `clientes:ler` | — | `[{ id, name, ifood_merchant_id }]` — `ifood_merchant_id` = id da loja **no canal da chave** |
@@ -94,7 +94,7 @@ Como o servidor identifica a extensão (ordem): campo `extension` do login → `
 
 ---
 
-## 4. Cliente pronto (`src/background/orvia-hub.ts`)
+## 4. Cliente pronto (`src/background/undercut-hub.ts`)
 
 ```ts
 /**
@@ -102,14 +102,14 @@ Como o servidor identifica a extensão (ordem): campo `extension` do login → `
  * Requer no manifest: "permissions": ["storage", "alarms"] e host_permissions do hub.
  */
 
-export const EXTENSION_SLUG = 'orvia-cardapioweb' as const // ou 'orvia-ifood'
+export const EXTENSION_SLUG = 'undercut-cardapioweb' as const // ou 'undercut-ifood'
 export const MANIFEST_NAME = chrome.runtime.getManifest().name
-export const HUBS = ['https://orvia-gestao.vercel.app', 'https://www.orviahub.com.br'] as const
+export const HUBS = ['https://undercuthub.vercel.app', 'https://www.undercut.example'] as const
 
-const CFG_KEY = 'orvia.hub' // { hubUrl, apiKey, email?, workspace? }
-const DEVICE_KEY = 'orvia.deviceId'
-const QUEUE_KEY = 'orvia.outbox' // otimizações pendentes de envio
-const ALARM = 'orvia-sync'
+const CFG_KEY = 'undercut.hub' // { hubUrl, apiKey, email?, workspace? }
+const DEVICE_KEY = 'undercut.deviceId'
+const QUEUE_KEY = 'undercut.outbox' // otimizações pendentes de envio
+const ALARM = 'undercut-sync'
 const MAX_QUEUE = 10
 
 export type HubResult<T> = { ok: true; data: T; etag: string | null } | { ok: false; status: number; code: string; message: string; details?: unknown }
@@ -292,7 +292,7 @@ export function pngBase64(dataUrl: string): string | null {
 ### Uso no service worker
 
 ```ts
-import { startSync, login, ensureClient, importSnapshot, analyze, saveOptimization, pngBase64 } from './orvia-hub'
+import { startSync, login, ensureClient, importSnapshot, analyze, saveOptimization, pngBase64 } from './undercut-hub'
 
 startSync()
 
@@ -327,26 +327,26 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 | | Cardápio Web 0.4.2 | iFood 0.4.22 |
 |---|---|---|
 | Id no Chrome (`key` do manifest) | `onolpcebolaabfapfnmemokkinncppok` (fixo, igual à 0.3.x) | `abenodfggldfldoobiiknlagebipaedl` (fixo, novo) |
-| Hubs (`host_permissions`) | `nextjs-cardapio.vercel.app`, `orvia-gestao.vercel.app` | idem |
+| Hubs (`host_permissions`) | `nextjs-cardapio.vercel.app`, `undercuthub.vercel.app` | idem |
 | Manda `extension` no login? | **não** → o servidor reconhece pelo Origin (id acima) ✅ | não → padrão iFood ✅ |
 | `manifest_name` no handshake | "Undercut · Otimizador iFood" (errado, inofensivo) | correto |
 | Usa `variant` na análise | sim | sim |
 | Espera modo gratuito na análise (`ai_status: "regras"`) | sim | sim |
 
-O que o servidor precisa ter (todos presentes na branch `release/orvia-v0.5`):
+O que o servidor precisa ter (todos presentes na branch `release/undercut-v0.5`):
 `/extension-auth/login`, `/me`, `/extensions/handshake`, `/clients`, `/clients/ensure`, `/menu`, `/menu/import`,
 `/menu/pending`, `/menu/items/{id}/ifood-sync`, `/menu/combos`, `/analysis` (com **modo gratuito** quando não há
-`ANTHROPIC_API_KEY`), `/optimizations` (POST/GET). Do pacote `orvia-servidor-v0.4.18` só o modo gratuito foi
+`ANTHROPIC_API_KEY`), `/optimizations` (POST/GET). Do pacote `undercut-servidor-v0.4.18` só o modo gratuito foi
 incorporado (`lib/ai/free-core.ts`, `lib/ai/free-research.ts` com redirecionamento revalidado contra SSRF,
 `app/api/v1/analysis/route.ts`); `ensure`/`optimizations`/`0005` do pacote eram versões ANTERIORES às do repo
 (sem separação por canal) e **não** foram copiadas.
 
 Pendências para a próxima versão das extensões (não bloqueiam): mandar `extension` no login; corrigir o
-`manifest_name` da Cardápio Web; adicionar `https://www.orviahub.com.br/*` quando o DNS existir.
+`manifest_name` da Cardápio Web; adicionar `https://www.undercut.example/*` quando o DNS existir.
 
 ### 6.1 Cardápio Web 0.4.3 / iFood 0.4.23 / fonte 0.8.3 (verificado em 2026-11-09, após o deploy 84cc633)
 
-Aplicaram o kit: login com `extension` (`orvia-cardapioweb` / `orvia-ifood` no build), conferência de `GET /me`
+Aplicaram o kit: login com `extension` (`undercut-cardapioweb` / `undercut-ifood` no build), conferência de `GET /me`
 (`extensionMatches` → mensagem "chave criada para outra extensão" e novo login), `manifest_name` real no handshake,
 `chrome.alarms` de 1 min (heartbeat + fila offline `outbox.ts`, máx. 10), limites de prints (`evidence.ts`).
 Ids mantidos (Cardápio Web `onolpce…`, iFood `abenodf…`); permissão `alarms` adicionada. **Compatíveis com produção.**

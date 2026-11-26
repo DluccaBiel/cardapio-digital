@@ -1,4 +1,7 @@
 import { createServerClient } from '../supabaseServer'
+import { COLLABORATOR_ROLE } from '../workspace-role'
+
+export { COLLABORATOR_ROLE, homePath } from '../workspace-role'
 
 export type Workspace = {
   id: string
@@ -30,8 +33,19 @@ export async function getUserWorkspaces(): Promise<WorkspaceMembership[]> {
     .filter(Boolean) as WorkspaceMembership[]
 }
 
-/** Resolve o workspace pelo slug somente se o usuário é membro (senão null). */
-export async function getWorkspaceBySlug(slug: string): Promise<(Workspace & { role: string }) | null> {
+/**
+ * Resolve o workspace pelo slug somente se o usuário é membro (senão null).
+ *
+ * O colaborador é DEFAULT-DENY: todas as telas e server actions chamam esta função,
+ * então ele só passa onde a chamada pede `allowCollaborator` (hoje: layout e Extensões).
+ * (As policies de RLS já o isolam dos dados — ver 20261125120100_member_invites.sql.)
+ */
+export async function getWorkspaceBySlug(
+  slug: string,
+  opts: { allowCollaborator?: boolean } = {},
+): Promise<(Workspace & { role: string }) | null> {
   const list = await getUserWorkspaces()
-  return list.find((w) => w.slug === slug) ?? null
+  const found = list.find((w) => w.slug === slug) ?? null
+  if (found && found.role === COLLABORATOR_ROLE && !opts.allowCollaborator) return null
+  return found
 }

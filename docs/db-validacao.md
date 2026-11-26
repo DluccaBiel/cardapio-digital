@@ -23,7 +23,7 @@ Resultado dos testes (04/11/2026): **70/70 PASS** (`public.test_rls_results`, re
 
 ### Sem Docker — Plano B (⚠️ somente projeto Supabase de DESENVOLVIMENTO, nunca produção)
 
-1. Crie um **projeto free descartável** no Supabase (ex.: `orvia-dev-throwaway`).
+1. Crie um **projeto free descartável** no Supabase (ex.: `undercut-dev-throwaway`).
 2. Abra o **SQL Editor** e rode, em ordem:
    - conteúdo de `supabase/validate/all.sql` (0001 → 0002 → seed → checks → 70 testes)
    - *ou* rode `0001_init.sql`, `0002_rls.sql`, `seed.sql`, `checks.sql`, `rls_isolation.sql` separadamente.

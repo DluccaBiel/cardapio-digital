@@ -3,7 +3,7 @@
 // o banco de produção: sobe um simulador da Graph API/diálogo OAuth em 127.0.0.1.
 //
 // Pré-requisitos:
-//   1) Supabase local (`npx supabase start`) com as migrations + seed (workspace orvia-demo).
+//   1) Supabase local (`npx supabase start`) com as migrations + seed (workspace undercut-demo).
 //   2) Hub em http://localhost:3100 apontando para o Supabase LOCAL, com:
 //        META_APP_ID=123456789012  META_APP_SECRET=e2e-app-secret  META_TOKEN_KEY=<32 bytes b64>
 //        META_GRAPH_BASE_URL=http://127.0.0.1:4590  META_DIALOG_BASE_URL=http://127.0.0.1:4590
@@ -25,7 +25,7 @@ const APP_ID = '123456789012'
 const APP_SECRET = 'e2e-app-secret'
 const LONG = `EAAE2E${randomBytes(12).toString('hex')}`
 const WS_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-const WS = 'orvia-demo'
+const WS = 'undercut-demo'
 
 let pass = 0
 let fail = 0
@@ -147,7 +147,7 @@ await new Promise((r) => mock.listen(4590, '127.0.0.1', r))
 // ---------------------------------------------------------------------------
 const H = { apikey: SR, Authorization: `Bearer ${SR}`, 'Content-Type': 'application/json' }
 const rest = (p, init = {}) => fetch(`${SB}/rest/v1/${p}`, { ...init, headers: { ...H, ...(init.headers ?? {}) } })
-const email = `e2e-meta-${Date.now()}@orvia-demo.example`
+const email = `e2e-meta-${Date.now()}@undercut-demo.example`
 const password = randomBytes(18).toString('base64url')
 const user = await (await fetch(`${SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email, password, email_confirm: true }) })).json()
 await rest('members', { method: 'POST', body: JSON.stringify({ workspace_id: WS_ID, user_id: user.id, role: 'owner' }) })

@@ -60,7 +60,7 @@ docker exec -i supabase_db_CRMCARDAPIO psql -U postgres < supabase/tests/reports
 #   · node supabase/tests/api_sdr_ai.mjs (8/8, Claude simulado em :4591 — hub com ANTHROPIC_BASE_URL=http://127.0.0.1:4591) · node scripts/e2e-sdr-extension.mjs (17/17)
 #   · LOCAL_API_URL/LOCAL_SERVICE_ROLE_KEY + npx vitest run tests/sdr-ai.test.ts (10/10; sem banco local os testes de integração pulam)
 # API + painel + extensão (hub local em :3100 apontando para o Supabase local, envs só no processo):
-#   node supabase/tests/api_menu.mjs (34/34) → node scripts/e2e-cardapio.mjs (9/9) → (apps/extensions/orvia-ifood) node scripts/e2e.mjs (15/15)
+#   node supabase/tests/api_menu.mjs (34/34) → node scripts/e2e-cardapio.mjs (9/9) → (apps/extensions/undercut-ifood) node scripts/e2e.mjs (15/15)
 # Integração Meta (simulador local da Graph API/OAuth — nunca a Meta real; hub com NEXT_DIST_DIR=.next-e2e,
 #   META_GRAPH_BASE_URL/META_DIALOG_BASE_URL=http://127.0.0.1:4590 e app/chave de teste; ver cabeçalho do script):
 #   node scripts/e2e-meta.mjs (56/56) — conectar → portfólios → sincronizar → visão geral (status por cor) → cliente (métricas/campanhas ao vivo/criativos) → relatórios → desconectar; limpa o banco local ao final
@@ -210,7 +210,7 @@ Usadas pelo app (Preview e Production têm cópia, configuradas em 04/11/2026):
 - `META_APP_ID` (id do app da Meta), `META_APP_SECRET` (secret) e `META_TOKEN_KEY` (secret, 32 bytes base64 — chave AES-256-GCM dos tokens) — **Configurações → Integrações → Conectar com o Facebook** (OAuth, vários portfólios; `lib/meta/api.ts`, `lib/meta/sync.ts`, migration `20261116210000_meta_integrations.sql`). No app da Meta: produto “Login do Facebook”, URL de redirecionamento `https://undercuthub.vercel.app/api/meta/oauth/callback`, permissões `ads_read` + `business_management`. Trocar `META_TOKEN_KEY` invalida as conexões (reconectar).
 - `META_ACCESS_TOKEN` + `META_BUSINESS_ID` (legado, opcional) — usados só se nenhum portfólio estiver conectado no painel (`lib/meta/graph.ts`, 0007)
 - `CRON_SECRET` (secret, gerado aleatório em 2026-11-09) — protege `/api/cron/keepalive` (cron diário em `vercel.json` que impede a pausa do Supabase gratuito por 7 dias sem uso)
-- `ANTHROPIC_API_KEY` (opcional) — sem ela, `/api/v1/analysis` usa o modo gratuito (regras + pesquisa pública) e a IA do SDR WhatsApp fica desligada (`/api/v1/sdr/ai/reply` responde erro)
+- `ANTHROPIC_API_KEY` (opcional, só para a IA do SDR WhatsApp e o botão "Otimizar com IA" do cardápio) — a análise das extensões (`/api/v1/analysis`) e a pesquisa (`/api/v1/research`) NÃO usam IA: o próprio sistema busca em fontes públicas e aplica regras
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (secret) — Google Agenda da IA do SDR (marcar reuniões com Meet)
 - `CARDAPIOWEB_EXTENSION_IDS` (opcional) — id(s) do Chrome da extensão Cardápio Web (ver `docs/extensoes.md` §13 e `docs/integracao-extensoes-hub.md`)
 
@@ -218,8 +218,8 @@ Regras:
 - `NEXT_PUBLIC_*` é embutida no build — se mudar, **refaça o build** (push de novo ou redeploy).
 - Valores do tipo `Secret` não são revelados pela CLI/painel (mascarados); para espelhar de Production para Preview, re-cadastre-os no painel (Settings → Environment Variables) com escopo Preview — nunca cole valores no chat/commit.
 - `.env.local` da máquina fica só com placeholders; valores reais vivem na Vercel.
-- **Endereço público (decidido em 11/11/2026, com o rebrand Undercut): `https://undercuthub.vercel.app`** — não há domínio próprio (`orviahub.com.br` nunca foi registrado; `undercut.hub` não existe, `.hub` não é TLD). `brand.baseUrl` em `packages/brand`. Aliases legados que continuam ativos: `orviahub.vercel.app` e `orvia-gestao.vercel.app` — este último é o das extensões (`brand.extensionHubUrl`, fixo em `host_permissions`). Todos servem o mesmo deployment de produção — não remover nenhum.
-- Projeto Vercel: **`orvia`** (público em `https://orvia-gestao.vercel.app`; `orvia.vercel.app` já estava ocupado; alias legado `nextjs-cardapio.vercel.app` segue ativo) — renomeado em 04/11/2026 por decisão do usuário.
+- **Endereço público (decidido em 11/11/2026, com o rebrand Undercut): `https://undercuthub.vercel.app`** — não há domínio próprio (`undercut.example` nunca foi registrado; `undercut.hub` não existe, `.hub` não é TLD). `brand.baseUrl` em `packages/brand`. Aliases legados que continuam ativos: `undercuthub.vercel.app` e `undercuthub.vercel.app` — este último é o das extensões (`brand.extensionHubUrl`, fixo em `host_permissions`). Todos servem o mesmo deployment de produção — não remover nenhum.
+- Projeto Vercel: **`orvia`** (público em `https://undercuthub.vercel.app`; `orvia.vercel.app` já estava ocupado; alias legado `nextjs-cardapio.vercel.app` segue ativo) — renomeado em 04/11/2026 por decisão do usuário.
 
 ## 📖 Sumário da documentação
 

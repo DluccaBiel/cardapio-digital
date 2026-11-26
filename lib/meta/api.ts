@@ -25,7 +25,7 @@ const G = () => `${graphBase()}/${graphVersion()}`
 /**
  * Origem usada no redirect_uri do OAuth. Em produção é SEMPRE o endereço oficial
  * (brand.baseUrl), o único cadastrado no app da Meta — os aliases legados
- * (orvia-gestao/orviahub) dariam "URL de redirecionamento inválida".
+ * (endereços antigos do Vercel) dariam "URL de redirecionamento inválida".
  * Fora de produção (local, E2E, preview) usa a origem da própria requisição.
  */
 export function metaOAuthOrigin(requestOrigin: string, vercelEnv = process.env.VERCEL_ENV): string {

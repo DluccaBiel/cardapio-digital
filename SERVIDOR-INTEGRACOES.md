@@ -1,12 +1,12 @@
-# Servidor Orvia — o que ele precisa aceitar para as 3 extensões
+# Servidor Undercut — o que ele precisa aceitar para as 3 extensões
 
 As três extensões usam o mesmo cliente (`packages/shared/src/lib/hub.ts`). O que muda entre elas é só o **canal**:
 
 | Extensão | Canal (`extension`) | Plataforma | Nome no manifest (enviado no handshake) |
 |---|---|---|---|
-| iFood | `orvia-ifood` | `ifood` | Orvia · Otimizador iFood |
-| Cardápio Web | `orvia-cardapioweb` | `cardapioweb` | Orvia · Otimizador Cardápio Web |
-| Anota AI | `orvia-anotaai` | `anotaai` | Orvia · Otimizador Anota AI |
+| iFood | `undercut-ifood` | `ifood` | Undercut · Otimizador iFood |
+| Cardápio Web | `undercut-cardapioweb` | `cardapioweb` | Undercut · Otimizador Cardápio Web |
+| Anota AI | `undercut-anotaai` | `anotaai` | Undercut · Otimizador Anota AI |
 
 ## O que o servidor precisa fazer
 1. `POST /api/v1/extension-auth/login` aceita `extension` ∈ os 3 canais acima e devolve a chave já amarrada a esse canal.
@@ -16,7 +16,7 @@ As três extensões usam o mesmo cliente (`packages/shared/src/lib/hub.ts`). O q
 5. Rotas já usadas pelas extensões (mesmas para as 3): `clients/ensure`, `analysis`, `optimizations`, `clients`, importação de cardápio, pendências. Escopos da chave: `clientes:ler`, `catalogo:ler`, `catalogo:escrever`.
 
 ## Como conferir (sem mexer no servidor)
-Abra o painel da extensão → aba **Produtos** → cartão **Conexão com o Orvia** (botão ↻). Ele mostra, passo a passo:
+Abra o painel da extensão → aba **Produtos** → cartão **Conexão com o Undercut** (botão ↻). Ele mostra, passo a passo:
 chave salva → servidor respondeu → chave aceita → **integração da plataforma liberada** → handshake.
 Se o passo “Integração … liberada” falhar, a mensagem diz o canal recebido e o esperado — é exatamente o item 1/2/3 acima que falta.
 

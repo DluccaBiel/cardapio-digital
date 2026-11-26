@@ -31,22 +31,22 @@ export type ExtensionCatalogEntry = {
 
 export const EXTENSION_CATALOG: ExtensionCatalogEntry[] = [
   {
-    slug: 'orvia-ifood',
+    slug: 'undercut-ifood',
     short: 'iFood',
     name: 'Undercut · Otimizador iFood',
     description: 'Lê o cardápio no Portal do Parceiro, envia ao Undercut e guia a aplicação dos combos e edições aprovadas.',
-    version: '0.3.0',
+    version: '0.4.42',
     downloadUrl: '/extensoes/undercut-ifood.zip',
     homepageUrl: null,
     partner: 'undercut',
     monogram: 'iF',
   },
   {
-    slug: 'orvia-cardapioweb',
+    slug: 'undercut-cardapioweb',
     short: 'Cardápio Web',
     name: 'Undercut · Cardápio Web',
     description: 'Sincroniza o cardápio do Portal do Cardápio Web, analisa com o Undercut, aplica o que você aprovar e envia o relatório com prints.',
-    version: '0.3.0',
+    version: '0.5.7',
     downloadUrl: '/extensoes/undercut-cardapioweb.zip',
     homepageUrl: null,
     upcoming: false,
@@ -54,19 +54,19 @@ export const EXTENSION_CATALOG: ExtensionCatalogEntry[] = [
     monogram: 'CW',
   },
   {
-    slug: 'orvia-anotaai',
+    slug: 'undercut-anotaai',
     short: 'Anota AI',
     name: 'Undercut · Anota AI',
     description: 'Sincroniza o cardápio do painel do Anota AI, analisa com o Undercut, aplica o que você aprovar e envia o relatório com prints.',
-    version: null,
-    downloadUrl: null,
+    version: '0.3.7',
+    downloadUrl: '/extensoes/undercut-anotaai.zip',
     homepageUrl: null,
-    upcoming: true,
+    upcoming: false,
     partner: 'undercut',
     monogram: 'AI',
   },
   {
-    slug: 'orvia-flyto',
+    slug: 'undercut-flyto',
     short: 'FlyTo',
     name: 'Undercut · FlyTo',
     description: 'Conecta o sistema FlyTo ao Undercut: lê o cardápio do parceiro, envia ao hub e guia a otimização com os donos da operação.',
@@ -78,6 +78,11 @@ export const EXTENSION_CATALOG: ExtensionCatalogEntry[] = [
     monogram: 'FT',
   },
 ]
+
+/** Extensões que já funcionam e têm pacote para baixar (as demais aparecem como "em breve"). */
+export function availableExtensions(): ExtensionCatalogEntry[] {
+  return EXTENSION_CATALOG.filter((e) => !e.upcoming && Boolean(e.downloadUrl))
+}
 
 export function catalogOf(slug: string): ExtensionCatalogEntry | null {
   return EXTENSION_CATALOG.find((e) => e.slug === slug) ?? null

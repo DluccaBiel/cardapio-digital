@@ -10,10 +10,9 @@ por dois caminhos:
 extensão / painel
       │  pergunta + contexto (opcional)
       ▼
-lib/api/research.ts  ──► Claude + web_search   (se ANTHROPIC_API_KEY)
-      │                └► busca pública gratuita (DuckDuckGo, sem chave)
+lib/api/research.ts  ──► busca pública feita pelo próprio sistema (sem IA, sem chave)
       ▼
-{ answer, sources[], mode: 'ia'|'gratuito', status: 'ok'|'indisponivel', notices[], answered_at }
+{ answer, sources[], mode: 'sistema', status: 'ok'|'indisponivel', notices[], answered_at }
 ```
 
 ## Contrato
@@ -33,14 +32,12 @@ lib/api/research.ts  ──► Claude + web_search   (se ANTHROPIC_API_KEY)
 - `max_sources`: 1–8 (padrão 5).
 - Resposta: `200 { data: { … } }`; erros seguem o padrão da API (`validation_failed`, `unauthorized`, `forbidden`, `rate_limited`, `internal`).
 
-## Modos
+## Como funciona
 
-| Condição | Modo | Comportamento |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` configurada | `ia` | Claude com a ferramenta de busca, resposta sintetizada + citações |
-| Sem a chave (ou falha da IA) | `gratuito` | Busca pública e resposta com trechos/links; `notices` explica |
-
-Sem resultados, `status: "indisponivel"` e uma orientação para reformular a pergunta (nunca inventa dados).
+A pesquisa é feita **pelo próprio Undercut**, sem IA: o servidor busca em fontes públicas e devolve
+título, trecho e link direto para quem pediu (a extensão ou o painel). Sem resultados, `status: "indisponivel"`
+e uma orientação para reformular a pergunta (nunca inventa dados). A análise do cardápio
+(`POST /api/v1/analysis`) segue o mesmo princípio: regras do sistema + concorrentes públicos da região.
 
 ## Segurança e privacidade
 

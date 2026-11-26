@@ -3,7 +3,8 @@ import { getWorkspaceBySlug } from '../../../../lib/db/workspaces'
 import { createServerClient } from '../../../../lib/supabaseServer'
 import { createAdminClient } from '../../../../lib/supabaseAdmin'
 import { shortUrlFor } from '../../../../lib/shortlink'
-import { SettingsScreen, type SettingsClient, type SettingsMember } from '../../../../components/hub/settings/SettingsScreen'
+import { SettingsScreen, type SettingsClient, type SettingsInvite, type SettingsMember } from '../../../../components/hub/settings/SettingsScreen'
+import { inviteState } from '../../../../lib/invites'
 import { metaAppConfig } from '../../../../lib/meta/api'
 import { tokenCryptoReady } from '../../../../lib/meta/crypto'
 
@@ -56,11 +57,15 @@ export default async function ConfiguracoesPage({ params, searchParams }: { para
 
   // E-mails da equipe: só o owner precisa do detalhe; o suporte vê os papéis.
   const emails = new Map<string, string | null>()
+  const lastSignIn = new Map<string, string | null>()
   if (isOwner) {
     try {
       const admin = createAdminClient()
       const { data: listed } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
-      for (const user of listed?.users ?? []) emails.set(user.id, user.email ?? null)
+      for (const user of listed?.users ?? []) {
+        emails.set(user.id, user.email ?? null)
+        lastSignIn.set(user.id, user.last_sign_in_at ?? null)
+      }
     } catch {
       // Sem service role configurado a tela continua (mostra o id curto).
     }
@@ -72,7 +77,27 @@ export default async function ConfiguracoesPage({ params, searchParams }: { para
     role: m.role,
     created_at: m.created_at,
     email: emails.get(m.user_id) ?? null,
+    last_sign_in_at: lastSignIn.get(m.user_id) ?? null,
   }))
+
+  // Links de acesso do colaborador (só o owner vê; o valor do link nunca é guardado, só o hash).
+  let invites: SettingsInvite[] = []
+  if (isOwner) {
+    const { data: inviteRows } = await db
+      .from('member_invites')
+      .select('id, label, created_at, expires_at, used_at, revoked_at, used_by')
+      .eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: false })
+      .limit(30)
+    invites = (inviteRows ?? []).map((i) => ({
+      id: i.id,
+      label: i.label ?? '',
+      created_at: i.created_at,
+      expires_at: i.expires_at,
+      state: inviteState(i),
+      used_email: i.used_by ? (emails.get(i.used_by) ?? null) : null,
+    }))
+  }
 
   const now = Date.now()
   const activeKeys = (keys ?? []).filter(
@@ -107,6 +132,7 @@ export default async function ConfiguracoesPage({ params, searchParams }: { para
       canManage={isOwner || isSupport}
       shortUrl={shortUrlFor(workspace.slug)}
       members={members}
+      invites={invites}
       clients={(clients ?? []) as SettingsClient[]}
       extensions={((extensions ?? []) as { id: string; slug: string; name: string; description: string | null; homepage_url: string | null }[]).map((e) => ({
         id: e.id,

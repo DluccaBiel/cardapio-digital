@@ -1,5 +1,5 @@
 /**
- * Modo GRATUITO (sem ANTHROPIC_API_KEY, sem token): pesquisa pública + ideias por regras.
+ * Análise do sistema (sem IA, sem chave externa): pesquisa pública + ideias por regras.
  * Este arquivo é PURO (sem rede, sem Next): extração de resultados/menus e geração de ideias.
  * A parte de rede fica em free-research.ts.
  */
@@ -163,7 +163,7 @@ export function buildResearch(pages: PageResult[], opts: { niche: string; city: 
   if (comboCount) insights.push(`${comboCount} combos/kits encontrados nos concorrentes: o combo é um formato comum na região.`)
   const nin = all.length ? all.filter((l) => Math.round((l.price % 1) * 100) === 90).length / all.length : 0
   if (all.length >= 8 && nin >= 0.3) insights.push(`${Math.round(nin * 100)}% dos preços dos concorrentes terminam em ,90.`)
-  insights.push('Pesquisa gratuita em fontes públicas (sem IA): preços e combos são leituras de páginas abertas e podem estar desatualizados.')
+  insights.push('Pesquisa em fontes públicas feita pelo Undercut (sem IA): preços e combos são leituras de páginas abertas e podem estar desatualizados.')
   const notes = [...insights.map((i) => `- ${i}`), ...competitors.map((c) => `- ${c.name}: ${c.highlights.join('; ')}`)].join('\n')
   return {
     notes,
@@ -340,7 +340,7 @@ export function freeSuggest(items: FreeItem[], research: CompetitorResearch | nu
   const understood = requestNotices(req, asked.length)
   if (!combos.length && req.rejected) understood.push('As combinações possíveis com os produtos atuais já foram reprovadas. Peça um item específico (ex.: "combos com batata grande") ou cadastre novos produtos.')
   return {
-    summary: `Modo gratuito (sem IA): ${updates.length} ajuste(s) de preço comparando com concorrentes públicos e ${combos.length} combo(s)${asked.length ? `, ${asked.length} com o que você pediu` : ''}.${research ? '' : ' Sem pesquisa de concorrentes nesta rodada.'}`,
+    summary: `Análise do Undercut (sem IA): ${updates.length} ajuste(s) de preço comparando com concorrentes públicos e ${combos.length} combo(s)${asked.length ? `, ${asked.length} com o que você pediu` : ''}.${research ? '' : ' Sem pesquisa de concorrentes nesta rodada.'}`,
     updates,
     combos,
     understood,

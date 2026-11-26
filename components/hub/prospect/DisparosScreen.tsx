@@ -12,7 +12,8 @@ import {
   Play,
   QrCode,
   Radio,
-  Search,
+  Plus,
+  Users,
   Send,
   ShieldCheck,
   Smartphone,
@@ -22,9 +23,8 @@ import {
 } from 'lucide-react'
 import type { Campaign, ProspectLead, WhatsappSession } from '../../../lib/db/disparos'
 import {
+  addManualLeadsAction,
   createCampaignAction,
-  requestSearchAction,
-  searchStatusAction,
   setCampaignStatusAction,
   startLocalWorkerAction,
   triggerCampaignNowAction,
@@ -76,6 +76,17 @@ const LEAD_STATUS: Record<ProspectLead['status'], { label: string; tone: 'neutra
   respondeu: { label: 'Respondeu', tone: 'green' },
   opt_out: { label: 'Pediu p/ sair', tone: 'red' },
   invalido: { label: 'Sem WhatsApp', tone: 'red' },
+}
+
+const STATUS_TEXT: Record<string, string> = {
+  disconnected: 'desconectado',
+  starting: 'iniciando conexão',
+  qr: 'aguardando a leitura do QR code',
+  connecting: 'QR lido — vinculando',
+  syncing: 'vinculado, sincronizando',
+  ready: 'conectado e pronto para enviar',
+  logged_out: 'desvinculado pelo celular — conecte de novo',
+  error: 'erro na conexão',
 }
 
 const CAMPAIGN_STATUS: Record<Campaign['status'], { label: string; tone: 'neutral' | 'green' | 'amber' | 'red' }> = {
@@ -155,7 +166,7 @@ export function DisparosScreen({ ws, canManage, ready, initialSession, leads: in
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 pb-10 pt-5 sm:px-6 md:px-[30px] md:pt-[26px]">
-      <PageHeader title="Disparos WhatsApp" description="Conecte seu WhatsApp pelo QR code, deixe a IA montar o público e agende os envios com intervalo seguro." />
+      <PageHeader title="Disparos WhatsApp" description="Conecte seu WhatsApp pelo QR code, escolha o público e agende os envios com intervalo seguro." />
 
       {fromSdr && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-[6px] border border-[#22C55E]/40 bg-[#0F291E]/70 px-4 py-3 text-[13px] text-[#86EFAC]">
@@ -198,7 +209,7 @@ export function DisparosScreen({ ws, canManage, ready, initialSession, leads: in
           flash={flash}
         />
       )}
-      {ready && canManage && <AudienceCard ws={ws} leads={leads} setLeads={setLeads} selected={selected} setSelected={setSelected} flash={flash} />}
+      {ready && canManage && <PublicoCard ws={ws} leads={leads} setLeads={setLeads} selected={selected} setSelected={setSelected} flash={flash} />}
       {ready && canManage && <CampaignForm ws={ws} selected={selected} leads={leads} onCreated={() => setSelected(new Set())} flash={flash} />}
       {ready && <CampaignList ws={ws} campaigns={campaigns} canManage={canManage} flash={flash} />}
 
@@ -424,18 +435,28 @@ export function WhatsAppCard({
         <div className="flex items-center gap-2">
           {linked ? <Pill tone="green">Vinculado</Pill> : wants ? <Pill tone="amber">Conectando</Pill> : <Pill>Desconectado</Pill>}
           {workerOnline === false && <Pill tone="red">Robô desligado</Pill>}
+          {workerOnline && st === 'error' && <Pill tone="red">Erro</Pill>}
           {workerOnline && <Pill tone="green">Robô online</Pill>}
         </div>
       </div>
 
       {workerOnline === false && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[5px] border border-[#D7141F]/40 bg-[#1F0D0F]/60 p-3 text-[12px] leading-relaxed text-[#FFB199]">
-          <div>
-            O robô de envio não está rodando no seu computador. Abra um terminal na pasta do projeto e rode{' '}
-            <code className="rounded bg-black/40 px-1.5 py-0.5 text-[#ECE9E3]">npm run worker</code>. Ele precisa ficar aberto para conectar e
-            disparar.
-          </div>
-          <div className="flex items-center gap-2">
+        <div className="mb-4 rounded-[5px] border border-[#D7141F]/40 bg-[#1F0D0F]/60 p-3 text-[12px] leading-relaxed text-[#FFB199]">
+          <b className="text-[#FFD2C4]">Robô desligado — sem ele não há QR, status nem envio.</b> O WhatsApp por QR precisa de um programa
+          sempre ligado (a Vercel não mantém conexões abertas).
+          <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
+            <li>
+              <b>Teste:</b> no seu computador, rode <code className="rounded bg-black/40 px-1.5 py-0.5 text-[#ECE9E3]">npm run worker</code> e deixe aberto.
+            </li>
+            <li>
+              <b>Produção (24 h):</b> hospede o robô em um servidor com o <code className="rounded bg-black/40 px-1.5 py-0.5 text-[#ECE9E3]">Dockerfile.worker</code> — passo a passo em{' '}
+              <code className="rounded bg-black/40 px-1.5 py-0.5 text-[#ECE9E3]">docs/robo-24h.md</code>.
+            </li>
+          </ul>
+          <p className="mt-1.5 text-[11px] text-[#FFB199]/80">
+            Último sinal do robô: {session?.worker_seen_at ? fmtDateTime(session.worker_seen_at) : 'nunca'}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleStartLocalWorker}
@@ -448,7 +469,7 @@ export function WhatsAppCard({
             <button
               type="button"
               onClick={copyWorkerCmd}
-              className="inline-flex items-center gap-1.5 rounded-[4px] border border-[#2A2A2E] bg-black/50 px-3 py-1.5 text-[11px] font-mono text-[#CFCBC4] hover:border-[#D7141F] hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-[4px] border border-[#2A2A2E] bg-black/50 px-3 py-1.5 font-mono text-[11px] text-[#CFCBC4] hover:border-[#D7141F] hover:text-white"
             >
               {copied ? <Check size={12} className="text-[#4ADE80]" /> : <Copy size={12} />}
               Copiar comando
@@ -456,6 +477,11 @@ export function WhatsAppCard({
           </div>
         </div>
       )}
+
+      <p className="mb-3 font-mono text-[11px] text-[#8E8A86]">
+        Status real: <b className="text-[#ECE9E3]">{workerOnline === false ? 'robô desligado' : STATUS_TEXT[st] ?? st}</b>
+        {workerOnline && session?.worker_seen_at ? ` · último sinal do robô ${fmtDateTime(session.worker_seen_at)}` : ''}
+      </p>
 
       <div className="grid gap-5 md:grid-cols-[320px_1fr]">
         <div className="flex min-h-[220px] items-center justify-center rounded-[6px] border border-dashed border-[#2A2A2E] bg-[#0B0B0C] p-3">
@@ -536,9 +562,9 @@ export function WhatsAppCard({
 }
 
 // ===========================================================================
-// 2) Público — agente de prospecção (empresas food novas)
+// 2) Público do disparo (base da Prospecção/SDR + números colados)
 // ===========================================================================
-function AudienceCard({
+function PublicoCard({
   ws,
   leads,
   setLeads,
@@ -553,72 +579,16 @@ function AudienceCard({
   setSelected: (s: Set<string>) => void
   flash: (t: string) => void
 }) {
-  const [city, setCity] = useState('')
-  const [uf, setUf] = useState('')
-  const [requesting, start] = useTransition()
-  const [searchId, setSearchId] = useState<string | null>(null)
-  const [progress, setProgress] = useState<string | null>(null)
-  const [summary, setSummary] = useState<string | null>(null)
-  const [freshIds, setFreshIds] = useState<Set<string>>(new Set())
-  const [view, setView] = useState<'novos' | 'disponiveis' | 'todos'>('disponiveis')
-  const pending = requesting || searchId !== null
+  const [view, setView] = useState<'disponiveis' | 'todos'>('disponiveis')
+  const [adding, setAdding] = useState(false)
+  const [text, setText] = useState('')
+  const [busy, start] = useTransition()
 
-  // Acompanha a pesquisa feita pelo robô local até concluir.
-  useEffect(() => {
-    if (!searchId) return
-    let alive = true
-    const tick = async () => {
-      const r = await searchStatusAction(ws, searchId).catch(() => null)
-      if (!alive || !r) return
-      if (!r.ok) {
-        setSearchId(null)
-        return flash(r.error)
-      }
-      const s = r.search
-      if (s.status === 'pendente') setProgress('Pedido na fila — aguardando o robô do seu computador começar…')
-      else if (s.status === 'buscando') setProgress(s.detail || 'O agente está varrendo a cidade…')
-      else {
-        setSearchId(null)
-        setProgress(null)
-        if (s.status === 'erro') return flash(s.detail || 'A pesquisa falhou.')
-        const ids = new Set(r.fresh.map((l) => l.id))
-        setLeads((prev) => [...r.fresh, ...prev.filter((p) => !ids.has(p.id))])
-        setFreshIds(ids)
-        setSelected(new Set(ids)) // novos já entram como público
-        setView('novos')
-        const where = s.label || [s.city, s.uf].filter(Boolean).join('/')
-        setSummary(
-          s.created_count > 0
-            ? `${where}: ${s.found} empresas food com telefone · ${s.created_count} novas adicionadas ao público · ${s.found - s.created_count} já conhecidas ou clientes.`
-            : `${where}: ${s.found} empresas encontradas, nenhuma nova (todas já estavam na sua base). Tente outra cidade vizinha.`,
-        )
-      }
-    }
-    tick()
-    const id = window.setInterval(tick, 3000)
-    return () => {
-      alive = false
-      window.clearInterval(id)
-    }
-  }, [searchId, ws, flash, setLeads, setSelected])
-
-  const shown = useMemo(() => {
-    if (view === 'novos') return leads.filter((l) => freshIds.has(l.id))
-    if (view === 'disponiveis') return leads.filter((l) => l.status === 'novo')
-    return leads
-  }, [leads, view, freshIds])
-
+  const available = leads.filter((l) => l.status === 'novo')
+  const shown = view === 'disponiveis' ? available : leads
   const selectable = (l: ProspectLead) => l.status !== 'opt_out' && l.status !== 'invalido'
-
-  function search() {
-    start(async () => {
-      setSummary(null)
-      const r = await requestSearchAction(ws, { city, uf })
-      if (!r.ok) return flash(r.error)
-      setProgress('Pedido enviado ao robô…')
-      setSearchId(r.search.id)
-    })
-  }
+  const selectableShown = shown.filter(selectable)
+  const allShownSelected = selectableShown.length > 0 && selectableShown.every((l) => selected.has(l.id))
 
   function toggle(id: string) {
     const s = new Set(selected)
@@ -626,66 +596,70 @@ function AudienceCard({
     else s.add(id)
     setSelected(s)
   }
-  const allShownSelected = shown.filter(selectable).length > 0 && shown.filter(selectable).every((l) => selected.has(l.id))
   function toggleAll() {
     const s = new Set(selected)
-    for (const l of shown.filter(selectable)) {
+    for (const l of selectableShown) {
       if (allShownSelected) s.delete(l.id)
       else s.add(l.id)
     }
     setSelected(s)
   }
+  function addNumbers() {
+    start(async () => {
+      const r = await addManualLeadsAction(ws, text)
+      if (!r.ok) return flash(r.error)
+      const ids = new Set(r.leads.map((l) => l.id))
+      setLeads((prev) => [...r.leads, ...prev.filter((p) => !ids.has(p.id))])
+      const s = new Set(selected)
+      for (const l of r.leads) if (selectable(l)) s.add(l.id)
+      setSelected(s)
+      setText('')
+      setAdding(false)
+      flash(`${r.added} contato(s) novo(s) adicionado(s)${r.ignored ? ` · ${r.ignored} já estavam na base` : ''}.`)
+    })
+  }
 
   return (
     <section className={cn(CARD, 'mb-6')}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="uc-title flex items-center gap-2 text-[18px] text-[#F7F5F1]">
-          <Search size={18} className="text-[#D7141F]" /> Público · Agente de prospecção IA
+          <Users size={18} className="text-[#D7141F]" /> Público do disparo
         </h2>
-        <Pill tone="amber">Nicho: Food</Pill>
+        <button type="button" onClick={() => setAdding((v) => !v)} className={BTN_GHOST}>
+          <Plus size={13} /> Adicionar números
+        </button>
       </div>
-      <p className="mb-4 text-[12px] leading-relaxed text-[#8E8A86]">
-        O agente procura restaurantes, lanchonetes, bares, cafés, padarias e docerias <b className="text-[#CFCBC4]">com telefone</b> na cidade
-        (dados abertos do OpenStreetMap, sem chave do Google). Só entram empresas que ainda não estão na sua base nem são clientes — e as novas
-        já vão direto para o público do disparo.
+      <p className="mb-3 text-[12px] leading-relaxed text-[#8E8A86]">
+        Empresas que você já tem na base (Prospecção e SDR). Quem pediu para sair nunca entra no público. Para trazer mais contatos, use o
+        menu <b className="text-[#CFCBC4]">Prospecção</b> ou cole números aqui.
       </p>
 
-      <form
-        className="mb-4 grid gap-3 sm:grid-cols-[1fr_90px_auto]"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (city.trim().length >= 2) search()
-        }}
-      >
-        <label>
-          <FieldLabel>Cidade</FieldLabel>
-          <input className={INPUT} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: Campinas" maxLength={80} />
-        </label>
-        <label>
-          <FieldLabel>UF</FieldLabel>
-          <input className={cn(INPUT, 'uppercase')} value={uf} onChange={(e) => setUf(e.target.value.slice(0, 2))} placeholder="SP" maxLength={2} />
-        </label>
-        <div className="flex items-end">
-          <button type="submit" disabled={pending || city.trim().length < 2} className={cn(BTN_PRIMARY, 'h-[38px] w-full sm:w-auto')}>
-            {pending ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-            {pending ? 'Pesquisando…' : 'Buscar empresas novas'}
-          </button>
+      {adding && (
+        <div className="mb-4 rounded-[6px] border border-[#2A2A2E] bg-[#0B0B0C] p-3">
+          <FieldLabel>Um contato por linha — “Nome; telefone” ou só o telefone (DDD + número)</FieldLabel>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={5}
+            placeholder={'Pizzaria do Zé; (61) 99999-8888\n61 98888-7777'}
+            className="w-full rounded-[5px] border border-[#2A2A2E] bg-[#0B0B0C] px-3 py-2 font-mono text-[12px] text-[#ECE9E3] outline-none placeholder:text-[#85817C] focus:border-[#D7141F]"
+          />
+          <div className="mt-2 flex justify-end gap-2">
+            <button type="button" onClick={() => setAdding(false)} className={BTN_GHOST}>
+              Cancelar
+            </button>
+            <button type="button" onClick={addNumbers} disabled={busy || text.trim().length < 8} className={BTN_PRIMARY}>
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Adicionar ao público
+            </button>
+          </div>
         </div>
-      </form>
-      {pending && (
-        <p className="mb-3 flex items-center gap-2 text-[12px] text-[#8E8A86]">
-          <Loader2 size={13} className="animate-spin text-[#D7141F]" />
-          {progress ?? 'Enviando pedido…'} Pode levar alguns minutos — os servidores de mapas são gratuitos e às vezes lentos.
-        </p>
       )}
-      {summary && <p className="mb-3 rounded-[5px] bg-[#0B0B0C] px-3 py-2 text-[12px] text-[#CFCBC4]">{summary}</p>}
 
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-[6px] border border-[#2A2A2E] bg-[#0B0B0C] p-0.5">
           {(
             [
-              ['novos', `Desta busca (${freshIds.size})`],
-              ['disponiveis', `Nunca contatados (${leads.filter((l) => l.status === 'novo').length})`],
+              ['disponiveis', `Nunca contatados (${available.length})`],
               ['todos', `Todos (${leads.length})`],
             ] as const
           ).map(([v, l]) => (
@@ -746,14 +720,13 @@ function AudienceCard({
             {shown.length === 0 && (
               <tr>
                 <td colSpan={6} className="bg-[#111113] px-3 py-10 text-center text-[12px] text-[#85817C]">
-                  {leads.length === 0 ? 'Busque uma cidade para o agente montar o público.' : 'Nada nesta visão.'}
+                  {leads.length === 0 ? 'Nenhum contato ainda. Cole números em “Adicionar números” ou traga empresas da Prospecção.' : 'Nada nesta visão.'}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-[11px] text-[#85817C]">Dados © colaboradores do OpenStreetMap (ODbL).</p>
     </section>
   )
 }
@@ -962,7 +935,7 @@ function CampaignForm({
               <CalendarClock size={14} /> Agendar para a janela configurada
             </button>
           </div>
-          {audience === 0 && <p className="text-center text-[11px] text-[#85817C]">Selecione o público acima (a busca da IA já seleciona as empresas novas).</p>}
+          {audience === 0 && <p className="text-center text-[11px] text-[#85817C]">Selecione o público acima para liberar o disparo.</p>}
         </div>
       </div>
 

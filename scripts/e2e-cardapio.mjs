@@ -12,7 +12,7 @@ const SR = process.env.LOCAL_SERVICE_ROLE_KEY
 const OUT = process.env.OUT
 if (!/^http:\/\/(127\.0\.0\.1|localhost)/.test(SB ?? '')) throw new Error('somente local')
 
-const email = `e2e-${Date.now()}@orvia-demo.example`
+const email = `e2e-${Date.now()}@undercut-demo.example`
 const password = randomBytes(18).toString('base64url')
 const H = { apikey: SR, Authorization: `Bearer ${SR}`, 'Content-Type': 'application/json' }
 const u = await (await fetch(`${SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email, password, email_confirm: true }) })).json()
@@ -32,7 +32,7 @@ try {
   await page.keyboard.press('Enter')
   await page.waitForURL(/\/a\//, { timeout: 30000 })
 
-  await page.goto(`${HUB}/a/orvia-demo/cardapio?cliente=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2`)
+  await page.goto(`${HUB}/a/undercut-demo/cardapio?cliente=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2`)
   await page.getByRole('heading', { name: 'Cardápio' }).waitFor()
   await page.screenshot({ path: `${OUT}/01-produtos.png`, fullPage: true })
   log(await page.getByText('Batata Frita (Demo)').first().isVisible(), 'produtos importados aparecem')
@@ -80,7 +80,7 @@ try {
   log(await page.getByText('Combo Astro (E2E)').isVisible(), 'combo novo na fila do iFood')
 
   // Extensões: gerar chave
-  await page.goto(`${HUB}/a/orvia-demo/extensoes`)
+  await page.goto(`${HUB}/a/undercut-demo/extensoes`)
   await page.getByRole('button', { name: 'Gerar chave', exact: true }).first().click()
   await page.getByPlaceholder('Ex.: Chrome do escritório').fill('Chave E2E')
   await page.getByRole('dialog').getByRole('button', { name: 'Gerar chave' }).click()
@@ -103,7 +103,7 @@ try {
 
   // Mobile
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(`${HUB}/a/orvia-demo/cardapio?cliente=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2`)
+  await page.goto(`${HUB}/a/undercut-demo/cardapio?cliente=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2`)
   await page.getByRole('heading', { name: 'Cardápio' }).waitFor()
   await page.screenshot({ path: `${OUT}/08-mobile.png`, fullPage: true })
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)

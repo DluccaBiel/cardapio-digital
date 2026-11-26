@@ -49,7 +49,7 @@ describe('pesquisa gratuita — parsers', () => {
   })
 })
 
-describe('modo gratuito — ideias', () => {
+describe('análise do sistema — ideias', () => {
   const research = buildResearch([{ hit: { title: 'Pizzaria Exemplo - Cardápio', url: 'https://www.pizzariaexemplo.com.br/cardapio', snippet: 'Pizzas grandes' }, lines: extractMenuLines(PAGE) }], { niche: 'pizzaria', city: 'Brasília' })!
   const items = [
     { id: 'a', ifood_id: '1', name: 'Pizza Calabresa G', price: 40, description: null },
@@ -84,7 +84,7 @@ describe('modo gratuito — ideias', () => {
     const r = freeSuggest(items, null, { maxPct: 10, variant: 1 })
     expect(r.updates).toEqual([])
     expect(r.combos.length).toBeGreaterThan(0)
-    expect(r.summary).toMatch(/Modo gratuito/)
+    expect(r.summary).toMatch(/Análise do Undercut/)
   })
 })
 

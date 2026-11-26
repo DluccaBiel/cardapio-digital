@@ -28,9 +28,9 @@ if (!ANON || !SERVICE) {
 const J = (obj) => JSON.stringify(obj)
 const uniq = Date.now().toString(36)
 const users = {
-  a: { email: `smoke-a-${uniq}@orvia-smoke.example`, password: 'Smoke123!@#' },
-  b: { email: `smoke-b-${uniq}@orvia-smoke.example`, password: 'Smoke123!@#' },
-  v: { email: `smoke-v-${uniq}@orvia-smoke.example`, password: 'Smoke123!@#' },
+  a: { email: `smoke-a-${uniq}@undercut-smoke.example`, password: 'Smoke123!@#' },
+  b: { email: `smoke-b-${uniq}@undercut-smoke.example`, password: 'Smoke123!@#' },
+  v: { email: `smoke-v-${uniq}@undercut-smoke.example`, password: 'Smoke123!@#' },
 }
 const results = []
 const check = (name, ok, detail) => {

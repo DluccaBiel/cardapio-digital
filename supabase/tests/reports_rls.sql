@@ -43,7 +43,7 @@ end $$;
 -- Fixtures --------------------------------------------------------------------
 -- A = aaaaaaaa… (owner 1111, coordenador 2222, editor 3333, visualizador 4444); B = workspace novo
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
-values ('dddddddd-0000-4000-8000-dddddddd0012', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'owner-reports-b@orvia-demo.example', '$2a$10$abcdefghijklmnopqrstuuVZ2FkW5O0pAOyKiP2k2T3o3m0c1b1a6fW', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}')
+values ('dddddddd-0000-4000-8000-dddddddd0012', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'owner-reports-b@undercut-demo.example', '$2a$10$abcdefghijklmnopqrstuuVZ2FkW5O0pAOyKiP2k2T3o3m0c1b1a6fW', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}')
 on conflict (id) do nothing;
 insert into public.workspaces (id, name, slug, plan) values ('dddddddd-0000-4000-8000-dddddddd0011', 'Workspace B (Relatórios)', 'reports-test-b', 'free') on conflict (id) do nothing;
 insert into public.members (workspace_id, user_id, role) values ('dddddddd-0000-4000-8000-dddddddd0011', 'dddddddd-0000-4000-8000-dddddddd0012', 'owner') on conflict do nothing;

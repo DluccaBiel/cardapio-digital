@@ -25,7 +25,7 @@ const body = z.object({
   extension: z.enum(LOGIN_EXTENSION_SLUGS).optional(),
 })
 
-const ROLES = new Set(['owner', 'coordenador', 'editor'])
+const ROLES = new Set(['owner', 'coordenador', 'editor', 'colaborador']) // colaborador: usa a extensão (login pela própria extensão), sem acesso ao painel
 
 // Freio contra força bruta: 8 tentativas/min por IP (em memória por instância)
 const attempts = new Map<string, { start: number; count: number }>()
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
   const { data: ext } = await admin.from('extensions').select('id').eq('slug', slug).maybeSingle()
   if (!ext) {
-    return err(req, 'internal', slug === 'orvia-cardapioweb' ? 'Extensão Cardápio Web ainda não registrada no servidor (migration 0006 pendente).' : slug === 'orvia-anotaai' ? 'Extensão Anota AI ainda não registrada no servidor (migration 0008 pendente).' : 'Extensão não registrada no servidor.')
+    return err(req, 'internal', slug === 'undercut-cardapioweb' ? 'Extensão Cardápio Web ainda não registrada no servidor (migration 0006 pendente).' : slug === 'undercut-anotaai' ? 'Extensão Anota AI ainda não registrada no servidor (migration 0008 pendente).' : 'Extensão não registrada no servidor.')
   }
 
   const device = device_id.slice(0, 8)

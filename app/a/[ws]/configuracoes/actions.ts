@@ -9,7 +9,7 @@ import { createAdminClient } from '../../../../lib/supabaseAdmin'
 import { createServerClient } from '../../../../lib/supabaseServer'
 
 const MANAGERS = ['owner', 'coordenador']
-const ROLES = ['owner', 'coordenador', 'editor', 'visualizador'] as const
+const ROLES = ['owner', 'coordenador', 'editor', 'visualizador', 'colaborador'] as const
 type Role = (typeof ROLES)[number]
 
 async function ctx(ws: string, roles: string[] = MANAGERS) {
