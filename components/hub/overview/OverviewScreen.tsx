@@ -35,7 +35,8 @@ import { currentISOWeek, formatBRL, shortDate } from '@/lib/format'
 import type { MockClient, MockTag, Situation } from '@/lib/mock'
 import { cn, FieldLabel, Modal, TextInput, TextSelect, Toast, Toggle } from '@/components/hub/ui'
 import { useRouter } from 'next/navigation'
-import { refreshWatchedAction, syncMetaAction } from '@/app/a/[ws]/meta-actions'
+import { loadRangeMetricsAction, refreshWatchedAction, syncMetaAction, type RangeMetrics } from '@/app/a/[ws]/meta-actions'
+import { computeRange, isDefaultMonth, spToday, type RangePeriod } from '@/lib/overview-range'
 import { setClientSituationAction } from '@/app/a/[ws]/visao-geral/actions'
 import { daysUntil, HEALTH_COLOR, HEALTH_LABEL, RISK_DAYS } from '@/lib/health'
 
@@ -135,6 +136,18 @@ const COLUMNS: { id: ColumnId; label: string; width: number; sortKey?: SortKey }
   { id: 'creative', label: 'Status do criativo', width: 190, sortKey: 'creativeStatus' },
   { id: 'delivery', label: 'Entrega / Editor', width: 300, sortKey: 'editor' },
 ]
+
+/** Modelos de colunas: o escolhido (ou ajustado à mão) fica salvo neste navegador. */
+const COLUMN_PRESETS: { key: string; label: string; ids: ColumnId[] | 'all' }[] = [
+  { key: 'performance', label: 'Performance', ids: ['client', 'spend', 'roas', 'revenue', 'purchases', 'cpr', 'balance', 'termination'] },
+  { key: 'essencial', label: 'Essencial', ids: ['client', 'situation', 'spend', 'campaign', 'balance', 'termination'] },
+  { key: 'operacao', label: 'Operação', ids: ['client', 'situation', 'tags', 'campaign', 'termination', 'lastChange', 'pix', 'routine', 'creative', 'delivery'] },
+  { key: 'todas', label: 'Todas', ids: 'all' },
+]
+const hiddenFor = (key: string): ColumnId[] => {
+  const p = COLUMN_PRESETS.find((x) => x.key === key) ?? COLUMN_PRESETS[0]!
+  return p.ids === 'all' ? [] : COLUMNS.filter((c) => !(p.ids as ColumnId[]).includes(c.id)).map((c) => c.id)
+}
 
 const ROUTINES = [
   { key: 'report', label: 'Relatório', Icon: FileText },
@@ -271,7 +284,7 @@ export function OverviewScreen({
       setToast(res.error)
     } else setToast(`${client.name}: ${SITUATION_LABEL[value]} salvo.`)
   }
-  const [clients, setClients] = useState<MockClient[]>(initialClients)
+  const [baseClients, setClients] = useState<MockClient[]>(initialClients)
   // Dados novos do servidor (atualização a cada 5 min) sem perder filtros/ordenação.
   useEffect(() => setClients(initialClients), [initialClients])
   const [tags, setTags] = useState<MockTag[]>(initialTags)
@@ -286,7 +299,34 @@ export function OverviewScreen({
   const [period, setPeriod] = useState('')
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null)
   const [order, setOrder] = useState<ColumnId[]>(COLUMNS.map((column) => column.id))
-  const [hidden, setHidden] = useState<ColumnId[]>([])
+  const [hidden, setHidden] = useState<ColumnId[]>(() => hiddenFor('performance'))
+  const [preset, setPreset] = useState('performance')
+  const colsKey = `undercut:overview-cols:${ws ?? 'demo'}`
+  const colsLoaded = useRef(false)
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(colsKey)
+      if (raw) {
+        const saved = JSON.parse(raw) as { order?: ColumnId[]; hidden?: ColumnId[]; preset?: string }
+        const valid = new Set(COLUMNS.map((c) => c.id))
+        if (Array.isArray(saved.hidden)) setHidden(saved.hidden.filter((id) => valid.has(id)))
+        if (Array.isArray(saved.order)) {
+          const o = saved.order.filter((id) => valid.has(id))
+          setOrder([...o, ...COLUMNS.map((c) => c.id).filter((id) => !o.includes(id))])
+        }
+        if (typeof saved.preset === 'string') setPreset(saved.preset)
+      }
+    } catch {}
+    colsLoaded.current = true
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    if (!colsLoaded.current) return
+    try {
+      window.localStorage.setItem(colsKey, JSON.stringify({ order, hidden, preset }))
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order, hidden, preset])
   const [dragColumn, setDragColumn] = useState<ColumnId | null>(null)
   const [popover, setPopover] = useState<'filters' | 'columns' | null>(null)
   const [progress, setProgress] = useState(0)
@@ -296,6 +336,58 @@ export function OverviewScreen({
   const [pixFor, setPixFor] = useState<MockClient | null>(null)
   const [tagFor, setTagFor] = useState<MockClient | null>(null)
   const [linksFor, setLinksFor] = useState<MockClient | null>(null)
+
+  // ---- Período: recalcula gasto / valor de conversão / compras / ROAS pela data exata ----
+  const [customFrom, setCustomFrom] = useState(() => spToday())
+  const [customTo, setCustomTo] = useState(() => spToday())
+  const [rangeData, setRangeData] = useState<{ key: string; byId: RangeMetrics } | null>(null)
+  const [rangeLoading, setRangeLoading] = useState(false)
+  const range = useMemo(
+    () => computeRange(period as RangePeriod, month, { from: customFrom, to: customTo }),
+    [period, month, customFrom, customTo],
+  )
+  const rangeKey = `${range.since}|${range.until}`
+  const useSynced = isDefaultMonth(period as RangePeriod, month) || !ws || !canSync
+  useEffect(() => {
+    if (useSynced) {
+      setRangeData(null)
+      return
+    }
+    let alive = true
+    const timer = window.setTimeout(async () => {
+      setRangeLoading(true)
+      const res = await loadRangeMetricsAction(ws!, range.since, range.until).catch(() => null)
+      if (!alive) return
+      setRangeLoading(false)
+      if (!res) setToast('Não consegui buscar o período na Meta.')
+      else if (!res.ok) setToast(res.error)
+      else {
+        setRangeData({ key: rangeKey, byId: res.byId })
+        if (res.errors.length) setToast(`Período carregado com avisos: ${res.errors[0]}`)
+      }
+    }, 350)
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeKey, useSynced, ws, canSync])
+  const clients = useMemo(() => {
+    if (useSynced || !rangeData || rangeData.key !== rangeKey) return baseClients
+    return baseClients.map((client) => {
+      const m = rangeData.byId[client.id]
+      if (!m) return { ...client, spendMonth: 0, salesSpend: 0, salesRevenue: 0, purchases: 0, roas: null, costPerResult: null }
+      return {
+        ...client,
+        spendMonth: Math.round(m.spend * 100) / 100,
+        salesSpend: m.spend,
+        salesRevenue: Math.round(m.revenue * 100) / 100,
+        purchases: m.purchases,
+        roas: m.spend > 0 && m.revenue > 0 ? Math.round((m.revenue / m.spend) * 100) / 100 : null,
+        costPerResult: m.purchases > 0 ? Math.round((m.spend / m.purchases) * 100) / 100 : null,
+      }
+    })
+  }, [baseClients, rangeData, rangeKey, useSynced])
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
@@ -334,17 +426,9 @@ export function OverviewScreen({
       if (delivery && client.deliveryState !== delivery) return false
       if (editor && client.editor !== editor) return false
       if (weekPending && client.routine.length >= ROUTINES.length) return false
-      if (period && period !== 'custom') {
-        const days = daysSince(client.lastChange)
-        if (period === 'today' && days > 0) return false
-        if (period === 'yesterday' && days !== 1) return false
-        if (period === 'last7' && days > 7) return false
-        if (period === 'prev7' && (days < 7 || days > 14)) return false
-        if (period === 'last30' && days > 30) return false
-      }
       return true
     })
-  }, [clients, query, situation, alertFilter, campaign, delivery, editor, weekPending, period])
+  }, [clients, query, situation, alertFilter, campaign, delivery, editor, weekPending])
 
   const sorted = useMemo(() => {
     // Contas sem cliente (azul) sempre no fim, qualquer que seja a ordenação.
@@ -465,7 +549,7 @@ export function OverviewScreen({
           icon={<Users size={18} strokeWidth={1.8} />}
         />
         <KpiCard
-          label={`Gasto (${monthTitle(month).toLowerCase()})`}
+          label={`Gasto (${range.label})`}
           value={formatBRL(watchedSpend)}
           sub="Soma das contas acompanhadas"
           icon={<span className="text-[18px] font-bold">$</span>}
@@ -543,7 +627,7 @@ export function OverviewScreen({
             <div className="flex h-[48px] items-center rounded-[6px] border border-[#2A2A2E] bg-[#111113] px-1.5">
               <button
                 type="button"
-                onClick={() => setMonth((current) => monthShift(current, -1))}
+                onClick={() => { setPeriod(''); setMonth((current) => monthShift(current, -1)) }}
                 aria-label="Mês anterior"
                 className="rounded-[5px] p-2 text-[#86827D] transition-colors hover:bg-white/[0.04] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
               >
@@ -555,7 +639,7 @@ export function OverviewScreen({
               </span>
               <button
                 type="button"
-                onClick={() => setMonth((current) => monthShift(current, 1))}
+                onClick={() => { setPeriod(''); setMonth((current) => monthShift(current, 1)) }}
                 aria-label="Próximo mês"
                 className="rounded-[5px] p-2 text-[#86827D] transition-colors hover:bg-white/[0.04] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
               >
@@ -573,7 +657,6 @@ export function OverviewScreen({
                   type="button"
                   onClick={() => {
                     setPeriod(active ? '' : item.key)
-                    if (item.key === 'custom') setToast('Período personalizado chega na próxima fase.')
                   }}
                   className={cn(
                     'flex h-[30px] items-center gap-1.5 rounded-[5px] border px-3 text-[12px] font-medium transition-colors',
@@ -589,6 +672,20 @@ export function OverviewScreen({
                 </button>
               )
             })}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-[#CFCBC4]">
+            {period === 'custom' && (
+              <>
+                <input type="date" value={customFrom} max={customTo} onChange={(e) => setCustomFrom(e.target.value)} className="mb-0 h-[30px] rounded-[5px] border border-[#2A2A2E] bg-[#111113] px-2 text-[12px]" aria-label="De" />
+                <span>até</span>
+                <input type="date" value={customTo} min={customFrom} onChange={(e) => setCustomTo(e.target.value)} className="mb-0 h-[30px] rounded-[5px] border border-[#2A2A2E] bg-[#111113] px-2 text-[12px]" aria-label="Até" />
+              </>
+            )}
+            <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[#85817C]">
+              Métricas: {range.since.split('-').reverse().join('/')} a {range.until.split('-').reverse().join('/')}
+              {rangeLoading ? ' · atualizando…' : ''}
+            </span>
           </div>
 
           <button
@@ -723,18 +820,38 @@ export function OverviewScreen({
               <>
                 <button type="button" aria-label="Fechar colunas" onClick={() => setPopover(null)} className="fixed inset-0 z-30 cursor-default" />
                 <div className="absolute right-0 top-[52px] z-40 w-[250px] rounded-[6px] border border-[#2A2A2E] bg-[#0E0E10] p-2 shadow-2xl">
+                  <p className="px-2 pb-1 pt-1 text-[10px] font-bold font-mono uppercase tracking-[0.14em] text-[#85817C]">Modelo salvo</p>
+                  <div className="flex flex-wrap gap-1.5 px-2 pb-2">
+                    {COLUMN_PRESETS.map((p) => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => {
+                          setPreset(p.key)
+                          setHidden(hiddenFor(p.key))
+                        }}
+                        className={cn(
+                          'h-[26px] rounded-[5px] border px-2.5 text-[11px] font-medium',
+                          preset === p.key ? 'border-[#D7141F] bg-[#D7141F]/10 text-[#F0333D]' : 'border-[#2A2A2E] text-[#CFCBC4] hover:border-[#D7141F]/50',
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
                   <p className="px-2 pb-1 pt-1 text-[10px] font-bold font-mono uppercase tracking-[0.14em] text-[#85817C]">Colunas visíveis</p>
                   {COLUMNS.map((column) => {
                     const checked = !hidden.includes(column.id)
                     return (
                       <label key={column.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-[5px] px-2 py-1.5 text-[12px] text-[#CFCBC4] hover:bg-white/[0.04]">
-                        {column.label}
+                        {column.id === 'spend' ? `Gasto (${range.label})` : column.label}
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() =>
+                          onChange={() => {
+                            setPreset('personalizado')
                             setHidden((current) => (checked ? [...current, column.id] : current.filter((id) => id !== column.id)))
-                          }
+                          }}
                           className="mb-0 h-3.5 w-3.5 accent-[#D7141F]"
                         />
                       </label>
@@ -821,7 +938,7 @@ export function OverviewScreen({
                             className="flex min-w-0 flex-1 items-center gap-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D7141F]"
                           >
                             <span className="text-[10px] font-bold uppercase leading-[1.25] tracking-[0.06em] text-[#8E8A86]">
-                              {column.label}
+                              {column.id === 'spend' ? `Gasto (${range.label})` : column.label}
                             </span>
                             {column.sortKey && (
                               <span className="shrink-0 text-[#85817C]">

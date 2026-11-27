@@ -136,6 +136,13 @@ const INSIGHT_FIELDS = 'spend,impressions,reach,inline_link_clicks,actions,actio
 
 export type DayPoint = Base & { date: string }
 
+/** Só os totais do período (1 chamada) — usado na Visão geral. */
+export async function fetchAccountTotals(token: string, actId: string, since: string, until: string): Promise<Base> {
+  const range = JSON.stringify({ since, until })
+  const res = await graphGet<{ data?: RawInsight[] }>(`${G()}/${actId}/insights?${authParams(token, { fields: INSIGHT_FIELDS, time_range: range })}`)
+  return toBase(res.data?.[0])
+}
+
 /** Totais do período (com alcance real) + série diária de uma conta. */
 export async function fetchAccountSeries(token: string, actId: string, since: string, until: string): Promise<{ totals: Base; days: DayPoint[] }> {
   const range = JSON.stringify({ since, until })
