@@ -6,6 +6,8 @@ import { audit } from '../../../lib/audit'
 import { getWorkspaceBySlug } from '../../../lib/db/workspaces'
 import { fetchBusinesses } from '../../../lib/meta/api'
 import { MetaError } from '../../../lib/meta/graph'
+import { fetchAccountTotals } from '../../../lib/meta/insights'
+import { isDay } from '../../../lib/overview-range'
 import { refreshWatchedMeta, syncWorkspaceMeta, workspaceTokens, type SyncSummary } from '../../../lib/meta/sync'
 import { createAdminClient } from '../../../lib/supabaseAdmin'
 import { createServerClient } from '../../../lib/supabaseServer'
@@ -109,4 +111,54 @@ export async function disconnectMetaAction(ws: string, connectionId: string): Pr
   await audit({ workspaceId: c.workspace.id, actorType: 'user', actorId: c.userId, action: 'meta_connection.remove', entityType: 'meta_connection', entityId: connectionId })
   refresh(ws)
   return { ok: true }
+}
+
+export type RangeMetrics = Record<string, { spend: number; revenue: number; purchases: number }>
+
+/**
+ * Métricas de gasto / valor de conversão / compras de um período exato (Visão geral),
+ * por cliente (id do cliente) ou por conta sem cliente (`conta:<id>`).
+ */
+export async function loadRangeMetricsAction(ws: string, since: string, until: string): Promise<{ ok: true; byId: RangeMetrics; errors: string[] } | Fail> {
+  if (!isDay(since) || !isDay(until) || since > until) return { ok: false, error: 'Período inválido.' }
+  const c = await managerCtx(ws)
+  if ('error' in c) return { ok: false, error: c.error! }
+  try {
+    const [{ data: watched }, { data: businesses }] = await Promise.all([
+      c.db.from('ad_accounts').select('id, client_id, name, external_account_id, meta_business_id').eq('workspace_id', c.workspace.id).eq('platform', 'meta').eq('is_watched', true),
+      c.db.from('meta_businesses').select('id, connection_id').eq('workspace_id', c.workspace.id),
+    ])
+    const rows = watched ?? []
+    const tokens = await workspaceTokens(c.workspace.id)
+    const anyToken = tokens.values().next().value ?? null
+    const connByBiz = new Map((businesses ?? []).map((b) => [b.id as string, b.connection_id as string]))
+    const byId: RangeMetrics = {}
+    const errors: string[] = []
+    let next = 0
+    await Promise.all(
+      Array.from({ length: Math.min(4, rows.length) }, async () => {
+        while (next < rows.length) {
+          const row = rows[next++]!
+          const token = (row.meta_business_id && tokens.get(connByBiz.get(row.meta_business_id as string) ?? '')) || anyToken
+          const key = (row.client_id as string | null) ?? `conta:${row.id}`
+          byId[key] ??= { spend: 0, revenue: 0, purchases: 0 }
+          if (!token) {
+            errors.push(`${row.name}: sem conexão ativa com o Facebook.`)
+            continue
+          }
+          try {
+            const t = await fetchAccountTotals(token, row.external_account_id as string, since, until)
+            byId[key].spend += t.spend
+            byId[key].revenue += t.revenue
+            byId[key].purchases += t.purchases
+          } catch (e) {
+            errors.push(`${row.name}: ${e instanceof MetaError ? e.message : 'falha ao consultar a Meta'}`)
+          }
+        }
+      }),
+    )
+    return { ok: true, byId, errors }
+  } catch (e) {
+    return { ok: false, error: e instanceof MetaError ? e.message : 'Falha ao consultar a Meta.' }
+  }
 }
