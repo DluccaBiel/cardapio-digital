@@ -83,7 +83,7 @@ export function ConnectionsTab(props: Props) {
     start(async () => {
       const r = await whatsappConnectAction(ws, true)
       if (!r.ok) return flash(r.error)
-      flash(robotOk ? 'Gerando o QR code…' : 'Pedido enviado. Ligue o robô no computador (iniciar-robo.cmd) para o QR aparecer.')
+      flash(robotOk ? 'Gerando o QR code…' : 'Pedido enviado. Instale o robô no computador (instalar-robo.cmd, uma vez só) para o QR aparecer.')
     })
 
   // ---- 3. Vínculos (pendentes até você confirmar) -----------------------------------------
@@ -219,7 +219,7 @@ export function ConnectionsTab(props: Props) {
         </div>
         {!robotOk && (
           <p className="mt-3 rounded-[5px] border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-3 py-2 text-[12px] text-[#FBBF24]">
-            O robô precisa estar ligado para gerar o QR. No seu computador, dê dois cliques em <b>iniciar-robo.cmd</b> e deixe a janela aberta.
+            O robô precisa estar ligado para gerar o QR. Instalação única: no seu computador, dê dois cliques em <b>instalar-robo.cmd</b>. Depois disso ele liga sozinho com o Windows, sem janela nem terminal.
           </p>
         )}
         {!linked && st === 'qr' && session?.qr_data_url && (
