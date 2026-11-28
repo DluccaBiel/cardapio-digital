@@ -136,7 +136,7 @@ export async function loadRangeMetricsAction(ws: string, since: string, until: s
     const errors: string[] = []
     let next = 0
     await Promise.all(
-      Array.from({ length: Math.min(4, rows.length) }, async () => {
+      Array.from({ length: Math.min(8, rows.length) }, async () => {
         while (next < rows.length) {
           const row = rows[next++]!
           const token = (row.meta_business_id && tokens.get(connByBiz.get(row.meta_business_id as string) ?? '')) || anyToken

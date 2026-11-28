@@ -46,6 +46,7 @@ import { KIND_LABEL } from '@/lib/reports/blocks'
 import { composeReport, headline, int, money, PERIOD_KEYS, PERIOD_LABEL, reportMessage, type PeriodKey, type ReportPayload, type ReportSource, type Show } from '@/lib/reports/format'
 import type { GroupView, HistoryRow, ReportsData, ScheduleView, SettingsView, TargetView } from '@/lib/reports/views'
 import { FieldLabel, Toast, Toggle, cn } from '@/components/hub/ui'
+import { ConnectionsTab } from '@/components/hub/reports/ConnectionsTab'
 import { WhatsAppCard } from '@/components/hub/prospect/DisparosScreen'
 import { PageHeader, Pill, Segmented } from '@/components/hub/prospect/shared'
 
@@ -95,7 +96,7 @@ const slug = (s: string) =>
     .slice(0, 40) || 'relatorio'
 
 type PreviewState = { state: 'loading' | 'ok' | 'error'; source?: ReportSource; error?: string }
-type Tab = 'gerador' | 'historico' | 'agendamentos' | 'modelos'
+type Tab = 'gerador' | 'conexoes' | 'historico' | 'agendamentos' | 'modelos'
 
 export function ReportsScreen({
   ws,
@@ -119,11 +120,12 @@ export function ReportsScreen({
     window.clearTimeout(toastTimer.current) // aviso novo não some com o timer do anterior
     toastTimer.current = window.setTimeout(() => setToast(null), 6000)
   }, [])
-  const [tab, setTab] = useState<Tab>('gerador')
+  const [tab, setTab] = useState<Tab>('conexoes')
 
   // ---- WhatsApp: status real (robô) + grupos -------------------------------------------
   const [session, setSession] = useState<WhatsappSession | null>(initialSession)
   const [workerOnline, setWorkerOnline] = useState<boolean | null>(null)
+  const connecting = session?.desired_state === 'connected' && session?.status !== 'ready'
   const [groups, setGroups] = useState<GroupView[]>(data.groups)
   const [groupsSyncedAt, setGroupsSyncedAt] = useState<string | null>(data.groupsSyncedAt)
   const [groupsRequestedAt, setGroupsRequestedAt] = useState<string | null>(null)
@@ -137,12 +139,13 @@ export function ReportsScreen({
       setWorkerOnline(r.workerOnline)
     }
     tick()
-    const id = window.setInterval(tick, 4000)
+    const id = window.setInterval(tick, connecting ? 1500 : 4000)
     return () => {
       alive = false
       window.clearInterval(id)
     }
-  }, [ws, canManageWhatsapp])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, canManageWhatsapp, connecting])
   const waiting = Boolean(groupsRequestedAt && (!groupsSyncedAt || Date.parse(groupsRequestedAt) > Date.parse(groupsSyncedAt)))
   const ready = session?.status === 'ready'
   // Grupos do número conectado (em Disparos ou aqui): o robô lê sozinho ao conectar; a tela acompanha.
@@ -192,20 +195,27 @@ export function ReportsScreen({
     (accountId: string): TargetView => targets.get(accountId) ?? { id: '', ad_account_id: accountId, group_jid: null, group_name: null, campaign_mode: 'merged', campaign_ids: [] },
     [targets],
   )
-  const saveTarget = async (accountId: string, patch: Partial<TargetView>) => {
-    const cur = { ...targetOf(accountId), ...patch }
+  const saveTarget = async (accountId: string, patch: Partial<TargetView>): Promise<boolean> => {
+    const prev = targetOf(accountId)
+    const cur = { ...prev, ...patch }
     setTargets((m) => new Map(m).set(accountId, cur))
     const r = await saveTargetAction(ws, { adAccountId: accountId, groupJid: cur.group_jid, groupName: cur.group_name, campaignMode: cur.campaign_mode, campaignIds: cur.campaign_ids })
-    if (!r.ok) return flash(r.error)
+    if (!r.ok) {
+      setTargets((m) => new Map(m).set(accountId, prev)) // desfaz: a tela nunca mostra vínculo que não foi salvo
+      flash(r.error)
+      return false
+    }
     setTargets((m) => new Map(m).set(accountId, r.target))
+    return true
   }
 
   // ---- Prévias reais (Meta) -----------------------------------------------------------------
   const [previews, setPreviews] = useState<Map<string, PreviewState>>(new Map())
-  const gen = useRef(0)
+  const gen = useRef('')
   const loadPreviews = useCallback(
     async (ids: string[]) => {
-      const run = ++gen.current
+      const run = `${period}|${compare}`
+      gen.current = run
       setPreviews((m) => {
         const n = new Map(m)
         for (const id of ids) n.set(id, { state: 'loading' })
@@ -215,11 +225,11 @@ export function ReportsScreen({
       for (let i = 0; i < ids.length; i += 4) chunks.push(ids.slice(i, i + 4))
       let next = 0
       await Promise.all(
-        [0, 1].map(async () => {
+        [0, 1, 2].map(async () => {
           while (next < chunks.length) {
             const chunk = chunks[next++]!
             const r = await previewAction(ws, { accountIds: chunk, period, compare }).catch(() => null)
-            if (run !== gen.current) return
+            if (gen.current !== run) return
             setPreviews((m) => {
               const n = new Map(m)
               for (const id of chunk) {
@@ -234,9 +244,12 @@ export function ReportsScreen({
     },
     [ws, period, compare],
   )
+  // Só as contas ACOMPANHADAS (e só na aba Gerador): consultar as ~130 contas de uma vez deixava tudo lento.
   useEffect(() => {
-    if (data.ready && data.accounts.length) loadPreviews(data.accounts.map((a) => a.id))
-  }, [loadPreviews, data.ready, data.accounts])
+    if (tab !== 'gerador' || !data.ready) return
+    const ids = data.accounts.filter((a) => a.watched).map((a) => a.id)
+    if (ids.length) loadPreviews(ids)
+  }, [loadPreviews, data.ready, data.accounts, tab])
 
   const [edited, setEdited] = useState<Map<string, string>>(new Map())
   const [savedId, setSavedId] = useState<Map<string, string>>(new Map())
@@ -257,6 +270,10 @@ export function ReportsScreen({
   const messageOf = (accountId: string, p: ReportPayload) => edited.get(accountId) ?? reportMessage(p)
 
   const [focus, setFocus] = useState<string | null>(data.accounts[0]?.id ?? null)
+  // Conta fora das acompanhadas: carrega a prévia só quando for aberta.
+  useEffect(() => {
+    if (tab === 'gerador' && focus && !previews.has(focus)) loadPreviews([focus])
+  }, [tab, focus, previews, loadPreviews])
   const [checked, setChecked] = useState<Set<string>>(new Set())
 
   // ---- Histórico ---------------------------------------------------------------------------------
@@ -297,6 +314,7 @@ export function ReportsScreen({
             onChange={setTab}
             options={[
               { value: 'gerador', label: 'Gerador' },
+              { value: 'conexoes', label: 'Conexões' },
               { value: 'historico', label: `Histórico${history.length ? ` (${history.length})` : ''}` },
               { value: 'agendamentos', label: 'Agendamentos' },
               { value: 'modelos', label: 'Modelos' },
@@ -360,6 +378,26 @@ export function ReportsScreen({
           refreshHistory={refreshHistory}
           linked={session?.status === 'ready' || session?.status === 'syncing'}
           flash={flash}
+        />
+      )}
+      {tab === 'conexoes' && (
+        <ConnectionsTab
+          ws={ws}
+          accounts={data.accounts}
+          groups={groups}
+          targets={targets}
+          setTargets={setTargets}
+          saveTarget={saveTarget}
+          schedules={schedules}
+          setSchedules={setSchedules}
+          settings={settings}
+          session={session}
+          workerOnline={workerOnline}
+          waiting={waiting}
+          onRequestGroups={() => requestGroups()}
+          canWrite={canWrite}
+          flash={flash}
+          goSchedules={() => setTab('agendamentos')}
         />
       )}
       {tab === 'historico' && <HistoryTab ws={ws} rows={history} canWrite={canWrite} refresh={refreshHistory} flash={flash} />}
@@ -521,7 +559,7 @@ type GenProps = {
   reload: () => void
   reloadOne: (id: string) => void
   targetOf: (id: string) => TargetView
-  saveTarget: (id: string, patch: Partial<TargetView>) => Promise<void>
+  saveTarget: (id: string, patch: Partial<TargetView>) => Promise<boolean>
   payloadOf: (id: string) => ReportPayload | null
   messageOf: (id: string, p: ReportPayload) => string
   setEdited: (id: string, text: string) => void

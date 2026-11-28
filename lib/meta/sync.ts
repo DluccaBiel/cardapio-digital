@@ -110,7 +110,7 @@ export async function syncWorkspaceMeta(db: SupabaseClient, workspaceId: string)
     }
 
     const fresh = accounts.filter((a) => !byExt.has(a.external_account_id))
-    const details = await pool(fresh, 4, async (a) => {
+    const details = await pool(fresh, 8, async (a) => {
       if (a.status !== 'active') return null
       try {
         return await enrichAccount(src.token, a.external_account_id)
@@ -213,7 +213,7 @@ export async function refreshWatchedMeta(db: SupabaseClient, workspaceId: string
   const tokenFor = (bizId: string | null) => (bizId && tokens.get(connByBiz.get(bizId) ?? '')) || anyToken
 
   let refreshed = 0
-  await pool(watched, 4, async (row) => {
+  await pool(watched, 8, async (row) => {
     const token = tokenFor(row.meta_business_id as string | null)
     if (!token) {
       errors.push(`${row.name}: sem conexão ativa com o Facebook.`)

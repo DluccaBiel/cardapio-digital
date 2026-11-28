@@ -39,3 +39,16 @@ export function matchGroups<G extends MatchGroup>(clients: { id: string; name: s
   }
   return out
 }
+
+/** Grupos ordenados por semelhança com o nome do cliente (0–1). Só devolve os com alguma palavra em comum. */
+export function rankGroups<G extends MatchGroup>(clientName: string, groups: G[]): { group: G; score: number }[] {
+  const ct = tokens(clientName)
+  if (!ct.length) return []
+  return groups
+    .map((g) => {
+      const t = new Set(tokens(g.name))
+      return { group: g, score: ct.filter((x) => t.has(x)).length / ct.length }
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || a.group.name.localeCompare(b.group.name))
+}

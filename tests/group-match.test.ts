@@ -24,3 +24,15 @@ describe('matchGroups', () => {
     ])
   })
 })
+
+import { rankGroups } from '../lib/reports/group-match'
+describe('rankGroups', () => {
+  it('ordena do mais parecido ao menos', () => {
+    const r = rankGroups('Chamas Pizzas', [
+      { jid: '1', name: 'Pizzas Brasil' },
+      { jid: '2', name: 'Chamas Pizzas | Resultados' },
+      { jid: '3', name: 'Família' },
+    ])
+    expect(r.map((x) => x.group.jid)).toEqual(['2', '1'])
+  })
+})
