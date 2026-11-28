@@ -46,7 +46,6 @@ import { KIND_LABEL } from '@/lib/reports/blocks'
 import { composeReport, headline, int, money, PERIOD_KEYS, PERIOD_LABEL, reportMessage, type PeriodKey, type ReportPayload, type ReportSource, type Show } from '@/lib/reports/format'
 import type { GroupView, HistoryRow, ReportsData, ScheduleView, SettingsView, TargetView } from '@/lib/reports/views'
 import { FieldLabel, Toast, Toggle, cn } from '@/components/hub/ui'
-import { ConnectionsTab } from '@/components/hub/reports/ConnectionsTab'
 import { WhatsAppCard } from '@/components/hub/prospect/DisparosScreen'
 import { PageHeader, Pill, Segmented } from '@/components/hub/prospect/shared'
 
@@ -96,7 +95,7 @@ const slug = (s: string) =>
     .slice(0, 40) || 'relatorio'
 
 type PreviewState = { state: 'loading' | 'ok' | 'error'; source?: ReportSource; error?: string }
-type Tab = 'gerador' | 'conexoes' | 'historico' | 'agendamentos' | 'modelos'
+type Tab = 'gerador' | 'historico' | 'agendamentos' | 'modelos'
 
 export function ReportsScreen({
   ws,
@@ -298,7 +297,6 @@ export function ReportsScreen({
             onChange={setTab}
             options={[
               { value: 'gerador', label: 'Gerador' },
-              { value: 'conexoes', label: 'Conexões' },
               { value: 'historico', label: `Histórico${history.length ? ` (${history.length})` : ''}` },
               { value: 'agendamentos', label: 'Agendamentos' },
               { value: 'modelos', label: 'Modelos' },
@@ -362,27 +360,6 @@ export function ReportsScreen({
           refreshHistory={refreshHistory}
           linked={session?.status === 'ready' || session?.status === 'syncing'}
           flash={flash}
-        />
-      )}
-      {tab === 'conexoes' && (
-        <ConnectionsTab
-          ws={ws}
-          accounts={data.accounts}
-          groups={groups}
-          targets={targets}
-          setTargets={setTargets}
-          saveTarget={saveTarget}
-          schedules={schedules}
-          setSchedules={setSchedules}
-          settings={settings}
-          whatsapp={data.whatsapp}
-          linked={session?.status === 'ready' || session?.status === 'syncing'}
-          workerOnline={workerOnline}
-          waiting={waiting}
-          onRequestGroups={() => requestGroups()}
-          canWrite={canWrite}
-          flash={flash}
-          goSchedules={() => setTab('agendamentos')}
         />
       )}
       {tab === 'historico' && <HistoryTab ws={ws} rows={history} canWrite={canWrite} refresh={refreshHistory} flash={flash} />}

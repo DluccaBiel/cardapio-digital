@@ -1,25 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { brand } from '@undercut/brand'
 import { createClient } from '../../lib/supabase'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [mode, setMode] = useState<'chave' | 'senha'>('senha')
+  const [mode, setMode] = useState<'chave' | 'senha'>('chave')
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const supabase = createClient()
-
-  // Acesso por chave fica escondido: abre com /login?adm=1 ou clicando 5x na versão.
-  const [taps, setTaps] = useState(0)
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('adm') === '1') setMode('chave')
-  }, [])
-  useEffect(() => { if (taps >= 5) { setMode('chave'); setTaps(0) } }, [taps])
 
   async function handleToken(e: React.FormEvent) {
     e.preventDefault()
@@ -82,7 +75,7 @@ export default function Login() {
               {loading ? 'Entrando...' : 'Entrar com a chave'}
             </button>
             <p className="alt">
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => { setError(''); setMode('senha') }}>Voltar ao login normal</button>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => { setError(''); setMode('senha') }}>Entrar com e-mail e senha (equipe)</button>
             </p>
           </form>
         ) : (
@@ -96,13 +89,16 @@ export default function Login() {
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
+        <p className="alt">
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => { setError(''); setMode('chave') }}>Voltar para a chave do ADM</button>
+        </p>
         </>
         )}
         <p className="alt">
           Não tem conta?{' '}
           <a href="/cadastro" className="btn btn-outline btn-sm">Cadastrar</a>
         </p>
-        <p className="version" onClick={() => setTaps(t => t + 1)} style={{ userSelect: 'none' }}>{brand.name} v{brand.version}</p>
+        <p className="version">{brand.name} v{brand.version}</p>
         <p className="micro">Tráfego · Dados · Estratégia</p>
       </div>
     </div>
