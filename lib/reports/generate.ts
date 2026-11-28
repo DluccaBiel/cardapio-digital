@@ -179,6 +179,8 @@ export async function generateAndQueue(input: {
     }
   })
   const items = built.filter((x): x is QueueItem => x !== null)
+  // Nada saiu por falha (Meta fora do ar, token vencido…): estoura para o disparo tentar de novo.
+  if (!items.length && withGroup.length > 0) throw new Error(errors.join(' · ') || 'Não consegui gerar nenhum relatório.')
   await queueReports(db, workspaceId, items, { intervalMin: input.intervalMin, intervalMax: input.intervalMax, scheduleId: input.scheduleId })
   return { queued: items.length, errors }
 }

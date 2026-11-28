@@ -9,6 +9,11 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 export const OPTIONS = preflight
 
+/** Passou disso do horário marcado → não dispara (evita enviar na terça ou depois do meio-dia). */
+const MAX_LATE_MS = 3 * 3_600_000
+/** Se a geração falhar, tenta de novo daqui a pouco (dentro da janela acima). */
+const RETRY_MS = 10 * 60_000
+
 const body = z.object({ schedule_id: z.string().uuid() })
 
 /**
@@ -32,6 +37,23 @@ export async function POST(req: Request) {
     .maybeSingle()
   if (!s) return err(req, 'not_found', 'Agendamento não encontrado.')
   if (!s.active || !s.next_run_at || Date.parse(s.next_run_at) > Date.now()) return ok(req, { action: 'skip', reason: 'não está na hora' })
+
+  // Perdeu a janela (robô desligado/PC dormindo): não envia fora de hora, só reagenda e avisa.
+  const lateMs = Date.now() - Date.parse(s.next_run_at)
+  if (lateMs > MAX_LATE_MS) {
+    const skipTo = nextRunAt(s.days_of_week as number[], s.send_time as string, new Date())
+    const { data: moved } = await db
+      .from('report_schedules')
+      .update({
+        next_run_at: skipTo,
+        last_error: `Horário perdido (${new Date(s.next_run_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}): o robô estava desligado. Reagendado para a próxima data; use "Enviar agora" se precisar.`,
+      })
+      .eq('workspace_id', ws)
+      .eq('id', s.id)
+      .eq('next_run_at', s.next_run_at)
+      .select('id')
+    return ok(req, { action: 'skip', reason: moved?.length ? 'horário perdido' : 'já executado', next_run_at: skipTo })
+  }
 
   // Reserva: só uma execução por horário, mesmo com dois robôs/chamadas.
   const next = nextRunAt(s.days_of_week as number[], s.send_time as string, new Date(Math.max(Date.now(), Date.parse(s.next_run_at)) + 60_000))
@@ -68,7 +90,19 @@ export async function POST(req: Request) {
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message.slice(0, 300) : 'falha ao gerar'
-    await db.from('report_schedules').update({ last_error: msg }).eq('workspace_id', ws).eq('id', s.id)
+    // Devolve a execução (dentro da janela de 3 h): sem isso a semana inteira se perdia por uma falha passageira.
+    const retryAt = Date.now() + RETRY_MS
+    const canRetry = retryAt - Date.parse(s.next_run_at) < MAX_LATE_MS
+    await db
+      .from('report_schedules')
+      .update(
+        canRetry
+          ? { last_error: `${msg} — tentando de novo em 10 min.`.slice(0, 500), next_run_at: new Date(retryAt).toISOString() }
+          : { last_error: `${msg} — não deu para enviar nesta semana; próxima data mantida.`.slice(0, 500) },
+      )
+      .eq('workspace_id', ws)
+      .eq('id', s.id)
+      .eq('next_run_at', next)
     return err(req, 'internal', msg)
   }
   if ((targets ?? []).length < (s.target_ids as string[]).length) result.errors.push('Algumas contas do agendamento não têm mais configuração.')

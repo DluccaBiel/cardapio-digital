@@ -17,15 +17,15 @@ export async function createAiBridge({ db, WS, log, hubUrl }) {
   if (!/^https:\/\/[a-z0-9.-]+$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(base)) throw new Error(`HUB_URL inválida: ${base}`)
 
   const { data: ext } = await db.from('extensions').select('id').eq('slug', 'undercut-sdr').maybeSingle()
-  if (!ext) {
-    log('IA: extensão undercut-sdr não registrada no banco (migration do SDR pendente) — respostas da IA desligadas.')
-    return { onInbound: async () => {}, tick: async () => {} }
-  }
+  // Sem a extensão do SDR só a IA fica desligada; a chave continua sendo criada porque os
+  // relatórios automáticos (segunda-feira) dependem dela.
+  const aiOn = Boolean(ext)
+  if (!aiOn) log('IA: extensão undercut-sdr não registrada no banco — respostas da IA desligadas (relatórios continuam).')
   await db.from('api_keys').update({ revoked_at: new Date().toISOString() }).eq('workspace_id', WS).like('name', `${NAME_PREFIX}%`).is('revoked_at', null)
   const key = `ck_live_${randomBytes(32).toString('base64url')}`
   const { error } = await db.from('api_keys').insert({
     workspace_id: WS,
-    extension_id: ext.id,
+    extension_id: ext?.id ?? null,
     name: `${NAME_PREFIX} · ${os.hostname().slice(0, 40)}`,
     key_hash: createHash('sha256').update(key, 'utf8').digest('hex'),
     key_prefix: key.slice(0, 12),
@@ -34,7 +34,7 @@ export async function createAiBridge({ db, WS, log, hubUrl }) {
     expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
   })
   if (error) {
-    log('IA: não consegui criar a chave do robô —', error.code ?? error.message)
+    log('IA/relatórios: não consegui criar a chave do robô —', error.code ?? error.message, '(disparos automáticos não vão rodar)')
     return { onInbound: async () => {}, tick: async () => {} }
   }
 
@@ -43,6 +43,7 @@ export async function createAiBridge({ db, WS, log, hubUrl }) {
   let lastSweep = 0
 
   async function aiEnabled() {
+    if (!aiOn) return false
     const { data } = await db.from('sdr_settings').select('ai_enabled').eq('workspace_id', WS).maybeSingle()
     return Boolean(data?.ai_enabled)
   }

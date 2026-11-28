@@ -214,7 +214,7 @@ async function start() {
         })
         log(`Vinculado (${phone}). Sincronizando…`)
         clearTimeout(readyTimer)
-        readyTimer = setTimeout(markReady, 90_000) // fallback se o WhatsApp não avisar o fim
+        readyTimer = setTimeout(markReady, 20_000) // fallback se o WhatsApp não avisar o fim
       }
       if (u.receivedPendingNotifications) markReady()
       if (u.connection === 'close') {
@@ -411,7 +411,8 @@ const sdr = createSdr({
   onInboundForAi: (lead) => ai.onInbound(lead), // a IA responde pelo Undercut (servidor)
 })
 // Relatórios nos grupos do WhatsApp (grupos, disparo automático e fila de envio) — ver reports.mjs
-const reports = createReports({ db, WS, log, getSock: () => sock, isReady: () => status === 'ready', hub: ai.hub ?? null, pace })
+// Grupos já podem ser lidos assim que o socket abre (sem esperar o fim da sincronização do histórico).
+const reports = createReports({ db, WS, log, getSock: () => sock, isReady: () => status === 'ready' || status === 'syncing', hub: ai.hub ?? null, pace })
 
 // ---------------------------------------------------------------------------
 // Pesquisas do agente de prospecção (fila prospect_searches)
@@ -507,30 +508,51 @@ async function runSearch(job) {
 }
 
 // ---------------------------------------------------------------------------
-// Laço principal
+// Laços principais
+//   controle  → batimento + conectar/desconectar (rápido, nunca espera trabalho pesado)
+//   pesquisa  → busca de leads (pode levar minutos; roda à parte)
+//   envios    → Disparos, SDR, IA e Relatórios (em sequência: dividem o mesmo ritmo anti-bloqueio)
 // ---------------------------------------------------------------------------
 let busy = false
 async function loop() {
   if (busy) return
   busy = true
   try {
-    const { data } = await db.from('whatsapp_sessions').select('desired_state').eq('workspace_id', WS).maybeSingle()
-    await setStatus({ worker_seen_at: new Date().toISOString() })
+    const [{ data }] = await Promise.all([
+      db.from('whatsapp_sessions').select('desired_state').eq('workspace_id', WS).maybeSingle(),
+      setStatus({ worker_seen_at: new Date().toISOString() }),
+    ])
     if (data?.desired_state === 'connected' && !sock) await start()
     else if (data?.desired_state === 'disconnected' && (sock || status !== 'disconnected')) {
       if (status !== 'logged_out' || sock) await stop()
     }
-    await searchTick()
-    await sendTick()
-    await sdr.tick()
-    await ai.tick()
-    await reports.tick()
   } catch (e) {
     log('erro no ciclo:', e.message)
   } finally {
     busy = false
   }
 }
+function guarded(name, fn) {
+  let running = false
+  return async () => {
+    if (running) return
+    running = true
+    try {
+      await fn()
+    } catch (e) {
+      log(`erro (${name}):`, e.message)
+    } finally {
+      running = false
+    }
+  }
+}
+const searchLoop = guarded('pesquisa', () => searchTick())
+const workLoop = guarded('envios', async () => {
+  await sendTick()
+  await sdr.tick()
+  await ai.tick()
+  await reports.tick()
+})
 
 // Bate ponto inicial imediatamente
 await setStatus({ worker_seen_at: new Date().toISOString() })
@@ -543,7 +565,9 @@ if (initSession?.desired_state !== 'connected') {
 }
 start().catch((e) => log('erro ao iniciar conexão:', e.message))
 
-setInterval(loop, 4000)
+setInterval(loop, 2000)
+setInterval(searchLoop, 4000)
+setInterval(workLoop, 3000)
 loop()
 log('Robô de disparos rodando. Deixe esta janela aberta (Ctrl+C para parar).')
 

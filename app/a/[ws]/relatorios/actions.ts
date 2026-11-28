@@ -40,7 +40,7 @@ export async function previewAction(ws: string, input: unknown): Promise<{ ok: t
   const accounts = await loadAccounts(c.db, c.workspace.id, p.data.accountIds).catch(() => null)
   if (!accounts) return fail('Não consegui ler as contas de anúncio.')
   const tokenFor = await tokenResolver(c.db, c.workspace.id)
-  const items = await pool(p.data.accountIds, 3, async (id): Promise<PreviewItem> => {
+  const items = await pool(p.data.accountIds, 4, async (id): Promise<PreviewItem> => {
     const account = accounts.find((a) => a.id === id)
     if (!account) return { adAccountId: id, source: null, error: 'Conta não encontrada.' }
     try {
@@ -69,6 +69,36 @@ export async function saveTargetAction(ws: string, input: unknown): Promise<{ ok
   if ('error' in c) return fail(c.error!)
   const p = targetSchema.safeParse(input)
   if (!p.success) return fail('Dados inválidos.')
+
+  if (p.data.groupJid) {
+    // O grupo precisa existir na lista sincronizada (evita vincular a um grupo que o robô nem enxerga).
+    const { data: g } = await c.db.from('whatsapp_groups').select('jid, name').eq('workspace_id', c.workspace.id).eq('jid', p.data.groupJid).maybeSingle()
+    if (!g) return fail('Esse grupo não está na lista sincronizada. Clique em "Sincronizar grupos" e tente de novo.')
+    p.data.groupName = g.name ?? p.data.groupName
+
+    // Um grupo = um cliente. Contas do MESMO cliente podem compartilhar o grupo; de clientes diferentes, não.
+    const { data: mine } = await c.db.from('ad_accounts').select('id, client_id').eq('workspace_id', c.workspace.id).eq('id', p.data.adAccountId).maybeSingle()
+    if (!mine) return fail('Conta de anúncio não encontrada.')
+    const { data: others } = await c.db
+      .from('report_targets')
+      .select('ad_account_id')
+      .eq('workspace_id', c.workspace.id)
+      .eq('group_jid', p.data.groupJid)
+      .neq('ad_account_id', p.data.adAccountId)
+    if (others?.length) {
+      const { data: accs } = await c.db
+        .from('ad_accounts')
+        .select('id, name, client_id, clients ( name )')
+        .eq('workspace_id', c.workspace.id)
+        .in('id', others.map((o) => o.ad_account_id as string))
+      const clash = (accs ?? []).find((a) => !mine.client_id || a.client_id !== mine.client_id)
+      if (clash) {
+        const who = (Array.isArray(clash.clients) ? clash.clients[0]?.name : (clash.clients as { name?: string } | null)?.name) ?? clash.name
+        return fail(`Esse grupo já está vinculado a "${who}". Desfaça aquele vínculo antes, para não mandar o relatório de um cliente no grupo de outro.`)
+      }
+    }
+  }
+
   const { data, error } = await c.db
     .from('report_targets')
     .upsert(
